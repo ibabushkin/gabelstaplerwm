@@ -11,6 +11,7 @@ enum WmError {
     OtherWmRunning,
 }
 
+// a window manager, wrapping a Connection and a root window
 struct Wm<'a> {
     con: &'a Connection,
     //screen: Screen,
@@ -18,6 +19,7 @@ struct Wm<'a> {
 }
 
 impl<'a> Wm<'a> {
+    // wrap a connection to initialize a window manager
     pub fn new(con: &'a Connection, screen_num: i32)
         -> Result<Wm<'a>, WmError> {
         let setup = con.get_setup();
@@ -28,6 +30,7 @@ impl<'a> Wm<'a> {
         Ok(Wm {con: &con, root: screen.root()})
     }
 
+    // register and get back atoms
     pub fn get_atoms(&self, names: Vec<&str>) -> Result<Vec<Atom>, WmError> {
         let mut cookies = Vec::with_capacity(names.len());
         let mut res = Vec::with_capacity(names.len());
@@ -43,6 +46,8 @@ impl<'a> Wm<'a> {
         Ok(res)
     }
 
+    // register window manager, by requesting substructure redirects for
+    // the root window
     pub fn register(&self) -> Result<(), WmError> {
         let values
             = EVENT_MASK_SUBSTRUCTURE_REDIRECT
@@ -55,6 +60,8 @@ impl<'a> Wm<'a> {
             Err(_) => Err(WmError::OtherWmRunning)
         }
     }
+
+    // main loop: wait for events, handle them (TODO)
     pub fn run(&self) {
         loop {
             self.con.flush();
@@ -70,10 +77,12 @@ impl<'a> Wm<'a> {
 }
 
 fn main() {
+    // new connection to X server
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(_) => panic!("Could not connect")
     };
+    // wm init
     let wm = match Wm::new(&con, screen_num) {
         Ok(w) => w,
         Err(_) => {
@@ -81,6 +90,7 @@ fn main() {
             exit(1);
         }
     };
+    // atom setup
     let atoms = wm.get_atoms(vec!["WM_PROTOCOLS", "WM_DELETE_WINDOWS",
                              "WM_STATE", "WM_TAKE_FOCUS"]);
     wm.register();
