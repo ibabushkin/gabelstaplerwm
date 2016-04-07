@@ -1,13 +1,18 @@
 extern crate xcb;
+//extern crate xkbcommon;
 
 use std::process::exit;
+
 use xcb::*;
+
+//use xkbcommon::xkb::x11 as xkb;
 
 // an error encountered by the WM
 enum WmError {
     CouldNotConnect(ConnError),
     CouldNotAcquireScreen,
     CouldNotRegisterAtom(String),
+    CouldNotSetupXkb,
     OtherWmRunning,
     ConnectionInterrupted,
     IOError
@@ -23,6 +28,8 @@ impl WmError {
                 println!("Could not acquire screen."),
             WmError::CouldNotRegisterAtom(s) =>
                 println!("Could not register atom. {}", s),
+            WmError::CouldNotSetupXkb =>
+                println!("Could not setup XKB"),
             WmError::OtherWmRunning =>
                 println!("Another WM is running."),
             WmError::ConnectionInterrupted =>
@@ -70,6 +77,18 @@ impl<'a> Wm<'a> {
         Ok(res)
     }
 
+    // setup XKB 
+    pub fn setup_xkb(&self) -> Result<(), WmError> {
+        match xkb::use_extension(self.con,
+                                 xkb::MAJOR_VERSION as u16,
+                                 xkb::MINOR_VERSION as u16
+                                 ).get_reply() {
+            Ok(res) => if res.supported() { Ok(()) }
+                       else { Err(WmError::CouldNotSetupXkb) },
+            Err(_) => Err(WmError::CouldNotSetupXkb)
+        }
+    }
+
     // register window manager, by requesting substructure redirects for
     // the root window
     pub fn register(&self) -> Result<(), WmError> {
@@ -114,6 +133,10 @@ fn main() {
     // atom setup
     let atoms = wm.get_atoms(vec!["WM_PROTOCOLS", "WM_DELETE_WINDOWS",
                              "WM_STATE", "WM_TAKE_FOCUS"]);
+    // setup XKB
+    if let Err(e) = wm.setup_xkb() {
+        e.handle();
+    }
     // register as a window manager and fail if another WM is running
     if let Err(e) = wm.register() {
         e.handle();

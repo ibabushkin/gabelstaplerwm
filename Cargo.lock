@@ -3,7 +3,6 @@ name = "gabelstaplerwm"
 version = "0.1.0"
 dependencies = [
  "xcb 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "xkbcommon 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -19,15 +18,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "xcb"
 version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "xkbcommon"
-version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",

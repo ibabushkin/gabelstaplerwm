@@ -4,5 +4,4 @@ version = "0.1.0"
 authors = ["Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>"]
 
 [dependencies]
-xcb = "0.7.2"
-xkbcommon = "0.2.0"
+xcb = { version = "0.7.2", features = ["xkb"] }
