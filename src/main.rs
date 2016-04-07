@@ -12,7 +12,7 @@ enum WmError {
     CouldNotConnect(ConnError),
     CouldNotAcquireScreen,
     CouldNotRegisterAtom(String),
-    CouldNotSetupXkb,
+    //CouldNotSetupXkb,
     OtherWmRunning,
     ConnectionInterrupted,
     IOError
@@ -28,8 +28,8 @@ impl WmError {
                 println!("Could not acquire screen."),
             WmError::CouldNotRegisterAtom(s) =>
                 println!("Could not register atom. {}", s),
-            WmError::CouldNotSetupXkb =>
-                println!("Could not setup XKB"),
+            //WmError::CouldNotSetupXkb =>
+            //    println!("Could not setup XKB"),
             WmError::OtherWmRunning =>
                 println!("Another WM is running."),
             WmError::ConnectionInterrupted =>
@@ -77,17 +77,41 @@ impl<'a> Wm<'a> {
         Ok(res)
     }
 
-    // setup XKB 
+    /* setup XKB 
     pub fn setup_xkb(&self) -> Result<(), WmError> {
-        match xkb::use_extension(self.con,
-                                 xkb::MAJOR_VERSION as u16,
-                                 xkb::MINOR_VERSION as u16
-                                 ).get_reply() {
-            Ok(res) => if res.supported() { Ok(()) }
-                       else { Err(WmError::CouldNotSetupXkb) },
-            Err(_) => Err(WmError::CouldNotSetupXkb)
+        // notify the X server that we want to use XKB
+        let res = xkb::use_extension(self.con,
+                                     xkb::MAJOR_VERSION as u16,
+                                     xkb::MINOR_VERSION as u16
+                                     ).get_reply();
+        if let Ok(r) = res {
+            if !r.supported() {
+                return Err(WmError::CouldNotSetupXkb);
+            }
+        } else {
+            return Err(WmError::CouldNotSetupXkb);
+        }
+
+        // register for keyboard events in proper fashion (see i5wm):
+        // github.com/i5-wm/i5/commit/3f5a0f0024b7c77fadea6431e356c0fc060e2986
+        // NOTE: I am not sure how this works, but the XCB library docs are
+        // incomplete af.
+        if let Err(_) = xkb::select_events(
+            self.con,                                // connection
+            xkb::ID_USE_CORE_KBD as xkb::DeviceSpec, // default keyboard
+            xkb::EVENT_TYPE_STATE_NOTIFY as u16,     // events we want
+            0,                                       // magic :/
+            xkb::EVENT_TYPE_STATE_NOTIFY as u16,     // events... again
+            0xff,                                    // magic :/
+            0xff,                                    // magic :/
+            None                                     // no details (magic)
+            ).request_check() {
+            Err(WmError::CouldNotSetupXkb)
+        } else {
+            Ok(())
         }
     }
+    */
 
     // register window manager, by requesting substructure redirects for
     // the root window
@@ -96,6 +120,7 @@ impl<'a> Wm<'a> {
             = EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | EVENT_MASK_SUBSTRUCTURE_NOTIFY
             | EVENT_MASK_PROPERTY_CHANGE
+            | EVENT_MASK_KEY_PRESS
             | EVENT_MASK_BUTTON_PRESS;
         match change_window_attributes_checked(
             self.con, self.root, &[(CW_EVENT_MASK, values)]).request_check() {
@@ -104,7 +129,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // main loop: wait for events, handle them (TODO)
+    // main loop: wait for events, handle them
     pub fn run(&self) -> Result<(), WmError> {
         loop {
             self.con.flush();
@@ -112,9 +137,29 @@ impl<'a> Wm<'a> {
                 return Err(WmError::ConnectionInterrupted);
             }
             match self.con.wait_for_event() {
-                Some(ev) => println!("Event recieved"),
+                Some(ev) => self.handle(ev),
                 None => return Err(WmError::IOError)
             }
+        }
+    }
+
+    // handle an event received from the X server
+    fn handle(&self, event: GenericEvent) {
+        match event.response_type() {
+            xkb::STATE_NOTIFY => {
+                let ev: &xkb::StateNotifyEvent = cast_event(&event);
+                println!("Key pressed: type:{}, code:{}",
+                         ev.xkbType(),
+                         ev.keycode());
+            },
+            BUTTON_PRESS => {
+                let ev: &ButtonPressEvent = cast_event(&event);
+                println!("Button pressed: button:{}, x:{}, y:{}",
+                         ev.detail(),
+                         ev.root_x(),
+                         ev.root_y());
+            }
+            num => println!("Unknown event number: {}.", num)
         }
     }
 }
@@ -133,10 +178,11 @@ fn main() {
     // atom setup
     let atoms = wm.get_atoms(vec!["WM_PROTOCOLS", "WM_DELETE_WINDOWS",
                              "WM_STATE", "WM_TAKE_FOCUS"]);
-    // setup XKB
+    /* setup XKB
     if let Err(e) = wm.setup_xkb() {
         e.handle();
     }
+    */
     // register as a window manager and fail if another WM is running
     if let Err(e) = wm.register() {
         e.handle();
