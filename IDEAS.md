@@ -9,7 +9,7 @@ That way, users can choose components and replace/extend at will.
   * layouts implement a trait that allows for proper interaction with the
     rest of the WM
 * keybinding is done during WM init, i.e. passing an array of pairs to a function:
-  * `wm.init_keys(&[(Key {mods: 64, key: 34}]);`
+  * `wm.init_keys(&[(Key {mods: 64, key: 34}, some_function)]);`
   * a modal interface of sorts?
 * additional functionality (mouse-replacement etc) is placed in additional modules
 * tags work similarly to awesomeWM: N:M relationship between windows and tags
