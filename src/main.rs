@@ -11,7 +11,7 @@ fn main() {
         Err(e) => wm::WmError::CouldNotConnect(e).handle()
     };
     // wm init
-    let wm = match wm::Wm::new(&con, screen_num) {
+    let mut wm = match wm::Wm::new(&con, screen_num) {
         Ok(w) => w,
         Err(e) => e.handle()
     };
@@ -22,6 +22,8 @@ fn main() {
     if let Err(e) = wm.register() {
         e.handle();
     }
+    wm.setup_bindings(
+        vec![(wm::KeyPress::Key(42, 0), Box::new(|| println!("HAH!")))]);
     // main loop
     if let Err(e) = wm.run() {
         e.handle();
