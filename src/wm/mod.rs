@@ -2,6 +2,7 @@ extern crate xcb;
 
 pub mod err;
 pub mod kbd;
+pub mod layout;
 
 use std::collections::HashMap;
 use std::collections::LinkedList;
@@ -22,7 +23,8 @@ pub struct Wm<'a> {
     root: xproto::Window,
     bindings: HashMap<kbd::KeyPress, Box<Fn() -> ()>>,
     tags: Vec<Tag<'a>>,
-    visible_tags: Vec<Tag<'a>>,
+    visible_tags: Vec<&'a Tag<'a>>,
+    layouts: Vec<Box<layout::Layout>>,
     atoms: Vec<(xproto::Atom, &'a str)>,
 }
 
@@ -34,8 +36,9 @@ impl<'a> Wm<'a> {
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
-                    bindings: HashMap::new(), atoms:atoms,
-                    tags: Vec::new(), visible_tags: Vec::new()}),
+                    bindings: HashMap::new(), atoms: atoms,
+                    layouts: Vec::new(), tags: Vec::new(),
+                    visible_tags: Vec::new()}),
                 Err(e) => Err(e)
             }
         } else {
@@ -107,6 +110,7 @@ impl<'a> Wm<'a> {
             }
             xproto::CREATE_NOTIFY => { // TODO: add a new client, rearrange windows
                 let ev: &xproto::CreateNotifyEvent = base::cast_event(&event);
+                let client = Client::new(&self, ev.window());
                 println!("Parent {} created window {} at x:{}, y:{}",
                          ev.parent(), ev.window(), ev.x(), ev.y());
             }
@@ -121,8 +125,7 @@ impl<'a> Wm<'a> {
             }
             xproto::MAP_REQUEST => { // TODO: map the window
                 let ev: &xproto::MapRequestEvent = base::cast_event(&event);
-                let client = Client::new(&self, ev.window());
-                println!("Client {:?} created, needs mapping", client);
+                println!("Client {} requests mapping", ev.window());
             }
             num => println!("Unknown event number: {}.", num)
         }
@@ -135,7 +138,7 @@ impl<'a> Wm<'a> {
         let mut res: Vec<(xproto::Atom, &'a str)> =
             Vec::with_capacity(names.len());
         for name in names {
-            cookies.push((xproto::intern_atom(con, true, name), name));
+            cookies.push((xproto::intern_atom(con, false, name), name));
         }
         for (cookie, name) in cookies {
             match cookie.get_reply() {
@@ -152,6 +155,7 @@ impl<'a> Wm<'a> {
         let tuples = self.atoms.iter();
         for &(atom, n) in tuples {
             if n == name {
+                println!("Atom: {}", atom);
                 return atom;
             }
         }
@@ -163,7 +167,7 @@ impl<'a> Wm<'a> {
                              atom_name: &'a str) -> xproto::GetPropertyCookie {
         xproto::get_property(self.con, false, window,
                              self.lookup_atom(atom_name),
-                             xproto::ATOM_ATOM, 0, 1)
+                             xproto::ATOM_ATOM, 0, 0xffffffff)
     }
 }
 
@@ -176,7 +180,6 @@ pub struct Client {
 
 impl Client {
     // setup a new client from a window manager for a specific window
-    // TODO: proper error handling
     fn new(wm: &Wm, window: xproto::Window) -> Option<Client> {
         let cookie = wm.get_ewmh_property(window, "_NET_WM_WINDOW_TYPE");
         match cookie.get_reply() {
@@ -184,8 +187,7 @@ impl Client {
                 let w_type = props.type_();
                 Some(Client {window: window, urgent: false, w_type: w_type})
             },
-            Err(e) => {
-                panic!("error: {:?}", e);
+            Err(_) => {
                 None
             }
         }
