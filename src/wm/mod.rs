@@ -19,13 +19,13 @@ static ATOM_VEC: [&'static str; 5] = [
 
 // a window manager, wrapping a Connection and a root window
 pub struct Wm<'a> {
-    con: &'a base::Connection,
-    root: xproto::Window,
-    bindings: HashMap<kbd::KeyPress, Box<Fn() -> ()>>,
-    tags: Vec<Tag<'a>>,
-    visible_tags: Vec<&'a Tag<'a>>,
-    layouts: Vec<Box<layout::Layout>>,
-    atoms: Vec<(xproto::Atom, &'a str)>,
+    con: &'a base::Connection, // connection to the X server
+    root: xproto::Window, // root window
+    bindings: HashMap<kbd::KeyPress, Box<Fn() -> ()>>, // keybindings
+    tags: Vec<Tag<'a>>, // existing tags
+    visible_tags: Vec<&'a Tag<'a>>, // tags currently displayed
+    layouts: Vec<Box<layout::Layout>>, // available layout
+    atoms: Vec<(xproto::Atom, &'a str)>, // registered atoms
 }
 
 impl<'a> Wm<'a> {
@@ -52,9 +52,7 @@ impl<'a> Wm<'a> {
         let values
             = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
-            | xproto::EVENT_MASK_PROPERTY_CHANGE
-            | xproto::EVENT_MASK_KEY_PRESS
-            | xproto::EVENT_MASK_BUTTON_PRESS;
+            | xproto::EVENT_MASK_PROPERTY_CHANGE;
         match xproto::change_window_attributes(self.con, self.root,
             &[(xproto::CW_EVENT_MASK, values)]).request_check() {
             Ok(()) => Ok(()),
@@ -63,13 +61,24 @@ impl<'a> Wm<'a> {
     }
 
     // setup keybindings
-    pub fn setup_bindings(
-        &mut self, keys: Vec<(kbd::KeyPress, Box<Fn() -> ()>)>) {
+    pub fn setup_bindings(&mut self,
+                          keys: Vec<(kbd::KeyPress, Box<Fn() -> ()>)>) {
+        // don't grab anything for now
+        xproto::ungrab_key(self.con, xproto::GRAB_ANY as u8,
+                           self.root, xproto::MOD_MASK_ANY as u16);
+        // compile keyboard bindings
         let mut map: HashMap<kbd::KeyPress, Box<Fn() -> ()>> =
             HashMap::with_capacity(keys.len());
         for (key, callback) in keys {
             if let Some(_) = map.insert(key, callback) {
+                // found a binding for a key already registered
                 println!("Overwriting binding for a key!");
+            } else {
+                // register for the corresponding event
+                xproto::grab_key(self.con, true, self.root,
+                                 key.mods as u16, key.code,
+                                 xproto::GRAB_MODE_ASYNC as u8,
+                                 xproto::GRAB_MODE_ASYNC as u8);
             }
         }
         self.bindings = map;
@@ -100,8 +109,6 @@ impl<'a> Wm<'a> {
         match event.response_type() {
             xkb::STATE_NOTIFY =>
                 self.match_key(kbd::from_key(base::cast_event(&event))),
-            xproto::BUTTON_PRESS =>
-                self.match_key(kbd::from_button(base::cast_event(&event))),
             xproto::PROPERTY_NOTIFY => { // TODO: find out what needs to happen here
                 let ev: &xproto::PropertyNotifyEvent =
                     base::cast_event(&event);
@@ -110,7 +117,7 @@ impl<'a> Wm<'a> {
             }
             xproto::CREATE_NOTIFY => { // TODO: add a new client, rearrange windows
                 let ev: &xproto::CreateNotifyEvent = base::cast_event(&event);
-                let client = Client::new(&self, ev.window());
+                //let client = Client::new(&self, ev.window());
                 println!("Parent {} created window {} at x:{}, y:{}",
                          ev.parent(), ev.window(), ev.x(), ev.y());
             }
@@ -171,6 +178,7 @@ impl<'a> Wm<'a> {
     }
 }
 
+// a client wrapping a window
 #[derive(Debug)]
 pub struct Client {
     window: xproto::Window,
@@ -194,6 +202,7 @@ impl Client {
     }
 }
 
+// a tag wrapping a list of clients
 struct Tag<'a> {
     name: &'a str,
     clients: LinkedList<Client>,

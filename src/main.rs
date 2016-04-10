@@ -22,7 +22,9 @@ fn main() {
         e.handle();
     }
     wm.setup_bindings(
-        vec![(kbd::KeyPress::Key(42, 0), Box::new(|| println!("HAH!")))]);
+        vec![(kbd::KeyPress{code: 42, mods: 0}, Box::new(|| println!("HAH!")))
+        ]
+    );
     // main loop
     if let Err(e) = wm.run() {
         e.handle();
