@@ -5,7 +5,7 @@ pub mod kbd;
 pub mod layout;
 
 use std::collections::HashMap;
-use std::collections::LinkedList;
+use std::iter::Filter;
 
 use xcb::base as base;
 use xcb::xkb as xkb;
@@ -22,9 +22,7 @@ pub struct Wm<'a> {
     con: &'a base::Connection, // connection to the X server
     root: xproto::Window, // root window
     bindings: HashMap<kbd::KeyPress, Box<Fn() -> ()>>, // keybindings
-    tags: Vec<Tag<'a>>, // existing tags
-    visible_tags: Vec<&'a Tag<'a>>, // tags currently displayed
-    layouts: Vec<Box<layout::Layout>>, // available layout
+    clients: ClientList, // list of clients
     atoms: Vec<(xproto::Atom, &'a str)>, // registered atoms
 }
 
@@ -36,9 +34,8 @@ impl<'a> Wm<'a> {
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
-                    bindings: HashMap::new(), atoms: atoms,
-                    layouts: Vec::new(), tags: Vec::new(),
-                    visible_tags: Vec::new()}),
+                    bindings: HashMap::new(), clients: ClientList::new(),
+                    atoms: atoms}),
                 Err(e) => Err(e)
             }
         } else {
@@ -90,6 +87,20 @@ impl<'a> Wm<'a> {
         if let Some(func) = self.bindings.get(&key) { func() }
     }
 
+    fn handle_map_request(&mut self, req: &xproto::MapRequestEvent) {
+        if let Some(client) = self.clients.get_client_by_window(req.window()) {
+            println!("We need to map a window again ;)");
+            return; // ugly hack to reduce scope of the borrow of self.clients
+        }
+        if let Some(client) =
+            Client::new(self, req.window(), Vec::new()) {
+                // TODO: add workspaces here or move to ClientList
+            self.clients.add(client);
+        } else {
+            println!("Could not create a client :(");
+        }
+    }
+
     // main loop: wait for events, handle them
     pub fn run(&mut self) -> Result<(), err::WmError> {
         loop {
@@ -109,30 +120,32 @@ impl<'a> Wm<'a> {
         match event.response_type() {
             xkb::STATE_NOTIFY =>
                 self.match_key(kbd::from_key(base::cast_event(&event))),
-            xproto::PROPERTY_NOTIFY => { // TODO: find out what needs to happen here
+            xproto::PROPERTY_NOTIFY => {
+                // TODO: find out what needs to happen here
                 let ev: &xproto::PropertyNotifyEvent =
                     base::cast_event(&event);
                 println!("Property changed for window {}: {}",
                          ev.window(), ev.atom());
             }
-            xproto::CREATE_NOTIFY => { // TODO: add a new client, rearrange windows
+            xproto::CREATE_NOTIFY => {
+                // TODO: new window created, wohoo
                 let ev: &xproto::CreateNotifyEvent = base::cast_event(&event);
-                //let client = Client::new(&self, ev.window());
                 println!("Parent {} created window {} at x:{}, y:{}",
                          ev.parent(), ev.window(), ev.x(), ev.y());
             }
-            xproto::DESTROY_NOTIFY => { // TODO: remove client, rearrange windows
+            xproto::DESTROY_NOTIFY => {
+                // TODO: remove client, rearrange windows
                 let ev: &xproto::DestroyNotifyEvent = base::cast_event(&event);
                 println!("Window {} destroyed", ev.window());
             }
-            xproto::CONFIGURE_REQUEST => { // TODO: find out what needs to happen here
+            xproto::CONFIGURE_REQUEST => {
+                // TODO: find out what needs to happen here
                 let ev: &xproto::ConfigureRequestEvent
                     = base::cast_event(&event);
                 println!("Window {} changes geometry", ev.window());
             }
-            xproto::MAP_REQUEST => { // TODO: map the window
-                let ev: &xproto::MapRequestEvent = base::cast_event(&event);
-                println!("Client {} requests mapping", ev.window());
+            xproto::MAP_REQUEST => {
+                self.handle_map_request(base::cast_event(&event));
             }
             num => println!("Unknown event number: {}.", num)
         }
@@ -162,11 +175,11 @@ impl<'a> Wm<'a> {
         let tuples = self.atoms.iter();
         for &(atom, n) in tuples {
             if n == name {
-                println!("Atom: {}", atom);
                 return atom;
             }
         }
-        panic!("Unregistered atom used!")
+        // we need to put the atom in question into the static array first
+        panic!("Unregistered atom used: {}!", name)
     }
     
     // get a window's EWMH property (like window type and such)
@@ -181,29 +194,71 @@ impl<'a> Wm<'a> {
 // a client wrapping a window
 #[derive(Debug)]
 pub struct Client {
-    window: xproto::Window,
+    pub window: xproto::Window,
     urgent: bool,
     w_type: xproto::Atom,
+    tags: Vec<Tag>,
 }
 
 impl Client {
     // setup a new client from a window manager for a specific window
-    fn new(wm: &Wm, window: xproto::Window) -> Option<Client> {
+    fn new(wm: &Wm, window: xproto::Window, tags: Vec<Tag>) -> Option<Client> {
         let cookie = wm.get_ewmh_property(window, "_NET_WM_WINDOW_TYPE");
         match cookie.get_reply() {
             Ok(props) => {
                 let w_type = props.type_();
-                Some(Client {window: window, urgent: false, w_type: w_type})
+                Some(Client {window: window,
+                    urgent: false, w_type: w_type, tags: tags})
             },
             Err(_) => {
                 None
             }
         }
     }
+
+    fn has_tags(&self, tags: &[Tag]) -> bool {
+        for tag in tags {
+            if self.tags.contains(tag) {
+                return true;
+            }
+        }
+        false
+    }
 }
 
-// a tag wrapping a list of clients
-struct Tag<'a> {
-    name: &'a str,
-    clients: LinkedList<Client>,
+// a client list, managing all direct children of the root window
+struct ClientList {
+    clients: Vec<Client>,
+}
+
+impl ClientList {
+    // initialize an empty client list
+    // TODO: decide upon an optional with_capacity() call
+    pub fn new() -> ClientList {
+        ClientList {clients: Vec::new()}
+    }
+
+    // get a list of references of windows that are visible on a set of tags
+    fn match_clients_by_tags(&self, tags: &[Tag]) -> Vec<&Client> {
+        self.clients.iter().filter(|elem| elem.has_tags(tags)).collect()
+    }
+
+    // get a client that corresponds to the given window
+    pub fn get_client_by_window(&self, window: xproto::Window)
+        -> Option<&Client> {
+        self.clients.iter().find(|client| client.window == window)
+    }
+
+    // add a new client
+    pub fn add(&mut self, client: Client) {
+        self.clients.push(client);
+    }
+}
+
+// a set of (symbolic) tags - to be extended/modified
+#[derive(Debug, PartialEq)]
+pub enum Tag {
+    Foo,
+    Bar,
+    Baz,
 }
