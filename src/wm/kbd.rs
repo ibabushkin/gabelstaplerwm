@@ -1,5 +1,4 @@
 use xcb::xkb as xkb;
-use xcb::xproto as xproto;
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub struct KeyPress {

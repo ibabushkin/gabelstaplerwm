@@ -3,8 +3,25 @@ extern crate xcb;
 use xcb::base::*;
 
 mod wm;
-use wm::kbd as kbd;
+use wm::kbd::*;
 use wm::err as err;
+
+#[allow(dead_code)]
+const NO_MODIFIER: u8 = 0;
+#[allow(dead_code)]
+const SHIFT: u8 = 1;
+#[allow(dead_code)]
+const CAPSLOCK: u8 = 2;
+#[allow(dead_code)]
+const CTRL: u8 = 4;
+#[allow(dead_code)]
+const ALT: u8 = 8;
+#[allow(dead_code)]
+const NUMLOCK: u8 = 16;
+#[allow(dead_code)]
+const MOD4: u8 = 64;
+#[allow(dead_code)]
+const ALTGR: u8 = 136;
 
 fn main() {
     // new connection to X server
@@ -22,7 +39,7 @@ fn main() {
         e.handle();
     }
     wm.setup_bindings(
-        vec![(kbd::KeyPress{code: 42, mods: 0}, Box::new(|| println!("HAH!")))
+        vec![(KeyPress{code: 42, mods: 0}, Box::new(|| println!("HAH!")))
         ]
     );
     // main loop
