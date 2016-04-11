@@ -5,7 +5,6 @@ pub mod kbd;
 pub mod layout;
 
 use std::collections::HashMap;
-use std::iter::Filter;
 
 use xcb::base as base;
 use xcb::xkb as xkb;
@@ -17,13 +16,16 @@ static ATOM_VEC: [&'static str; 5] = [
     "_NET_WM_WINDOW_TYPE"
 ];
 
+type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
+
 // a window manager, wrapping a Connection and a root window
 pub struct Wm<'a> {
-    con: &'a base::Connection, // connection to the X server
-    root: xproto::Window, // root window
-    bindings: HashMap<kbd::KeyPress, Box<Fn() -> ()>>, // keybindings
-    clients: ClientList, // list of clients
-    atoms: Vec<(xproto::Atom, &'a str)>, // registered atoms
+    con: &'a base::Connection,  // connection to the X server
+    root: xproto::Window,       // root window
+    bindings: kbd::Keybindings, // keybindings
+    clients: ClientList,        // all clients
+    visible_tags: Vec<Tag>,     // all visible tags
+    atoms: AtomList<'a>,        // registered atoms
 }
 
 impl<'a> Wm<'a> {
@@ -35,7 +37,7 @@ impl<'a> Wm<'a> {
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
                     bindings: HashMap::new(), clients: ClientList::new(),
-                    atoms: atoms}),
+                    visible_tags: vec![Tag::Foo], atoms: atoms}),
                 Err(e) => Err(e)
             }
         } else {
@@ -87,14 +89,14 @@ impl<'a> Wm<'a> {
         if let Some(func) = self.bindings.get(&key) { func() }
     }
 
+    // a window wants to be mapped, take necessary action
     fn handle_map_request(&mut self, req: &xproto::MapRequestEvent) {
         if let Some(client) = self.clients.get_client_by_window(req.window()) {
             println!("We need to map a window again ;)");
             return; // ugly hack to reduce scope of the borrow of self.clients
         }
         if let Some(client) =
-            Client::new(self, req.window(), Vec::new()) {
-                // TODO: add workspaces here or move to ClientList
+            Client::new(self, req.window(), self.visible_tags.clone()) {
             self.clients.add(client);
         } else {
             println!("Could not create a client :(");
@@ -127,12 +129,7 @@ impl<'a> Wm<'a> {
                 println!("Property changed for window {}: {}",
                          ev.window(), ev.atom());
             }
-            xproto::CREATE_NOTIFY => {
-                // TODO: new window created, wohoo
-                let ev: &xproto::CreateNotifyEvent = base::cast_event(&event);
-                println!("Parent {} created window {} at x:{}, y:{}",
-                         ev.parent(), ev.window(), ev.x(), ev.y());
-            }
+            //xproto::CLIENT_MESSAGE
             xproto::DESTROY_NOTIFY => {
                 // TODO: remove client, rearrange windows
                 let ev: &xproto::DestroyNotifyEvent = base::cast_event(&event);
@@ -147,7 +144,7 @@ impl<'a> Wm<'a> {
             xproto::MAP_REQUEST => {
                 self.handle_map_request(base::cast_event(&event));
             }
-            num => println!("Unknown event number: {}.", num)
+            num => println!("Ignoring event: {}.", num)
         }
     }
 
@@ -194,10 +191,10 @@ impl<'a> Wm<'a> {
 // a client wrapping a window
 #[derive(Debug)]
 pub struct Client {
-    pub window: xproto::Window,
-    urgent: bool,
-    w_type: xproto::Atom,
-    tags: Vec<Tag>,
+    pub window: xproto::Window, // the window (a direct child of root)
+    urgent: bool,               // is the urgency hint set?
+    w_type: xproto::Atom,       // client/window type
+    tags: Vec<Tag>,             // all tags this client is visible on
 }
 
 impl Client {
@@ -216,6 +213,7 @@ impl Client {
         }
     }
 
+    // is a client visible on a set of tags?
     fn has_tags(&self, tags: &[Tag]) -> bool {
         for tag in tags {
             if self.tags.contains(tag) {
@@ -256,7 +254,7 @@ impl ClientList {
 }
 
 // a set of (symbolic) tags - to be extended/modified
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Tag {
     Foo,
     Bar,

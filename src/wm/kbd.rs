@@ -1,4 +1,8 @@
+use std::collections::HashMap;
+
 use xcb::xkb as xkb;
+
+pub type Keybindings = HashMap<KeyPress, Box<Fn() -> ()>>;
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub struct KeyPress {
