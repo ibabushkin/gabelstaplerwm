@@ -10,6 +10,8 @@ use xcb::base as base;
 use xcb::xkb as xkb;
 use xcb::xproto as xproto;
 
+use wm::layout::Layout;
+
 // atoms we will register
 static ATOM_VEC: [&'static str; 5] = [
     "WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_STATE", "WM_TAKE_FOCUS",
@@ -22,9 +24,11 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 pub struct Wm<'a> {
     con: &'a base::Connection,  // connection to the X server
     root: xproto::Window,       // root window
+    screen: layout::ScreenSize, // screen parameters
     bindings: kbd::Keybindings, // keybindings
     clients: ClientList,        // all clients
     visible_tags: Vec<Tag>,     // all visible tags
+    layout: layout::Monocle,    // the layout we will use for now
     atoms: AtomList<'a>,        // registered atoms
 }
 
@@ -36,8 +40,10 @@ impl<'a> Wm<'a> {
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
+                    screen: layout::ScreenSize {width: 800, height:600},
                     bindings: HashMap::new(), clients: ClientList::new(),
-                    visible_tags: vec![Tag::Foo], atoms: atoms}),
+                    visible_tags: vec![Tag::Foo],
+                    layout: layout::default_monocle(), atoms: atoms}),
                 Err(e) => Err(e)
             }
         } else {
@@ -89,7 +95,27 @@ impl<'a> Wm<'a> {
         if let Some(func) = self.bindings.get(&key) { func() }
     }
 
+    fn arrange_windows(&self) {
+        let clients = self.clients.match_clients_by_tags(&self.visible_tags);
+        let geometries = self.layout.arrange(clients.len(), &self.screen);
+        let mut config_cookies = Vec::with_capacity(geometries.len());
+        for (client, geom) in clients.iter().zip(geometries.iter()) {
+            let cookie = xproto::configure_window(self.con, client.window,
+                &[(xproto::CONFIG_WINDOW_X as u16, geom.x),
+                  (xproto::CONFIG_WINDOW_Y as u16, geom.y),
+                  (xproto::CONFIG_WINDOW_WIDTH  as u16, geom.width),
+                  (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height)]);
+            config_cookies.push(cookie);
+        }
+        for cookie in config_cookies {
+            // TODO: error handling
+            let _ = cookie.request_check();
+        }
+        // TODO: hide the other windows
+    }
+
     // a window wants to be mapped, take necessary action
+    // TODO: rewrite function
     fn handle_map_request(&mut self, req: &xproto::MapRequestEvent) {
         if let Some(client) = self.clients.get_client_by_window(req.window()) {
             println!("We need to map a window again ;)");
@@ -98,9 +124,12 @@ impl<'a> Wm<'a> {
         if let Some(client) =
             Client::new(self, req.window(), self.visible_tags.clone()) {
             self.clients.add(client);
+            // TODO: error handling
+            let _ = xproto::map_window(self.con, req.window());
         } else {
             println!("Could not create a client :(");
         }
+        self.arrange_windows();
     }
 
     // main loop: wait for events, handle them
