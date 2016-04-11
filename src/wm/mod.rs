@@ -99,19 +99,29 @@ impl<'a> Wm<'a> {
         let clients = self.clients.match_clients_by_tags(&self.visible_tags);
         let geometries = self.layout.arrange(clients.len(), &self.screen);
         let mut config_cookies = Vec::with_capacity(geometries.len());
-        for (client, geom) in clients.iter().zip(geometries.iter()) {
-            let cookie = xproto::configure_window(self.con, client.window,
-                &[(xproto::CONFIG_WINDOW_X as u16, geom.x),
-                  (xproto::CONFIG_WINDOW_Y as u16, geom.y),
-                  (xproto::CONFIG_WINDOW_WIDTH  as u16, geom.width),
-                  (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height)]);
-            config_cookies.push(cookie);
+        for (client, geometry) in clients.iter().zip(geometries.iter()) {
+            if let &Some(ref geom) = geometry {
+                let cookie = xproto::configure_window(self.con, client.window,
+                    &[(xproto::CONFIG_WINDOW_X as u16, geom.x),
+                      (xproto::CONFIG_WINDOW_Y as u16, geom.y),
+                      (xproto::CONFIG_WINDOW_WIDTH  as u16, geom.width),
+                      (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height)]);
+                config_cookies.push(cookie);
+            } else {
+                self.hide_window(client.window);
+            }
         }
         for cookie in config_cookies {
             // TODO: error handling
             let _ = cookie.request_check();
         }
-        // TODO: hide the other windows
+    }
+
+    fn hide_window(&self, window: xproto::Window) {
+         // TODO: error handling + non-constants :P
+         xproto::configure_window(self.con, window,
+                                  &[(xproto::CONFIG_WINDOW_X as u16, 1200),
+                                    (xproto::CONFIG_WINDOW_Y as u16, 0)]);
     }
 
     // a window wants to be mapped, take necessary action
@@ -160,8 +170,9 @@ impl<'a> Wm<'a> {
             }
             //xproto::CLIENT_MESSAGE
             xproto::DESTROY_NOTIFY => {
-                // TODO: remove client, rearrange windows
                 let ev: &xproto::DestroyNotifyEvent = base::cast_event(&event);
+                self.clients.remove(ev.window());
+                self.arrange_windows();
                 println!("Window {} destroyed", ev.window());
             }
             xproto::CONFIGURE_REQUEST => {
@@ -279,6 +290,13 @@ impl ClientList {
     // add a new client
     pub fn add(&mut self, client: Client) {
         self.clients.push(client);
+    }
+
+    pub fn remove(&mut self, window: xproto::Window) {
+        if let Some(pos) =
+            self.clients.iter().position(|elem| elem.window == window) {
+            self.clients.remove(pos);
+        }
     }
 }
 

@@ -16,7 +16,8 @@ pub struct Geometry {
 // windows parametrized over window number and screen size.
 // TODO: To be extended to account for dynamic parameters.
 pub trait Layout {
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize) -> Vec<Geometry>;
+    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+        -> Vec<Option<Geometry>>;
 }
 
 // the monocle layout with offset
@@ -27,11 +28,15 @@ pub struct Monocle {
 
 impl Layout for Monocle {
     fn arrange(&self, num_windows: usize, screen: &ScreenSize)
-        -> Vec<Geometry> {
-        vec![Geometry {x: self.offset_x, y: self.offset_y,
-                       width: screen.width - 2 * self.offset_x,
-                       height: screen.height - 2 * self.offset_y}
-        ]
+        -> Vec<Option<Geometry>> {
+        let mut res = Vec::with_capacity(num_windows);
+        res.push(Some(Geometry {x: self.offset_x, y: self.offset_y,
+            width: screen.width - 2 * self.offset_x,
+            height: screen.height - 2 * self.offset_y}));
+        for _ in 1..num_windows {
+            res.push(None);
+        }
+        res
     }
 }
 
