@@ -1,5 +1,10 @@
 extern crate xcb;
 
+// TODO's:
+// * add more consistency to error handling
+// * decide on a more consistent separation between windows and clients
+// * clean up code, move around files
+
 pub mod err;
 pub mod kbd;
 pub mod layout;
@@ -89,37 +94,25 @@ impl<'a> Wm<'a> {
         self.bindings = map;
     }
 
-    // look for a matching key binding upon event receival
-    fn match_key(&mut self, key: kbd::KeyPress) {
-        println!("Key pressed: {:?}", key);
-        if let Some(func) = self.bindings.get(&key) { func() }
-    }
-
+    // using the current layout, arrange all visible windows
     fn arrange_windows(&self) {
         let clients = self.clients.match_clients_by_tags(&self.visible_tags);
         let geometries = self.layout.arrange(clients.len(), &self.screen);
-        let mut config_cookies = Vec::with_capacity(geometries.len());
         for (client, geometry) in clients.iter().zip(geometries.iter()) {
             if let &Some(ref geom) = geometry {
-                let cookie = xproto::configure_window(self.con, client.window,
+                let _ = xproto::configure_window(self.con, client.window,
                     &[(xproto::CONFIG_WINDOW_X as u16, geom.x),
                       (xproto::CONFIG_WINDOW_Y as u16, geom.y),
                       (xproto::CONFIG_WINDOW_WIDTH  as u16, geom.width),
                       (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height)]);
-                config_cookies.push(cookie);
             } else {
                 self.hide_window(client.window);
             }
         }
-        for cookie in config_cookies {
-            // TODO: error handling
-            let _ = cookie.request_check();
-        }
     }
 
-    // hide a window
+    // hide a window by moving it offscreen
     fn hide_window(&self, window: xproto::Window) {
-         // TODO: error handling + non-constants :P
          xproto::configure_window(self.con, window,
                                   &[(xproto::CONFIG_WINDOW_X as u16, 1200),
                                     (xproto::CONFIG_WINDOW_Y as u16, 0)]);
@@ -130,32 +123,13 @@ impl<'a> Wm<'a> {
          }
     }
 
+    // set the keyboard focus on a window
     fn focus_window(&self, window: xproto::Window) {
-        // TODO: error handling
-        xproto::set_input_focus(self.con,
-                                xproto::INPUT_FOCUS_POINTER_ROOT as u8,
-                                window,
-                                xproto::TIME_CURRENT_TIME
-                                ).request_check();
-    }
-
-    // a window wants to be mapped, take necessary action
-    // TODO: rewrite function
-    fn handle_map_request(&mut self, req: &xproto::MapRequestEvent) {
-        if let Some(client) = self.clients.get_client_by_window(req.window()) {
-            println!("We need to map a window again ;)");
-            return; // ugly hack to reduce scope of the borrow of self.clients
-        }
-        if let Some(client) =
-            Client::new(self, req.window(), self.visible_tags.clone()) {
-            self.clients.add(client);
-            // TODO: error handling
-            let _ = xproto::map_window(self.con, req.window());
-            self.focus_window(req.window());
-        } else {
-            println!("Could not create a client :(");
-        }
-        self.arrange_windows();
+        let _ = xproto::set_input_focus(self.con,
+                                        xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+                                        window,
+                                        xproto::TIME_CURRENT_TIME
+                                        ).request_check();
     }
 
     // main loop: wait for events, handle them
@@ -172,36 +146,71 @@ impl<'a> Wm<'a> {
         }
     }
 
+    // TODO: maybe convert this to a trait?
     // handle an event received from the X server
     fn handle(&mut self, event: base::GenericEvent) {
         match event.response_type() {
             xkb::STATE_NOTIFY =>
-                self.match_key(kbd::from_key(base::cast_event(&event))),
-            xproto::PROPERTY_NOTIFY => {
-                // TODO: find out what needs to happen here
-                let ev: &xproto::PropertyNotifyEvent =
-                    base::cast_event(&event);
-                println!("Property changed for window {}: {}",
-                         ev.window(), ev.atom());
-            }
-            //xproto::CLIENT_MESSAGE
-            xproto::DESTROY_NOTIFY => {
-                let ev: &xproto::DestroyNotifyEvent = base::cast_event(&event);
-                self.clients.remove(ev.window());
-                self.arrange_windows();
-                println!("Window {} destroyed", ev.window());
-            }
-            xproto::CONFIGURE_REQUEST => {
-                // TODO: find out what needs to happen here
-                let ev: &xproto::ConfigureRequestEvent
-                    = base::cast_event(&event);
-                println!("Window {} changes geometry", ev.window());
-            }
-            xproto::MAP_REQUEST => {
-                self.handle_map_request(base::cast_event(&event));
-            }
+                self.handle_state_notify(base::cast_event(&event)),
+            xproto::PROPERTY_NOTIFY =>
+                self.handle_property_notify(base::cast_event(&event)),
+            xproto::CLIENT_MESSAGE =>
+                self.handle_client_message(base::cast_event(&event)),
+            xproto::DESTROY_NOTIFY =>
+                self.handle_destroy_notify(base::cast_event(&event)),
+            xproto::CONFIGURE_REQUEST =>
+                self.handle_configure_request(base::cast_event(&event)),
+            xproto::MAP_REQUEST =>
+                self.handle_map_request(base::cast_event(&event)),
             num => println!("Ignoring event: {}.", num)
         }
+    }
+
+    // look for a matching key binding upon event receival
+    fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
+        let key = kbd::from_key(ev);
+        println!("Key pressed: {:?}", key);
+        if let Some(func) = self.bindings.get(&key) { func() }
+    }
+
+    // TODO: implement
+    fn handle_property_notify(&self, ev: &xproto::PropertyNotifyEvent) {
+        ()
+    }
+
+    // TODO: implement
+    fn handle_client_message(&self, ev: &xproto::ClientMessageEvent) {
+        ()
+    }
+
+    // a window has been destroyed, remove the corresponding client
+    fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
+        self.clients.remove(ev.window());
+        self.arrange_windows();
+    }
+
+    // TODO: implement
+    fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
+        ()
+    }
+
+    // a window wants to be mapped, take necessary action
+    // TODO: rewrite function
+    fn handle_map_request(&mut self, ev: &xproto::MapRequestEvent) {
+        let window = ev.window();
+        if let Some(client) = self.clients.get_client_by_window(window) {
+            println!("We need to map a window again ;)");
+            return; // ugly hack to reduce scope of the borrow of self.clients
+        }
+        if let Some(client) =
+            Client::new(self, window, self.visible_tags.clone()) {
+            self.clients.add(client);
+            let _ = xproto::map_window(self.con, window);
+            self.focus_window(window);
+        } else {
+            println!("Could not create a client :(");
+        }
+        self.arrange_windows();
     }
 
     // register and get back atoms
