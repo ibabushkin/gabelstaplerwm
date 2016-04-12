@@ -13,9 +13,9 @@ use xcb::xproto as xproto;
 use wm::layout::Layout;
 
 // atoms we will register
-static ATOM_VEC: [&'static str; 5] = [
+static ATOM_VEC: [&'static str; 6] = [
     "WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_STATE", "WM_TAKE_FOCUS",
-    "_NET_WM_WINDOW_TYPE"
+    "_NET_WM_WINDOW_TYPE", "_NET_WM_TAKE_FOCUS"
 ];
 
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
@@ -117,11 +117,26 @@ impl<'a> Wm<'a> {
         }
     }
 
+    // hide a window
     fn hide_window(&self, window: xproto::Window) {
          // TODO: error handling + non-constants :P
          xproto::configure_window(self.con, window,
                                   &[(xproto::CONFIG_WINDOW_X as u16, 1200),
                                     (xproto::CONFIG_WINDOW_Y as u16, 0)]);
+         if let Ok(reply) = xproto::get_input_focus(self.con).get_reply() {
+             if reply.focus() == window {
+                 println!("TODO: remove focus from hidden window");
+             }
+         }
+    }
+
+    fn focus_window(&self, window: xproto::Window) {
+        // TODO: error handling
+        xproto::set_input_focus(self.con,
+                                xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+                                window,
+                                xproto::TIME_CURRENT_TIME
+                                ).request_check();
     }
 
     // a window wants to be mapped, take necessary action
@@ -136,6 +151,7 @@ impl<'a> Wm<'a> {
             self.clients.add(client);
             // TODO: error handling
             let _ = xproto::map_window(self.con, req.window());
+            self.focus_window(req.window());
         } else {
             println!("Could not create a client :(");
         }
