@@ -6,7 +6,7 @@ mod wm;
 use wm::client::Tag;
 use wm::err::*;
 use wm::kbd::*;
-use wm::layout::{Monocle,VStack};
+use wm::layout::{Monocle,VStack,HStack};
 use wm::window_system::Wm;
 
 #[allow(dead_code)]
@@ -47,7 +47,8 @@ fn main() {
     );
     wm.setup_tags(
         vec![(vec![Tag::Foo], Box::new(Monocle::default())),
-             (vec![Tag::Foo], Box::new(VStack {master_factor: 70, inverted: true}))
+             (vec![Tag::Foo], Box::new(VStack::default())),
+             (vec![Tag::Foo], Box::new(HStack::default()))
         ]
     );
     // main loop
