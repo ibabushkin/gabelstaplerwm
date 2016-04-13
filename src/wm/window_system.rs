@@ -16,17 +16,17 @@ static ATOM_VEC: [&'static str; 6] = [
 ];
 
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
+type TagStack = Vec<(Vec<Tag>, Box<Layout>)>;
 
 // a window manager, wrapping a Connection and a root window
 pub struct Wm<'a> {
-    con: &'a base::Connection,  // connection to the X server
-    root: xproto::Window,       // root window
-    screen: ScreenSize, // screen parameters
-    bindings: Keybindings, // keybindings
-    clients: ClientList,        // all clients
-    visible_tags: Vec<Tag>,     // all visible tags
-    layout: Monocle,    // the layout we will use for now
-    atoms: AtomList<'a>,        // registered atoms
+    con: &'a base::Connection, // connection to the X server
+    root: xproto::Window,      // root window
+    screen: ScreenSize,        // screen parameters
+    bindings: Keybindings,     // keybindings
+    clients: ClientList,       // all clients
+    tag_stack: TagStack,       // all visible tags at any point in time
+    atoms: AtomList<'a>,       // registered atoms
 }
 
 impl<'a> Wm<'a> {
@@ -37,12 +37,13 @@ impl<'a> Wm<'a> {
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
             let width = screen.width_in_pixels();
             let height = screen.height_in_pixels();
+            let stack: TagStack =
+                vec![(vec![Tag::Foo], Box::new(default_monocle()))];
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
                     screen: ScreenSize {width: width, height: height},
                     bindings: HashMap::new(), clients: ClientList::new(),
-                    visible_tags: vec![Tag::Foo],
-                    layout: default_monocle(), atoms: atoms}),
+                    tag_stack: stack, atoms: atoms}),
                 Err(e) => Err(e)
             }
         } else {
@@ -50,7 +51,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // register window manager, by requesting substructure redirects for
+    // register window manager by requesting substructure redirects for
     // the root window and registering all events we are interested in
     pub fn register(&self) -> Result<(), WmError> {
         let values
@@ -65,8 +66,7 @@ impl<'a> Wm<'a> {
     }
 
     // setup keybindings
-    pub fn setup_bindings(&mut self,
-                          keys: Vec<(KeyPress, Box<Fn() -> ()>)>) {
+    pub fn setup_bindings(&mut self, keys: Vec<(KeyPress, Box<Fn() -> ()>)>) {
         // don't grab anything for now
         xproto::ungrab_key(self.con, xproto::GRAB_ANY as u8,
                            self.root, xproto::MOD_MASK_ANY as u16);
@@ -90,8 +90,12 @@ impl<'a> Wm<'a> {
 
     // using the current layout, arrange all visible windows
     fn arrange_windows(&self) {
-        let clients = self.clients.match_clients_by_tags(&self.visible_tags);
-        let geometries = self.layout.arrange(clients.len(), &self.screen);
+        let (clients, layout) = match self.tag_stack.last() {
+            Some(&(ref tags, ref layout)) =>
+                (self.clients.match_clients_by_tags(tags), layout),
+            None => return,
+        };
+        let geometries = layout.arrange(clients.len(), &self.screen);
         for (client, geometry) in clients.iter().zip(geometries.iter()) {
             if let &Some(ref geom) = geometry {
                 let _ = xproto::configure_window(self.con, client.window,
@@ -167,11 +171,13 @@ impl<'a> Wm<'a> {
     }
 
     // TODO: implement
+    #[allow(unused_variables)]
     fn handle_property_notify(&self, ev: &xproto::PropertyNotifyEvent) {
         ()
     }
 
     // TODO: implement
+    #[allow(unused_variables)]
     fn handle_client_message(&self, ev: &xproto::ClientMessageEvent) {
         ()
     }
@@ -183,6 +189,7 @@ impl<'a> Wm<'a> {
     }
 
     // TODO: implement
+    #[allow(unused_variables)]
     fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
         ()
     }
@@ -195,8 +202,11 @@ impl<'a> Wm<'a> {
             println!("We need to map a window again ;)");
             return; // ugly hack to reduce scope of the borrow of self.clients
         }
-        if let Some(client) =
-            Client::new(self, window, self.visible_tags.clone()) {
+        let tags = match self.tag_stack.last() {
+            Some(&(ref t, _)) => t.clone(),
+            None => return,
+        };
+        if let Some(client) = Client::new(self, window, tags) {
             self.clients.add(client);
             let _ = xproto::map_window(self.con, window);
             self.focus_window(window);

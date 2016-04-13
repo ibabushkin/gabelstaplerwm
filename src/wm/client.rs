@@ -1,4 +1,3 @@
-use xcb::base as base;
 use xcb::xproto as xproto;
 
 use wm::window_system::Wm;
