@@ -16,7 +16,7 @@ static ATOM_VEC: [&'static str; 6] = [
 ];
 
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
-type TagStack = Vec<(Vec<Tag>, Box<Layout>)>;
+pub type TagStack = Vec<(Vec<Tag>, Box<Layout>)>;
 
 // a window manager, wrapping a Connection and a root window
 pub struct Wm<'a> {
@@ -37,13 +37,11 @@ impl<'a> Wm<'a> {
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
             let width = screen.width_in_pixels();
             let height = screen.height_in_pixels();
-            let stack: TagStack =
-                vec![(vec![Tag::Foo], Box::new(default_monocle()))];
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
                     screen: ScreenSize {width: width, height: height},
                     bindings: HashMap::new(), clients: ClientList::new(),
-                    tag_stack: stack, atoms: atoms}),
+                    tag_stack: Vec::new(), atoms: atoms}),
                 Err(e) => Err(e)
             }
         } else {
@@ -86,6 +84,11 @@ impl<'a> Wm<'a> {
             }
         }
         self.bindings = map;
+    }
+
+    // set up the stack of tag(sets)
+    pub fn setup_tags(&mut self, stack: TagStack) {
+        self.tag_stack = stack;
     }
 
     // using the current layout, arrange all visible windows

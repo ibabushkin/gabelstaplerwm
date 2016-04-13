@@ -40,6 +40,8 @@ impl Layout for Monocle {
     }
 }
 
-pub fn default_monocle() -> Monocle {
-    Monocle {offset_x: 20, offset_y: 20}
+impl Monocle { 
+    pub fn default() -> Monocle {
+        Monocle {offset_x: 20, offset_y: 20}
+    }
 }

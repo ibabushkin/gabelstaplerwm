@@ -3,8 +3,10 @@ extern crate xcb;
 use xcb::base::*;
 
 mod wm;
+use wm::client::Tag;
 use wm::err::*;
 use wm::kbd::*;
+use wm::layout::Monocle;
 use wm::window_system::Wm;
 
 #[allow(dead_code)]
@@ -42,6 +44,9 @@ fn main() {
     wm.setup_bindings(
         vec![(KeyPress{code: 42, mods: 0}, Box::new(|| println!("HAH!")))
         ]
+    );
+    wm.setup_tags(
+        vec![(vec![Tag::Foo], Box::new(Monocle::default()))]
     );
     // main loop
     if let Err(e) = wm.run() {
