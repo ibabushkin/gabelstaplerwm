@@ -1,15 +1,15 @@
 // a screen size to be accounted for when arranging windows
 pub struct ScreenSize {
-    pub width: u32,
-    pub height: u32,
+    pub width: u16,
+    pub height: u16,
 }
 
 // a window's geometry
 pub struct Geometry {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
+    pub x: u16,
+    pub y: u16,
+    pub width: u16,
+    pub height: u16,
 }
 
 // the layout trait. Types implementing it describe methods to arrange
@@ -22,8 +22,8 @@ pub trait Layout {
 
 // the monocle layout with offset
 pub struct Monocle {
-    pub offset_x: u32,
-    pub offset_y: u32,
+    pub offset_x: u16,
+    pub offset_y: u16,
 }
 
 impl Layout for Monocle {

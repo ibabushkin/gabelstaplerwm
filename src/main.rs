@@ -3,8 +3,9 @@ extern crate xcb;
 use xcb::base::*;
 
 mod wm;
+use wm::err::*;
 use wm::kbd::*;
-use wm::err as err;
+use wm::window_system::Wm;
 
 #[allow(dead_code)]
 const NO_MODIFIER: u8 = 0;
@@ -27,10 +28,10 @@ fn main() {
     // new connection to X server
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
-        Err(e) => err::WmError::CouldNotConnect(e).handle()
+        Err(e) => WmError::CouldNotConnect(e).handle()
     };
     // wm init
-    let mut wm = match wm::Wm::new(&con, screen_num) {
+    let mut wm = match Wm::new(&con, screen_num) {
         Ok(w) => w,
         Err(e) => e.handle()
     };
