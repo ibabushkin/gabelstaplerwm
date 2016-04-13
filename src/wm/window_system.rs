@@ -96,7 +96,10 @@ impl<'a> Wm<'a> {
         let (clients, layout) = match self.tag_stack.last() {
             Some(&(ref tags, ref layout)) =>
                 (self.clients.match_clients_by_tags(tags), layout),
-            None => return,
+            None => {
+               println!("TODO: refill tags");
+               return;
+            },
         };
         let geometries = layout.arrange(clients.len(), &self.screen);
         for (client, geometry) in clients.iter().zip(geometries.iter()) {
