@@ -64,13 +64,12 @@ impl<'a> Wm<'a> {
     }
 
     // setup keybindings
-    pub fn setup_bindings(&mut self, keys: Vec<(KeyPress, Box<Fn() -> ()>)>) {
+    pub fn setup_bindings(&mut self, keys: Vec<(KeyPress, KeyCallback)>) {
         // don't grab anything for now
         xproto::ungrab_key(self.con, xproto::GRAB_ANY as u8,
                            self.root, xproto::MOD_MASK_ANY as u16);
         // compile keyboard bindings
-        let mut map: HashMap<KeyPress, Box<Fn() -> ()>> =
-            HashMap::with_capacity(keys.len());
+        let mut map: Keybindings = HashMap::with_capacity(keys.len());
         for (key, callback) in keys {
             if let Some(_) = map.insert(key, callback) {
                 // found a binding for a key already registered
@@ -173,7 +172,9 @@ impl<'a> Wm<'a> {
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev);
         println!("Key pressed: {:?}", key);
-        if let Some(func) = self.bindings.get(&key) { func() }
+        if let Some(func) = self.bindings.get(&key) {
+            func(&mut self.clients, &mut self.tag_stack)
+        }
     }
 
     // TODO: implement

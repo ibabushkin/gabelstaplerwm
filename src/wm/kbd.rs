@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use xcb::xkb as xkb;
 
-pub type Keybindings = HashMap<KeyPress, Box<Fn() -> ()>>;
+use wm::client::ClientList;
+use wm::window_system::TagStack;
+
+pub type KeyCallback = Box<Fn(&mut ClientList, &mut TagStack) -> ()>;
+pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub struct KeyPress {

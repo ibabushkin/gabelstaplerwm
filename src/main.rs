@@ -42,7 +42,7 @@ fn main() {
         e.handle();
     }
     wm.setup_bindings(
-        vec![(KeyPress{code: 42, mods: 0}, Box::new(|| println!("HAH!")))
+        vec![(KeyPress{code: 42, mods: 0}, Box::new(|_, _| println!("HAH!")))
         ]
     );
     wm.setup_tags(
