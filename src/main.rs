@@ -34,10 +34,10 @@ fn main() {
         ]
     );
     wm.setup_tags(
-        vec![(vec![Tag::Foo], Box::new(Monocle::default())),
-             (vec![Tag::Foo], Box::new(VStack::default())),
-             (vec![Tag::Foo], Box::new(HStack::default())),
-             (vec![Tag::Foo], Box::new(DStack::default()))
+        vec![(vec![Tag::Foo], None, Box::new(Monocle::default())),
+             (vec![Tag::Foo], None, Box::new(VStack::default())),
+             (vec![Tag::Foo], None, Box::new(HStack::default())),
+             (vec![Tag::Foo], None, Box::new(DStack::default()))
         ]
     );
     // main loop

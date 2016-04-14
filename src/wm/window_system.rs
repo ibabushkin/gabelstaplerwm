@@ -16,7 +16,7 @@ static ATOM_VEC: [&'static str; 6] = [
 ];
 
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
-pub type TagStack = Vec<(Vec<Tag>, Box<Layout>)>;
+pub type TagStack = Vec<(Vec<Tag>, Option<xproto::Window>, Box<Layout>)>;
 
 // a window manager, wrapping a Connection and a root window
 pub struct Wm<'a> {
@@ -92,9 +92,9 @@ impl<'a> Wm<'a> {
 
     // using the current layout, arrange all visible windows
     fn arrange_windows(&self) {
-        let (clients, layout) = match self.tag_stack.last() {
-            Some(&(ref tags, ref layout)) =>
-                (self.clients.match_clients_by_tags(tags), layout),
+        let (clients, window, layout) = match self.tag_stack.last() {
+            Some(&(ref tags, ref window, ref layout)) =>
+                (self.clients.match_clients_by_tags(tags), window, layout),
             None => {
                println!("TODO: refill tags");
                return;
@@ -113,6 +113,7 @@ impl<'a> Wm<'a> {
                 self.hide_window(client.window);
             }
         }
+        if let &Some(ref win) = window { self.focus_window(win.clone()); }
     }
 
     // hide a window by moving it offscreen
@@ -192,6 +193,9 @@ impl<'a> Wm<'a> {
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
+        if let Some(&(_, Some(ref win), _)) = self.tag_stack.last() {
+            println!("TODO: set back focus: {}!", win);
+        }
         self.arrange_windows();
     }
 
@@ -210,13 +214,17 @@ impl<'a> Wm<'a> {
             return; // ugly hack to reduce scope of the borrow of self.clients
         }
         let tags = match self.tag_stack.last() {
-            Some(&(ref t, _)) => t.clone(),
+            Some(&(ref t, ref window, _)) => {
+                if let &Some(ref win) = window {
+                    self.focus_window(win.clone());
+                }
+                t.clone()
+            },
             None => return,
         };
         if let Some(client) = Client::new(self, window, tags) {
-            self.clients.add(client);
             let _ = xproto::map_window(self.con, window);
-            self.focus_window(window);
+            self.clients.add(client);
         } else {
             println!("Could not create a client :(");
         }

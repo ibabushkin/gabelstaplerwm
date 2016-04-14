@@ -65,8 +65,10 @@ impl ClientList {
     // add a new client
     pub fn add(&mut self, client: Client) {
         self.clients.push(client);
+        //self.current = self.clients.last();
     }
 
+    // remove the client corresponding to a window
     pub fn remove(&mut self, window: xproto::Window) {
         if let Some(pos) =
             self.clients.iter().position(|elem| elem.window == window) {
