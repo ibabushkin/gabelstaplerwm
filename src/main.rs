@@ -6,25 +6,13 @@ mod wm;
 use wm::client::Tag;
 use wm::err::*;
 use wm::kbd::*;
-use wm::layout::{Monocle,VStack,HStack,DStack};
-use wm::window_system::Wm;
 
-#[allow(dead_code)]
-const NO_MODIFIER: u8 = 0;
-#[allow(dead_code)]
-const SHIFT: u8 = 1;
-#[allow(dead_code)]
-const CAPSLOCK: u8 = 2;
-#[allow(dead_code)]
-const CTRL: u8 = 4;
-#[allow(dead_code)]
-const ALT: u8 = 8;
-#[allow(dead_code)]
-const NUMLOCK: u8 = 16;
-#[allow(dead_code)]
-const MOD4: u8 = 64;
-#[allow(dead_code)]
-const ALTGR: u8 = 136;
+use wm::layout::monocle::Monocle;
+use wm::layout::vstack::VStack;
+use wm::layout::hstack::HStack;
+use wm::layout::dstack::DStack;
+
+use wm::window_system::Wm;
 
 fn main() {
     // new connection to X server
