@@ -1,5 +1,6 @@
 use xcb::xproto as xproto;
 
+use wm::layout::Layout;
 use wm::window_system::Wm;
 
 // a client wrapping a window
@@ -81,4 +82,17 @@ impl ClientList {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tag {
     Foo,
+}
+
+// an entity shown at a given point in time
+pub struct TagSet {
+    pub tags: Vec<Tag>,
+    pub focused: Vec<xproto::Window>,
+    pub layout: Box<Layout>,
+}
+
+impl TagSet {
+    pub fn new<T: Layout + 'static>(tags: Vec<Tag>, layout: T) -> TagSet {
+        TagSet {tags: tags, focused: Vec::new(), layout: Box::new(layout)}
+    }
 }

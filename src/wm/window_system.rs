@@ -16,7 +16,6 @@ static ATOM_VEC: [&'static str; 6] = [
 ];
 
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
-pub type TagStack = Vec<(Vec<Tag>, Option<xproto::Window>, Box<Layout>)>;
 
 // a window manager, wrapping a Connection and a root window
 pub struct Wm<'a> {
@@ -25,7 +24,7 @@ pub struct Wm<'a> {
     screen: ScreenSize,        // screen parameters
     bindings: Keybindings,     // keybindings
     clients: ClientList,       // all clients
-    tag_stack: TagStack,       // all visible tags at any point in time
+    tag_stack: Vec<TagSet>,    // all visible tags at any point in time
     atoms: AtomList<'a>,       // registered atoms
 }
 
@@ -86,15 +85,16 @@ impl<'a> Wm<'a> {
     }
 
     // set up the stack of tag(sets)
-    pub fn setup_tags(&mut self, stack: TagStack) {
+    pub fn setup_tags(&mut self, stack: Vec<TagSet>) {
         self.tag_stack = stack;
     }
 
     // using the current layout, arrange all visible windows
     fn arrange_windows(&self) {
         let (clients, window, layout) = match self.tag_stack.last() {
-            Some(&(ref tags, ref window, ref layout)) =>
-                (self.clients.match_clients_by_tags(tags), window, layout),
+            Some(ref tagset) =>
+                (self.clients.match_clients_by_tags(&tagset.tags),
+                 tagset.focused.last(), &tagset.layout),
             None => {
                println!("TODO: refill tags");
                return;
@@ -113,7 +113,7 @@ impl<'a> Wm<'a> {
                 self.hide_window(client.window);
             }
         }
-        if let &Some(ref win) = window { self.focus_window(win.clone()); }
+        if let Some(win) = window { self.focus_window(win.clone()); }
     }
 
     // hide a window by moving it offscreen
@@ -193,8 +193,10 @@ impl<'a> Wm<'a> {
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
-        if let Some(&(_, Some(ref win), _)) = self.tag_stack.last() {
-            println!("TODO: set back focus: {}!", win);
+        if let Some(tagset) = self.tag_stack.last() {
+            if let Some(win) = tagset.focused.last() {
+                println!("TODO: set back focus: {}!", win);
+            }
         }
         self.arrange_windows();
     }
@@ -214,11 +216,11 @@ impl<'a> Wm<'a> {
             return; // ugly hack to reduce scope of the borrow of self.clients
         }
         let tags = match self.tag_stack.last() {
-            Some(&(ref t, ref window, _)) => {
-                if let &Some(ref win) = window {
+            Some(tagset) => {
+                if let Some(win) = tagset.focused.last() {
                     self.focus_window(win.clone());
                 }
-                t.clone()
+                tagset.tags.clone()
             },
             None => return,
         };

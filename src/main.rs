@@ -3,7 +3,7 @@ extern crate xcb;
 use xcb::base::*;
 
 mod wm;
-use wm::client::Tag;
+use wm::client::{Tag, TagSet};
 use wm::err::*;
 use wm::kbd::*;
 
@@ -34,10 +34,10 @@ fn main() {
         ]
     );
     wm.setup_tags(
-        vec![(vec![Tag::Foo], None, Box::new(Monocle::default())),
-             (vec![Tag::Foo], None, Box::new(VStack::default())),
-             (vec![Tag::Foo], None, Box::new(HStack::default())),
-             (vec![Tag::Foo], None, Box::new(DStack::default()))
+        vec![TagSet::new(vec![Tag::Foo], Monocle::default()),
+             TagSet::new(vec![Tag::Foo], VStack::default()),
+             TagSet::new(vec![Tag::Foo], HStack::default()),
+             TagSet::new(vec![Tag::Foo], DStack::default())
         ]
     );
     // main loop
