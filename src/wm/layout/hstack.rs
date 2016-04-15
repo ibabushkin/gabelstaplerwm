@@ -33,7 +33,7 @@ impl Layout for HStack {
             let h = if self.fixed { master_height } else { screen.height };
             res.push(Some(Geometry {x: 0, y: 0,
                 width: screen.width, height: h}));
-        } else {
+        } else if num_windows > 1 {
             // optionally swap stack and master area
             let (master_y, slave_y) = if self.inverted {
                 (screen.height - master_height, 0)

@@ -33,7 +33,7 @@ impl Layout for VStack {
             let w = if self.fixed { master_width } else { screen.width };
             res.push(Some(Geometry {x: 0, y: 0,
                 width: w, height: screen.height}));
-        } else {
+        } else if num_windows > 1 {
             // optionally swap stack and master area
             let (master_x, slave_x) = if self.inverted {
                 (screen.width - master_width, 0)

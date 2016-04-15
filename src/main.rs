@@ -35,9 +35,9 @@ fn main() {
     );
     wm.setup_tags(
         vec![TagSet::new(vec![Tag::Foo], Monocle::default()),
+             TagSet::new(vec![Tag::Foo], DStack::default()),
              TagSet::new(vec![Tag::Foo], VStack::default()),
-             TagSet::new(vec![Tag::Foo], HStack::default()),
-             TagSet::new(vec![Tag::Foo], DStack::default())
+             TagSet::new(vec![Tag::Foo], HStack::default())
         ]
     );
     // main loop

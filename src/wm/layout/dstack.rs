@@ -33,7 +33,7 @@ impl Layout for DStack {
             // one window only - fullscreen
             res.push(Some(Geometry {x: 0, y: 0,
                 width: screen.width, height: screen.height}));
-        } else {
+        } else if num_windows > 1 {
             let slave_width = (screen.width - master_width) / 2;
             // setup two slave stacks if needed
             let (master_x, slave_right_x) =
