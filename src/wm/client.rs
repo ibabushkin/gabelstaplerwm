@@ -95,4 +95,15 @@ impl TagSet {
     pub fn new<T: Layout + 'static>(tags: Vec<Tag>, layout: T) -> TagSet {
         TagSet {tags: tags, focused: Vec::new(), layout: Box::new(layout)}
     }
+
+    pub fn push_focus(&mut self, window: xproto::Window) {
+        if self.focused.len() >= 4 {
+            self.focused.remove(0);
+        }
+        self.focused.push(window);
+    }
+
+    pub fn pop_focus(&mut self) {
+        let _ = self.focused.pop();
+    }
 }

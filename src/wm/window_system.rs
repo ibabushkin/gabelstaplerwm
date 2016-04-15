@@ -25,6 +25,7 @@ pub struct Wm<'a> {
     bindings: Keybindings,     // keybindings
     clients: ClientList,       // all clients
     tag_stack: Vec<TagSet>,    // all visible tags at any point in time
+    // TODO: maybe create a newtype from Vec<TagSet> to add impl?
     atoms: AtomList<'a>,       // registered atoms
 }
 
@@ -193,10 +194,8 @@ impl<'a> Wm<'a> {
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
-        if let Some(tagset) = self.tag_stack.last() {
-            if let Some(win) = tagset.focused.last() {
-                println!("TODO: set back focus: {}!", win);
-            }
+        if let Some(tagset) = self.tag_stack.last_mut() {
+            tagset.pop_focus();
         }
         self.arrange_windows();
     }
@@ -213,20 +212,18 @@ impl<'a> Wm<'a> {
         let window = ev.window();
         if let Some(client) = self.clients.get_client_by_window(window) {
             println!("We need to map a window again ;)");
-            return; // ugly hack to reduce scope of the borrow of self.clients
+            return; // ugly hack to reduce scope of the borrow of self.clients,
+                    // for some reason a simple else doesn't work as expected.
         }
         let tags = match self.tag_stack.last() {
-            Some(tagset) => {
-                if let Some(win) = tagset.focused.last() {
-                    self.focus_window(win.clone());
-                }
-                tagset.tags.clone()
-            },
+            Some(tagset) => tagset.tags.clone(),
             None => return,
         };
         if let Some(client) = Client::new(self, window, tags) {
             let _ = xproto::map_window(self.con, window);
             self.clients.add(client);
+            let tagset: &mut TagSet = self.tag_stack.last_mut().unwrap();
+            tagset.push_focus(window);
         } else {
             println!("Could not create a client :(");
         }
