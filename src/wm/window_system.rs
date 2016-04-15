@@ -195,7 +195,7 @@ impl<'a> Wm<'a> {
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
         if let Some(tagset) = self.tag_stack.last_mut() {
-            tagset.pop_focus();
+            tagset.pop_focus(ev.window());
         }
         self.arrange_windows();
     }

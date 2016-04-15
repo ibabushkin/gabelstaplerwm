@@ -38,6 +38,20 @@ impl Client {
         }
         false
     }
+
+    // *move* a window to a new location
+    pub fn set_tags(&mut self, tags: &[Tag]) {
+        self.tags = Vec::with_capacity(tags.len());
+        for tag in tags {
+            self.tags.push(tag.clone());
+        }
+    }
+
+    // add or remove a tag from a window
+    pub fn toggle_tag(&mut self, tag: Tag) {
+        // TODO: implement
+        ()
+    }
 }
 
 // a client list, managing all direct children of the root window
@@ -96,6 +110,7 @@ impl TagSet {
         TagSet {tags: tags, focused: Vec::new(), layout: Box::new(layout)}
     }
 
+    // focus a new window
     pub fn push_focus(&mut self, window: xproto::Window) {
         if self.focused.len() >= 4 {
             self.focused.remove(0);
@@ -103,7 +118,19 @@ impl TagSet {
         self.focused.push(window);
     }
 
-    pub fn pop_focus(&mut self) {
-        let _ = self.focused.pop();
+    // focus the window that was focused before, forgetting the last focus
+    pub fn pop_focus(&mut self, window: xproto::Window) {
+        if let Some(&last) = self.focused.last() {
+            if last == window {
+                let _ = self.focused.pop();
+            }
+        }
+    }
+
+    pub fn toggle_tag(&mut self, tag: Tag) {
+        // TODO: implement or replace w/ something else: we need to keep track
+        // of windows moving out of our tagset, so it might be senseful to
+        // create a new tagset to allow for undo and handle that stuff as well
+        ()
     }
 }
