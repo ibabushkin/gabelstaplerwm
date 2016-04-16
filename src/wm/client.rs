@@ -49,8 +49,11 @@ impl Client {
 
     // add or remove a tag from a window
     pub fn toggle_tag(&mut self, tag: Tag) {
-        // TODO: implement
-        ()
+        if let Some(index) = self.tags.iter().position(|t| *t == tag) {
+            self.tags.remove(index);
+        } else {
+            self.tags.push(tag);
+        }
     }
 }
 
@@ -127,10 +130,12 @@ impl TagSet {
         }
     }
 
+    // toggle a tag on the tagset
     pub fn toggle_tag(&mut self, tag: Tag) {
-        // TODO: implement or replace w/ something else: we need to keep track
-        // of windows moving out of our tagset, so it might be senseful to
-        // create a new tagset to allow for undo and handle that stuff as well
-        ()
+        if let Some(index) = self.tags.iter().position(|t| *t == tag) {
+            self.tags.remove(index);
+        } else {
+            self.tags.push(tag);
+        }
     }
 }
