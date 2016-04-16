@@ -24,8 +24,7 @@ pub struct Wm<'a> {
     screen: ScreenSize,        // screen parameters
     bindings: Keybindings,     // keybindings
     clients: ClientList,       // all clients
-    tag_stack: Vec<TagSet>,    // all visible tags at any point in time
-    // TODO: maybe create a newtype from Vec<TagSet> to add impl?
+    tag_stack: TagStack,       // all visible tags at any point in time
     atoms: AtomList<'a>,       // registered atoms
 }
 
@@ -41,7 +40,7 @@ impl<'a> Wm<'a> {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
                     screen: ScreenSize {width: width, height: height},
                     bindings: HashMap::new(), clients: ClientList::new(),
-                    tag_stack: Vec::new(), atoms: atoms}),
+                    tag_stack: TagStack::new(), atoms: atoms}),
                 Err(e) => Err(e)
             }
         } else {
@@ -86,13 +85,13 @@ impl<'a> Wm<'a> {
     }
 
     // set up the stack of tag(sets)
-    pub fn setup_tags(&mut self, stack: Vec<TagSet>) {
+    pub fn setup_tags(&mut self, stack: TagStack) {
         self.tag_stack = stack;
     }
 
     // using the current layout, arrange all visible windows
     fn arrange_windows(&self) {
-        let (clients, window, layout) = match self.tag_stack.last() {
+        let (clients, window, layout) = match self.tag_stack.current() {
             Some(ref tagset) =>
                 (self.clients.match_clients_by_tags(&tagset.tags),
                  tagset.focused.last(), &tagset.layout),
@@ -123,11 +122,6 @@ impl<'a> Wm<'a> {
         xproto::configure_window(self.con, window,
             &[(xproto::CONFIG_WINDOW_X as u16, safe_x),
               (xproto::CONFIG_WINDOW_Y as u16, 0)]);
-        if let Ok(reply) = xproto::get_input_focus(self.con).get_reply() {
-            if reply.focus() == window {
-                println!("TODO: remove focus from hidden window");
-            }
-        }
     }
 
     // set the keyboard focus on a window
@@ -194,7 +188,7 @@ impl<'a> Wm<'a> {
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
-        if let Some(tagset) = self.tag_stack.last_mut() {
+        if let Some(tagset) = self.tag_stack.current_mut() {
             tagset.pop_focus(ev.window());
         }
         self.arrange_windows();
@@ -215,14 +209,14 @@ impl<'a> Wm<'a> {
             return; // ugly hack to reduce scope of the borrow of self.clients,
                     // for some reason a simple else doesn't work as expected.
         }
-        let tags = match self.tag_stack.last() {
+        let tags = match self.tag_stack.current() {
             Some(tagset) => tagset.tags.clone(),
             None => return,
         };
         if let Some(client) = Client::new(self, window, tags) {
             let _ = xproto::map_window(self.con, window);
             self.clients.add(client);
-            let tagset: &mut TagSet = self.tag_stack.last_mut().unwrap();
+            let tagset: &mut TagSet = self.tag_stack.current_mut().unwrap();
             tagset.push_focus(window);
         } else {
             println!("Could not create a client :(");

@@ -3,7 +3,7 @@ extern crate xcb;
 use xcb::base::*;
 
 mod wm;
-use wm::client::{Tag, TagSet};
+use wm::client::{Tag, TagSet, TagStack};
 use wm::err::*;
 use wm::kbd::*;
 
@@ -33,13 +33,13 @@ fn main() {
         vec![(KeyPress{code: 42, mods: 0}, Box::new(|_, _| println!("HAH!")))
         ]
     );
-    wm.setup_tags(
+    wm.setup_tags(TagStack::from_vec(
         vec![TagSet::new(vec![Tag::Foo], Monocle::default()),
              TagSet::new(vec![Tag::Foo], DStack::default()),
              TagSet::new(vec![Tag::Foo], VStack::default()),
              TagSet::new(vec![Tag::Foo], HStack::default())
         ]
-    );
+    ));
     // main loop
     if let Err(e) = wm.run() {
         e.handle();

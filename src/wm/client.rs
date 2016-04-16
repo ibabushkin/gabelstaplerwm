@@ -139,3 +139,25 @@ impl TagSet {
         }
     }
 }
+
+pub struct TagStack {
+    pub tags: Vec<TagSet>,
+}
+
+impl TagStack {
+    pub fn new() -> TagStack {
+        TagStack {tags: Vec::new()}
+    }
+
+    pub fn from_vec(vec: Vec<TagSet>) -> TagStack {
+        TagStack {tags: vec}
+    }
+
+    pub fn current(&self) -> Option<&TagSet> {
+        self.tags.last()
+    }
+
+    pub fn current_mut(&mut self) -> Option<&mut TagSet> {
+        self.tags.last_mut()
+    }
+}

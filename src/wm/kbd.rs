@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use xcb::xkb as xkb;
 
-use wm::client::{ClientList,TagSet};
+use wm::client::{ClientList,TagStack};
 
 #[allow(dead_code)]
 const NO_MODIFIER: u8 = 0;
@@ -21,7 +21,7 @@ const MOD4: u8 = 64;
 #[allow(dead_code)]
 const ALTGR: u8 = 136;
 
-pub type KeyCallback = Box<Fn(&mut ClientList, &mut Vec<TagSet>) -> ()>;
+pub type KeyCallback = Box<Fn(&mut ClientList, &mut TagStack) -> ()>;
 pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
