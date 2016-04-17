@@ -91,10 +91,10 @@ impl<'a> Wm<'a> {
 
     // using the current layout, arrange all visible windows
     fn arrange_windows(&self) {
-        let (clients, window, layout) = match self.tag_stack.current() {
+        let (clients, layout) = match self.tag_stack.current() {
             Some(ref tagset) =>
                 (self.clients.match_clients_by_tags(&tagset.tags),
-                 tagset.focused.last(), &tagset.layout),
+                 &tagset.layout),
             None => {
                println!("TODO: refill tags");
                return;
@@ -113,7 +113,6 @@ impl<'a> Wm<'a> {
                 self.hide_window(client.window);
             }
         }
-        if let Some(win) = window { self.focus_window(win.clone()); }
     }
 
     // hide a window by moving it offscreen
@@ -125,10 +124,31 @@ impl<'a> Wm<'a> {
     }
 
     // set the keyboard focus on a window
-    fn focus_window(&self, window: xproto::Window) {
+    fn focus_window(&mut self, window: xproto::Window) {
         let _ = xproto::set_input_focus(
             self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
             window, xproto::TIME_CURRENT_TIME).request_check();
+        if let Some(tagset) = self.tag_stack.current_mut() {
+            tagset.focus_window(window);
+        }
+    }
+
+    // focus master window if the currently focused one is gone
+    // TODO: TCS balls
+    fn revert_focus_master(&mut self, window: xproto::Window) {
+        if let Some(tagset) = self.tag_stack.current_mut() {
+            if let Some(&Client {window: master, ..}) =
+                self.clients.match_master_by_tags(&tagset.tags) {
+                if let Some(focused) = tagset.focused {
+                    if focused == window {
+                        let _ = xproto::set_input_focus(
+                            self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+                            master, xproto::TIME_CURRENT_TIME).request_check();
+                        tagset.focus_window(master);
+                    }
+                }
+            }
+        }
     }
 
     // main loop: wait for events, handle them
@@ -188,9 +208,7 @@ impl<'a> Wm<'a> {
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
-        if let Some(tagset) = self.tag_stack.current_mut() {
-            tagset.pop_focus(ev.window());
-        }
+        self.revert_focus_master(ev.window());
         self.arrange_windows();
     }
 
@@ -204,23 +222,22 @@ impl<'a> Wm<'a> {
     // TODO: rewrite function
     fn handle_map_request(&mut self, ev: &xproto::MapRequestEvent) {
         let window = ev.window();
-        if let Some(client) = self.clients.get_client_by_window(window) {
+        if let Some(_) = self.clients.get_client_by_window(window) {
             println!("We need to map a window again ;)");
             return; // ugly hack to reduce scope of the borrow of self.clients,
                     // for some reason a simple else doesn't work as expected.
         }
         let tags = match self.tag_stack.current() {
             Some(tagset) => tagset.tags.clone(),
-            None => return,
+            None => return, // TODO: do something!
         };
         if let Some(client) = Client::new(self, window, tags) {
             let _ = xproto::map_window(self.con, window);
             self.clients.add(client);
-            let tagset: &mut TagSet = self.tag_stack.current_mut().unwrap();
-            tagset.push_focus(window);
         } else {
             println!("Could not create a client :(");
         }
+        self.focus_window(window);
         self.arrange_windows();
     }
 

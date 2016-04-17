@@ -40,6 +40,7 @@ impl Client {
     }
 
     // *move* a window to a new location
+    #[allow(dead_code)]
     pub fn set_tags(&mut self, tags: &[Tag]) {
         self.tags = Vec::with_capacity(tags.len());
         for tag in tags {
@@ -48,6 +49,7 @@ impl Client {
     }
 
     // add or remove a tag from a window
+    #[allow(dead_code)]
     pub fn toggle_tag(&mut self, tag: Tag) {
         if let Some(index) = self.tags.iter().position(|t| *t == tag) {
             self.tags.remove(index);
@@ -72,6 +74,10 @@ impl ClientList {
     // get a list of references of windows that are visible on a set of tags
     pub fn match_clients_by_tags(&self, tags: &[Tag]) -> Vec<&Client> {
         self.clients.iter().filter(|elem| elem.has_tags(tags)).collect()
+    }
+
+    pub fn match_master_by_tags(&self, tags: &[Tag]) -> Option<&Client> {
+        self.clients.iter().find(|elem| elem.has_tags(tags))
     }
 
     // get a client that corresponds to the given window
@@ -104,33 +110,21 @@ pub enum Tag {
 // an entity shown at a given point in time
 pub struct TagSet {
     pub tags: Vec<Tag>,
-    pub focused: Vec<xproto::Window>,
     pub layout: Box<Layout>,
+    pub focused: Option<xproto::Window>,
 }
 
 impl TagSet {
     pub fn new<T: Layout + 'static>(tags: Vec<Tag>, layout: T) -> TagSet {
-        TagSet {tags: tags, focused: Vec::new(), layout: Box::new(layout)}
+        TagSet {tags: tags, layout: Box::new(layout), focused: None}
     }
 
-    // focus a new window
-    pub fn push_focus(&mut self, window: xproto::Window) {
-        if self.focused.len() >= 4 {
-            self.focused.remove(0);
-        }
-        self.focused.push(window);
-    }
-
-    // focus the window that was focused before, forgetting the last focus
-    pub fn pop_focus(&mut self, window: xproto::Window) {
-        if let Some(&last) = self.focused.last() {
-            if last == window {
-                let _ = self.focused.pop();
-            }
-        }
+    pub fn focus_window(&mut self, window: xproto::Window) {
+        self.focused = Some(window);
     }
 
     // toggle a tag on the tagset
+    #[allow(dead_code)]
     pub fn toggle_tag(&mut self, tag: Tag) {
         if let Some(index) = self.tags.iter().position(|t| *t == tag) {
             self.tags.remove(index);
