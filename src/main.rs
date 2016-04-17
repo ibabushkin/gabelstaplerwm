@@ -30,14 +30,14 @@ fn main() {
         e.handle();
     }
     wm.setup_bindings(
-        vec![(KeyPress{code: 42, mods: 0}, Box::new(|_, _| println!("HAH!")))
+        vec![(KeyPress{code: 42, mods: 8}, Box::new(|_, s| s.swap_top()))
         ]
     );
     wm.setup_tags(TagStack::from_vec(
         vec![TagSet::new(vec![Tag::Foo], Monocle::default()),
-             TagSet::new(vec![Tag::Foo], DStack::default()),
+             TagSet::new(vec![Tag::Baz], DStack::default()),
              TagSet::new(vec![Tag::Foo], VStack::default()),
-             TagSet::new(vec![Tag::Foo], HStack::default())
+             TagSet::new(vec![Tag::Bar], HStack::default())
         ]
     ));
     // main loop

@@ -105,6 +105,8 @@ impl ClientList {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tag {
     Foo,
+    Bar,
+    Baz
 }
 
 // an entity shown at a given point in time
@@ -160,5 +162,15 @@ impl TagStack {
     // get the current tag set, mutable
     pub fn current_mut(&mut self) -> Option<&mut TagSet> {
         self.tags.last_mut()
+    }
+
+    // switch to last tag set
+    pub fn swap_top(&mut self) {
+        if self.tags.len() >= 2 {
+            let last = self.tags.pop().unwrap();
+            let new_last = self.tags.pop().unwrap();
+            self.tags.push(last);
+            self.tags.push(new_last);
+        }
     }
 }

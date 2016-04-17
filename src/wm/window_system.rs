@@ -189,7 +189,8 @@ impl<'a> Wm<'a> {
         let key = from_key(ev);
         println!("Key pressed: {:?}", key);
         if let Some(func) = self.bindings.get(&key) {
-            func(&mut self.clients, &mut self.tag_stack)
+            func(&mut self.clients, &mut self.tag_stack);
+            self.arrange_windows();
         }
     }
 
