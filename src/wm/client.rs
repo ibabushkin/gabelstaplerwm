@@ -115,10 +115,12 @@ pub struct TagSet {
 }
 
 impl TagSet {
+    // initialize a new tag set
     pub fn new<T: Layout + 'static>(tags: Vec<Tag>, layout: T) -> TagSet {
         TagSet {tags: tags, layout: Box::new(layout), focused: None}
     }
 
+    // mark a window as focused
     pub fn focus_window(&mut self, window: xproto::Window) {
         self.focused = Some(window);
     }
@@ -134,23 +136,28 @@ impl TagSet {
     }
 }
 
+// a history stack of tag sets
 pub struct TagStack {
     pub tags: Vec<TagSet>,
 }
 
 impl TagStack {
+    // setup an empty tag stack
     pub fn new() -> TagStack {
         TagStack {tags: Vec::new()}
     }
 
+    // setup a tag stack from a vector of tag sets
     pub fn from_vec(vec: Vec<TagSet>) -> TagStack {
         TagStack {tags: vec}
     }
 
+    // get the current tag set
     pub fn current(&self) -> Option<&TagSet> {
         self.tags.last()
     }
 
+    // get the current tag set, mutable
     pub fn current_mut(&mut self) -> Option<&mut TagSet> {
         self.tags.last_mut()
     }
