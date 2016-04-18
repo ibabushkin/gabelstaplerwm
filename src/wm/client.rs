@@ -109,6 +109,12 @@ pub enum Tag {
     Baz
 }
 
+impl Tag {
+    pub fn default() -> Tag {
+        Tag::Foo
+    }
+}
+
 // an entity shown at a given point in time
 pub struct TagSet {
     pub tags: Vec<Tag>,

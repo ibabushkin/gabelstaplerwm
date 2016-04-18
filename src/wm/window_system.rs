@@ -26,7 +26,7 @@ pub struct Wm<'a> {
     clients: ClientList,       // all clients
     tag_stack: TagStack,       // all visible tags at any point in time
     atoms: AtomList<'a>,       // registered atoms
-    visible_windows: Vec<xproto::Window>,
+    visible_windows: Vec<xproto::Window>, // all windows currently visible
 }
 
 impl<'a> Wm<'a> {
@@ -105,13 +105,12 @@ impl<'a> Wm<'a> {
             Some(ref tagset) =>
                 (self.clients.match_clients_by_tags(&tagset.tags),
                  &tagset.layout),
-            None => {
-               println!("TODO: refill tags");
-               return;
-            },
+            None => return // nothing to do here
         };
+        // get geometries ...
         let geometries = layout.arrange(clients.len(), &self.screen);
         for (client, geometry) in clients.iter().zip(geometries.iter()) {
+            // ... and apply them if a window is to be displayed
             if let &Some(ref geom) = geometry {
                 self.visible_windows.push(client.window);
                 let _ = xproto::configure_window(self.con, client.window,
@@ -239,7 +238,7 @@ impl<'a> Wm<'a> {
         }
         let tags = match self.tag_stack.current() {
             Some(tagset) => tagset.tags.clone(),
-            None => return, // TODO: do something!
+            None => vec![Tag::default()] // we need to put the client somewhere
         };
         if let Some(client) = Client::new(self, window, tags) {
             let _ = xproto::map_window(self.con, window);
