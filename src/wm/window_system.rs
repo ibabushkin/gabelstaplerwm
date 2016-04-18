@@ -26,6 +26,7 @@ pub struct Wm<'a> {
     clients: ClientList,       // all clients
     tag_stack: TagStack,       // all visible tags at any point in time
     atoms: AtomList<'a>,       // registered atoms
+    visible_windows: Vec<xproto::Window>,
 }
 
 impl<'a> Wm<'a> {
@@ -40,7 +41,8 @@ impl<'a> Wm<'a> {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
                     screen: ScreenSize {width: width, height: height},
                     bindings: HashMap::new(), clients: ClientList::new(),
-                    tag_stack: TagStack::new(), atoms: atoms}),
+                    tag_stack: TagStack::new(), atoms: atoms,
+                    visible_windows: Vec::new()}),
                 Err(e) => Err(e)
             }
         } else {
@@ -90,7 +92,15 @@ impl<'a> Wm<'a> {
     }
 
     // using the current layout, arrange all visible windows
-    fn arrange_windows(&self) {
+    fn arrange_windows(&mut self) {
+        // first, hide all visible windows ...
+        for window in self.visible_windows.iter() {
+            self.hide_window(*window);
+        }
+        // ... and reset the vector of visible windows
+        self.visible_windows.clear();
+
+        // setup current client list
         let (clients, layout) = match self.tag_stack.current() {
             Some(ref tagset) =>
                 (self.clients.match_clients_by_tags(&tagset.tags),
@@ -103,14 +113,13 @@ impl<'a> Wm<'a> {
         let geometries = layout.arrange(clients.len(), &self.screen);
         for (client, geometry) in clients.iter().zip(geometries.iter()) {
             if let &Some(ref geom) = geometry {
+                self.visible_windows.push(client.window);
                 let _ = xproto::configure_window(self.con, client.window,
                     &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
                       (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
                       (xproto::CONFIG_WINDOW_WIDTH  as u16, geom.width as u32),
                       (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height as u32)
                     ]);
-            } else {
-                self.hide_window(client.window);
             }
         }
     }
@@ -190,8 +199,8 @@ impl<'a> Wm<'a> {
         println!("Key pressed: {:?}", key);
         if let Some(func) = self.bindings.get(&key) {
             func(&mut self.clients, &mut self.tag_stack);
-            self.arrange_windows();
         }
+        self.arrange_windows();
     }
 
     // TODO: implement
