@@ -30,7 +30,17 @@ fn main() {
         e.handle();
     }
     wm.setup_bindings(
-        vec![(KeyPress{code: 42, mods: 8}, Box::new(|_, s| s.swap_top()))
+        vec![(KeyPress{code: 42, mods: 8}, Box::new(|_, s| s.swap_top())),
+             (KeyPress{code: 10, mods: 8}, Box::new(|_, s| s.swap_nth(0))),
+             (KeyPress{code: 11, mods: 8}, Box::new(|_, s| s.swap_nth(1))),
+             (KeyPress{code: 12, mods: 8}, Box::new(|_, s| s.swap_nth(2))),
+             (KeyPress{code: 13, mods: 8}, Box::new(|_, s| s.swap_nth(3))),
+             (KeyPress{code: 14, mods: 8}, Box::new(|_, s| s.swap_nth(4))),
+             (KeyPress{code: 15, mods: 8}, Box::new(|_, s| s.swap_nth(5))),
+             (KeyPress{code: 16, mods: 8}, Box::new(|_, s| s.swap_nth(6))),
+             (KeyPress{code: 17, mods: 8}, Box::new(|_, s| s.swap_nth(7))),
+             (KeyPress{code: 18, mods: 8}, Box::new(|_, s| s.swap_nth(8))),
+             (KeyPress{code: 19, mods: 8}, Box::new(|_, s| s.swap_nth(9))),
         ]
     );
     wm.setup_tags(TagStack::from_vec(

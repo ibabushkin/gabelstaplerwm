@@ -55,7 +55,7 @@ impl<'a> Wm<'a> {
 
     fn setup_colors(con: &'a base::Connection, colormap: xproto::Colormap)
         -> (u32, u32) {
-        let f_cookie = xproto::alloc_color(con, colormap, 0xff, 0xff, 0xff);
+        let f_cookie = xproto::alloc_color(con, colormap, 0xff, 0x00, 0x00);
         let u_cookie = xproto::alloc_color(con, colormap, 0x00, 0x00, 0x00);
         let f_pixel = match f_cookie.get_reply() {
             Ok(reply) => reply.pixel(),
@@ -74,6 +74,7 @@ impl<'a> Wm<'a> {
         let values
             = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
+            //| xproto::EVENT_MASK_KEY_PRESS uncomment for all keyboard events
             | xproto::EVENT_MASK_PROPERTY_CHANGE;
         match xproto::change_window_attributes(self.con, self.root,
             &[(xproto::CW_EVENT_MASK, values)]).request_check() {
@@ -201,6 +202,7 @@ impl<'a> Wm<'a> {
     }
 
     // handle an event received from the X server
+    // TODO: decide where we want to set border width
     fn handle(&mut self, event: base::GenericEvent) {
         match event.response_type() {
             xkb::STATE_NOTIFY =>

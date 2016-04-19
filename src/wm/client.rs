@@ -179,4 +179,12 @@ impl TagStack {
             self.tags.push(new_last);
         }
     }
+
+    // switch to a different tag by number
+    pub fn swap_nth(&mut self, index: usize) {
+        if self.tags.len() > index {
+            let new_last = self.tags.remove(index);
+            self.tags.push(new_last);
+        }
+    }
 }
