@@ -22,6 +22,7 @@ pub struct Wm<'a> {
     con: &'a base::Connection, // connection to the X server
     root: xproto::Window,      // root window
     screen: ScreenSize,        // screen parameters
+    border_colors: (u32, u32), // colors available for borders 
     bindings: Keybindings,     // keybindings
     clients: ClientList,       // all clients
     tag_stack: TagStack,       // all visible tags at any point in time
@@ -37,9 +38,11 @@ impl<'a> Wm<'a> {
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
             let width = screen.width_in_pixels();
             let height = screen.height_in_pixels();
+            let colormap = screen.default_colormap();
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
                     screen: ScreenSize {width: width, height: height},
+                    border_colors: Wm::setup_colors(con, colormap),
                     bindings: HashMap::new(), clients: ClientList::new(),
                     tag_stack: TagStack::new(), atoms: atoms,
                     visible_windows: Vec::new()}),
@@ -48,6 +51,21 @@ impl<'a> Wm<'a> {
         } else {
             Err(WmError::CouldNotAcquireScreen)
         }
+    }
+
+    fn setup_colors(con: &'a base::Connection, colormap: xproto::Colormap)
+        -> (u32, u32) {
+        let f_cookie = xproto::alloc_color(con, colormap, 0xff, 0xff, 0xff);
+        let u_cookie = xproto::alloc_color(con, colormap, 0x00, 0x00, 0x00);
+        let f_pixel = match f_cookie.get_reply() {
+            Ok(reply) => reply.pixel(),
+            Err(_) => panic!("Could not allocate your colors!")
+        };
+        let u_pixel = match u_cookie.get_reply() {
+            Ok(reply) => reply.pixel(),
+            Err(_) => panic!("Could not allocate your colors!")
+        };
+        (f_pixel, u_pixel)
     }
 
     // register window manager by requesting substructure redirects for
@@ -133,11 +151,20 @@ impl<'a> Wm<'a> {
 
     // set the keyboard focus on a window
     fn focus_window(&mut self, window: xproto::Window) {
+        self.set_focused_border_color(self.border_colors.1);
         let _ = xproto::set_input_focus(
             self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
             window, xproto::TIME_CURRENT_TIME).request_check();
         if let Some(tagset) = self.tag_stack.current_mut() {
             tagset.focus_window(window);
+        }
+        self.set_focused_border_color(self.border_colors.0);
+    }
+
+    fn set_focused_border_color(&self, color: u32) {
+        if let Some(win) = self.tag_stack.current().and_then(|t| t.focused) {
+            xproto::change_window_attributes(
+                self.con, win, &[(xproto::CW_BORDER_PIXEL, color)]);
         }
     }
 
