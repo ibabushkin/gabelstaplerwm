@@ -56,7 +56,7 @@ impl<'a> Wm<'a> {
     fn setup_colors(con: &'a base::Connection, colormap: xproto::Colormap)
         -> (u32, u32) {
         let f_cookie = xproto::alloc_color(con, colormap, 0xff, 0x00, 0x00);
-        let u_cookie = xproto::alloc_color(con, colormap, 0x00, 0x00, 0x00);
+        let u_cookie = xproto::alloc_color(con, colormap, 0x00, 0xff, 0x00);
         let f_pixel = match f_cookie.get_reply() {
             Ok(reply) => reply.pixel(),
             Err(_) => panic!("Could not allocate your colors!")
@@ -162,6 +162,7 @@ impl<'a> Wm<'a> {
         self.set_focused_border_color(self.border_colors.0);
     }
 
+    // color the borders of the currently focused window
     fn set_focused_border_color(&self, color: u32) {
         if let Some(win) = self.tag_stack.current().and_then(|t| t.focused) {
             xproto::change_window_attributes(
@@ -170,18 +171,16 @@ impl<'a> Wm<'a> {
     }
 
     // focus master window if the currently focused one is gone
-    // TODO: TCS balls
+    // TODO: TCS
     fn revert_focus_master(&mut self, window: xproto::Window) {
         if let Some(tagset) = self.tag_stack.current_mut() {
             if let Some(&Client {window: master, ..}) =
                 self.clients.match_master_by_tags(&tagset.tags) {
-                if let Some(focused) = tagset.focused {
-                    if focused == window {
-                        let _ = xproto::set_input_focus(
-                            self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
-                            master, xproto::TIME_CURRENT_TIME).request_check();
-                        tagset.focus_window(master);
-                    }
+                if Some(window) == tagset.focused {
+                    let _ = xproto::set_input_focus(
+                        self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+                        master, xproto::TIME_CURRENT_TIME).request_check();
+                    tagset.focus_window(master);
                 }
             }
         }
@@ -261,26 +260,27 @@ impl<'a> Wm<'a> {
     }
 
     // a window wants to be mapped, take necessary action
-    // TODO: rewrite function
     fn handle_map_request(&mut self, ev: &xproto::MapRequestEvent) {
         let window = ev.window();
-        if let Some(_) = self.clients.get_client_by_window(window) {
-            println!("We need to map a window again ;)");
-            return; // ugly hack to reduce scope of the borrow of self.clients,
-                    // for some reason a simple else doesn't work as expected.
+        if let None = self.clients.get_client_by_window(window) {
+            let tags = match self.tag_stack.current() {
+                Some(tagset) => tagset.tags.clone(),
+                None => vec![Tag::default()]
+                    // we need to put the client somewhere
+            };
+            if let Some(client) = Client::new(self, window, tags) {
+                let _ = xproto::map_window(self.con, window);
+                self.clients.add(client);
+            } else {
+                println!("Could not create a client :(");
+            }
+            // set border width
+            let _ = xproto::configure_window(
+                self.con, window,
+                &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16, 2)]);
+            self.focus_window(window);
+            self.arrange_windows();
         }
-        let tags = match self.tag_stack.current() {
-            Some(tagset) => tagset.tags.clone(),
-            None => vec![Tag::default()] // we need to put the client somewhere
-        };
-        if let Some(client) = Client::new(self, window, tags) {
-            let _ = xproto::map_window(self.con, window);
-            self.clients.add(client);
-        } else {
-            println!("Could not create a client :(");
-        }
-        self.focus_window(window);
-        self.arrange_windows();
     }
 
     // register and get back atoms
