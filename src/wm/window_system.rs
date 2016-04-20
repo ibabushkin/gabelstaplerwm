@@ -229,6 +229,10 @@ impl<'a> Wm<'a> {
             func(&mut self.clients, &mut self.tag_stack);
         }
         self.arrange_windows();
+        if let Some(win) = self.tag_stack.current().and_then(|ts| ts.focused) {
+            self.focus_window(win);
+        }
+        println!("TagStack: {:?}", self.tag_stack);
     }
 
     // TODO: implement

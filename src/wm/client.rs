@@ -1,3 +1,5 @@
+use std::fmt;
+
 use xcb::xproto as xproto;
 
 use wm::layout::Layout;
@@ -144,7 +146,14 @@ impl TagSet {
     }
 }
 
+impl fmt::Debug for TagSet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TagSet {{ tags: {:?}, ..}}", self.tags)
+    }
+}
+
 // a history stack of tag sets
+#[derive(Debug)]
 pub struct TagStack {
     pub tags: Vec<TagSet>,
 }
