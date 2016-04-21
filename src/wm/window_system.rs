@@ -56,8 +56,11 @@ impl<'a> Wm<'a> {
     // allocate colors needed for border drawing
     fn setup_colors(con: &'a base::Connection, colormap: xproto::Colormap)
         -> (u32, u32) {
-        let f_cookie = xproto::alloc_color(con, colormap, 0xff, 0x00, 0x00);
-        let u_cookie = xproto::alloc_color(con, colormap, 0x00, 0xff, 0x00);
+        let f_cookie = xproto::alloc_color(con, colormap,
+                                           83 * 257, // magic...
+                                           93 * 257,
+                                           108 * 257);
+        let u_cookie = xproto::alloc_color(con, colormap, 0x00, 0x00, 0x00);
         let f_pixel = match f_cookie.get_reply() {
             Ok(reply) => reply.pixel(),
             Err(_) => panic!("Could not allocate your colors!")
