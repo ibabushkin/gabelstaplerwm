@@ -53,6 +53,7 @@ impl<'a> Wm<'a> {
         }
     }
 
+    // allocate colors needed for border drawing
     fn setup_colors(con: &'a base::Connection, colormap: xproto::Colormap)
         -> (u32, u32) {
         let f_cookie = xproto::alloc_color(con, colormap, 0xff, 0x00, 0x00);
@@ -277,7 +278,7 @@ impl<'a> Wm<'a> {
             // set border width
             let _ = xproto::configure_window(
                 self.con, window,
-                &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16, 2)]);
+                &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16, 1)]);
             self.focus_window(window);
             self.arrange_windows();
         }
