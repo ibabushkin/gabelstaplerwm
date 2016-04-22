@@ -6,6 +6,7 @@ extern crate xcb;
 // * clean up code
 
 pub mod client;
+pub mod config;
 pub mod err;
 pub mod kbd;
 pub mod layout;
