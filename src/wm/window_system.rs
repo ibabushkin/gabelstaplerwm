@@ -17,22 +17,30 @@ static ATOM_VEC: [&'static str; 6] = [
 
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 
+#[derive(Clone)]
+pub struct WmConfig {
+    pub f_color: (u16, u16, u16),
+    pub u_color: (u16, u16, u16),
+    pub border_width: u8,
+}
+
 // a window manager, wrapping a Connection and a root window
 pub struct Wm<'a> {
     con: &'a base::Connection, // connection to the X server
     root: xproto::Window,      // root window
+    config: WmConfig,          // user defined configuration values
     screen: ScreenSize,        // screen parameters
-    border_colors: (u32, u32), // colors available for borders 
-    bindings: Keybindings,     // keybindings
+    border_colors: (u32, u32), // colors available for borders
+    bindings: Keybindings,     // keybindings, TODO: move to config
     clients: ClientList,       // all clients
-    tag_stack: TagStack,       // all visible tags at any point in time
+    tag_stack: TagStack,       // all visible tags + history
     atoms: AtomList<'a>,       // registered atoms
     visible_windows: Vec<xproto::Window>, // all windows currently visible
 }
 
 impl<'a> Wm<'a> {
     // wrap a connection to initialize a window manager
-    pub fn new(con: &'a base::Connection, screen_num: i32)
+    pub fn new(con: &'a base::Connection, screen_num: i32, config: WmConfig)
         -> Result<Wm<'a>, WmError> {
         let setup = con.get_setup();
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
@@ -41,8 +49,11 @@ impl<'a> Wm<'a> {
             let colormap = screen.default_colormap();
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
+                    config: config.clone(),
                     screen: ScreenSize {width: width, height: height},
-                    border_colors: Wm::setup_colors(con, colormap),
+                    border_colors: Wm::setup_colors(con, colormap,
+                                                    config.f_color,
+                                                    config.u_color),
                     bindings: HashMap::new(), clients: ClientList::new(),
                     tag_stack: TagStack::new(), atoms: atoms,
                     visible_windows: Vec::new()}),
@@ -54,13 +65,14 @@ impl<'a> Wm<'a> {
     }
 
     // allocate colors needed for border drawing
-    fn setup_colors(con: &'a base::Connection, colormap: xproto::Colormap)
-        -> (u32, u32) {
+    fn setup_colors(con: &'a base::Connection,
+                    colormap: xproto::Colormap,
+                    f_color: (u16, u16, u16),
+                    u_color: (u16, u16, u16)) -> (u32, u32) {
         let f_cookie = xproto::alloc_color(con, colormap,
-                                           83 * 257, // magic...
-                                           93 * 257,
-                                           108 * 257);
-        let u_cookie = xproto::alloc_color(con, colormap, 0x00, 0x00, 0x00);
+                                           f_color.0, f_color.1, f_color.2);
+        let u_cookie = xproto::alloc_color(con, colormap, 
+                                           u_color.0, u_color.1, u_color.2);
         let f_pixel = match f_cookie.get_reply() {
             Ok(reply) => reply.pixel(),
             Err(_) => panic!("Could not allocate your colors!")
@@ -205,7 +217,6 @@ impl<'a> Wm<'a> {
     }
 
     // handle an event received from the X server
-    // TODO: decide where we want to set border width
     fn handle(&mut self, event: base::GenericEvent) {
         match event.response_type() {
             xkb::STATE_NOTIFY =>
@@ -280,8 +291,8 @@ impl<'a> Wm<'a> {
             }
             // set border width
             let _ = xproto::configure_window(
-                self.con, window,
-                &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16, 1)]);
+                self.con, window, &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                                     self.config.border_width as u32)]);
             self.focus_window(window);
             self.arrange_windows();
         }

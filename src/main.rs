@@ -12,16 +12,21 @@ use wm::layout::vstack::VStack;
 use wm::layout::hstack::HStack;
 use wm::layout::dstack::DStack;
 
-use wm::window_system::Wm;
+use wm::window_system::{Wm, WmConfig};
 
 fn main() {
+    let config = WmConfig {
+        f_color: (0xffff, 0x0, 0x0),
+        u_color: (0x00, 0x00, 0x00),
+        border_width: 1,
+    };
     // new connection to X server
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(e) => WmError::CouldNotConnect(e).handle()
     };
     // wm init
-    let mut wm = match Wm::new(&con, screen_num) {
+    let mut wm = match Wm::new(&con, screen_num, config) {
         Ok(w) => w,
         Err(e) => e.handle()
     };
