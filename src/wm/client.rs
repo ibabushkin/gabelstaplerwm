@@ -2,6 +2,7 @@ use std::fmt;
 
 use xcb::xproto as xproto;
 
+use wm::config::Tag;
 use wm::layout::Layout;
 use wm::window_system::Wm;
 
@@ -103,25 +104,11 @@ impl ClientList {
     }
 }
 
-// a set of (symbolic) tags - to be extended/modified
-#[derive(Debug, PartialEq, Clone)]
-pub enum Tag {
-    Foo,
-    Bar,
-    Baz
-}
-
-impl Tag {
-    pub fn default() -> Tag {
-        Tag::Foo
-    }
-}
-
 // an entity shown at a given point in time
 pub struct TagSet {
-    pub tags: Vec<Tag>,
-    pub layout: Box<Layout>,
-    pub focused: Option<xproto::Window>,
+    pub tags: Vec<Tag>,                  // tags shown
+    pub layout: Box<Layout>,             // the layout used
+    pub focused: Option<xproto::Window>, // last focused window
 }
 
 impl TagSet {
@@ -155,7 +142,7 @@ impl fmt::Debug for TagSet {
 // a history stack of tag sets
 #[derive(Debug)]
 pub struct TagStack {
-    pub tags: Vec<TagSet>,
+    pub tags: Vec<TagSet>, // tag sets, last is current
 }
 
 impl TagStack {

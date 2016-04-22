@@ -5,6 +5,7 @@ use xcb::xkb as xkb;
 use xcb::xproto as xproto;
 
 use wm::client::*;
+use wm::config::Tag;
 use wm::err::*;
 use wm::kbd::*;
 use wm::layout::*;
@@ -17,11 +18,12 @@ static ATOM_VEC: [&'static str; 6] = [
 
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 
+// configuration information used by the window manager
 #[derive(Clone)]
 pub struct WmConfig {
-    pub f_color: (u16, u16, u16),
-    pub u_color: (u16, u16, u16),
-    pub border_width: u8,
+    pub f_color: (u16, u16, u16), // color of focused window's border
+    pub u_color: (u16, u16, u16), // color of unfocused window's border
+    pub border_width: u8,         // window border width
 }
 
 // a window manager, wrapping a Connection and a root window
@@ -134,7 +136,6 @@ impl<'a> Wm<'a> {
         }
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
-
         // setup current client list
         let (clients, layout) = match self.tag_stack.current() {
             Some(ref tagset) =>
@@ -187,7 +188,6 @@ impl<'a> Wm<'a> {
     }
 
     // focus master window if the currently focused one is gone
-    // TODO: TCS
     fn revert_focus_master(&mut self, window: xproto::Window) {
         if let Some(tagset) = self.tag_stack.current_mut() {
             if let Some(&Client {window: master, ..}) =

@@ -7,7 +7,6 @@ pub enum WmError {
     CouldNotConnect(base::ConnError),
     CouldNotAcquireScreen,
     CouldNotRegisterAtom(String),
-    //CouldNotSetupXkb,
     OtherWmRunning,
     ConnectionInterrupted,
     IOError
@@ -23,8 +22,6 @@ impl WmError {
                 println!("Could not acquire screen."),
             WmError::CouldNotRegisterAtom(s) =>
                 println!("Could not register atom. {}", s),
-            //WmError::CouldNotSetupXkb =>
-            //    println!("Could not setup XKB"),
             WmError::OtherWmRunning =>
                 println!("Another WM is running."),
             WmError::ConnectionInterrupted =>

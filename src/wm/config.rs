@@ -1,4 +1,4 @@
-use wm::client::{Tag, TagSet, TagStack};
+use wm::client::{TagSet, TagStack};
 use wm::kbd::*;
 
 use wm::layout::monocle::Monocle;
@@ -8,6 +8,21 @@ use wm::layout::dstack::DStack;
 
 use wm::window_system::{Wm,WmConfig};
 
+// a set of (symbolic) tags - to be extended/modified
+#[derive(Debug, PartialEq, Clone)]
+pub enum Tag {
+    Foo,
+    Bar,
+    Baz
+}
+
+impl Tag {
+    pub fn default() -> Tag {
+        Tag::Foo
+    }
+}
+
+// generate a window manager config - colors, border width...
 pub fn generate_config() -> WmConfig {
     WmConfig {
         f_color: (0xffff, 0x0, 0x0),
@@ -16,6 +31,7 @@ pub fn generate_config() -> WmConfig {
     }
 }
 
+// setup datastructures for the window manager, ie keybindings and tagstack
 pub fn setup_wm(wm: &mut Wm) {
     wm.setup_bindings(
         vec![(KeyPress{code: 42, mods: 8}, Box::new(|_, s| s.swap_top())),
