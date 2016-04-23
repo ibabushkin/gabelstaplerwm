@@ -78,4 +78,41 @@ impl Layout for DStack {
         }
         res
     }
+
+    fn right_window(&self, index: usize, max: usize) -> Option<usize> {
+        let top_right = (max + 1) / 2;
+        if index == 0 {
+            if top_right >= 1 { Some(top_right) } else { None }
+        } else if index > top_right {
+            Some(0)
+        } else {
+            None
+        }
+    }
+
+    fn left_window(&self, index: usize, max: usize) -> Option<usize> {
+        if index == 0 {
+            if max >= 2 { Some(1) } else { None }
+        } else if index >= (max + 1) / 2 + 1 {
+            Some(0)
+        } else {
+            None
+        }
+    }
+
+    fn top_window(&self, index: usize, max: usize) -> Option<usize> {
+        if index <= 1 || index == (max + 1) / 2 {
+            None
+        } else {
+            Some(index - 1)
+        }
+    }
+
+    fn bottom_window(&self, index: usize, max: usize) -> Option<usize> {
+        if index == max || index == (max + 1) / 2 + 1 {
+            None
+        } else {
+            Some(index + 1)
+        }
+    }
 }

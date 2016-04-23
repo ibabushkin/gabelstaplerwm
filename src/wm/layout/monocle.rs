@@ -26,5 +26,21 @@ impl Layout for Monocle {
         }
         res
     }
+
+    fn right_window(&self, _: usize, _: usize) -> Option<usize> {
+        None
+    }
+
+    fn left_window(&self, _: usize, _: usize) -> Option<usize> {
+        None
+    }
+
+    fn top_window(&self, _: usize, _: usize) -> Option<usize> {
+        None
+    }
+
+    fn bottom_window(&self, _: usize, _: usize) -> Option<usize> {
+        None
+    }
 }
 

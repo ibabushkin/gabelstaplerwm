@@ -56,5 +56,35 @@ impl Layout for HStack {
         }
         res
     }
+
+    fn right_window(&self, index: usize, max: usize) -> Option<usize> {
+        if index == 0 {
+            Some(max)
+        } else if index < max {
+            Some(index+1)
+        } else {
+            None
+        }
+    }
+
+    fn left_window(&self, index: usize, _: usize) -> Option<usize> {
+        if index <= 1 { None } else { Some(index-1) }
+    }
+
+    fn top_window(&self, index: usize, max: usize) -> Option<usize> {
+        if index == 0 {
+            if !self.inverted && max >= 1 { Some(1) } else { None }
+        } else {
+            if self.inverted { None } else { Some(0)}
+        }
+    }
+
+    fn bottom_window(&self, index: usize, max: usize) -> Option<usize> {
+        if index == 0 {
+            if self.inverted && max >= 1 { Some(1) } else { None }
+        } else {
+            if !self.inverted { None } else { Some(0) }
+        }
+    }
 }
 
