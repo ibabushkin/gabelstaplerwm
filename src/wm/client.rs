@@ -102,6 +102,41 @@ impl ClientList {
             self.clients.remove(pos);
         }
     }
+
+    // focus a window by direction
+    pub fn focus_direction<F>(&self, tags: &mut TagSet, focus_func: F)
+        where F: Fn(&Layout, usize, usize) -> Option<usize> {
+        if let Some(current_window) = tags.focused {
+            if let Some(current_index) = self.clients.iter().position(
+                |client| client.window == current_window) {
+                if let Some(new_index) = focus_func(tags.layout.as_ref(),
+                    current_index, self.clients.len()) {
+                    tags.focus_window(
+                        self.clients.get(new_index).unwrap().window);
+                }
+            }
+        }
+    }
+
+    // focus the window to the right
+    pub fn focus_right(&self, tags: &mut TagSet) {
+        self.focus_direction(tags, |l, i, m| l.right_window(i, m))
+    }
+
+    // focus the window to the left
+    pub fn focus_left(&self, tags: &mut TagSet) {
+        self.focus_direction(tags, |l, i, m| l.left_window(i, m))
+    }
+
+    // focus the window to the top
+    pub fn focus_top(&self, tags: &mut TagSet) {
+        self.focus_direction(tags, |l, i, m| l.top_window(i, m))
+    }
+
+    // focus the window to the bottom
+    pub fn focus_bottom(&self, tags: &mut TagSet) {
+        self.focus_direction(tags, |l, i, m| l.bottom_window(i, m))
+    }
 }
 
 // an entity shown at a given point in time

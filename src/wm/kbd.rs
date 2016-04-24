@@ -23,7 +23,7 @@ const MOD4: u8 = 64;
 const ALTGR: u8 = 136;
 
 // closure type of a callback function running on key press
-pub type KeyCallback = Box<Fn(&mut ClientList, &mut TagStack) -> ()>;
+pub type KeyCallback = Box<Fn(&mut ClientList, &mut TagStack)>;
 // keybinding map
 pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 
