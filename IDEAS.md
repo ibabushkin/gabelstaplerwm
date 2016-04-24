@@ -21,10 +21,5 @@ That way, users can choose components and replace/extend at will.
 
 ## Short term goals
 * clean the code even more ;)
-* find a way to avoid as many calls to `arrange_windows()` as possible
-  * maybe make callback closures return values of an enum that gets interpreted
-    accordingly - do we need to redraw? do we need to add a new client etc?
-    This would also make it possible to avoid passing mutable references, making
-    the code more functional and safe
 * maybe find a better way than having 3(!) functions for focus setting in
   different places

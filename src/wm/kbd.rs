@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use xcb::xkb as xkb;
 
 use wm::client::{ClientList,TagStack};
+use wm::window_system::WmCommand;
 
 // constants for easier modifier handling
 #[allow(dead_code)]
@@ -23,7 +24,7 @@ const MOD4: u8 = 64;
 const ALTGR: u8 = 136;
 
 // closure type of a callback function running on key press
-pub type KeyCallback = Box<Fn(&mut ClientList, &mut TagStack)>;
+pub type KeyCallback = Box<Fn(&mut ClientList, &mut TagStack) -> WmCommand>;
 // keybinding map
 pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 

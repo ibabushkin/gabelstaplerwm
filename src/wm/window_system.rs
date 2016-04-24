@@ -18,6 +18,12 @@ static ATOM_VEC: [&'static str; 6] = [
 
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 
+// enumeration type used to fine-tune the behaviour after a callback
+pub enum WmCommand {
+    Redraw,
+    NoCommand,
+}
+
 // configuration information used by the window manager
 #[derive(Clone)]
 pub struct WmConfig {
@@ -239,10 +245,14 @@ impl<'a> Wm<'a> {
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev);
         println!("Key pressed: {:?}", key);
+        let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
-            func(&mut self.clients, &mut self.tag_stack);
+            command = func(&mut self.clients, &mut self.tag_stack);
         }
-        self.arrange_windows();
+        match command {
+            WmCommand::Redraw => self.arrange_windows(),
+            WmCommand::NoCommand => (),
+        };
         if let Some(win) = self.tag_stack.current().and_then(|ts| ts.focused) {
             self.focus_window(win);
         }
