@@ -103,8 +103,19 @@ impl ClientList {
         }
     }
 
+    // focus a window by index difference
+    pub fn focus_offset(&self, tags: &mut TagSet, offset: isize) {
+        if let Some(current_window) = tags.focused {
+            let current_index = self.clients.iter().position(
+                |client| client.window == current_window).unwrap();
+            let new_index = (current_index as isize + offset) as usize
+                % self.clients.len();
+            tags.focus_window(self.clients.get(new_index).unwrap().window);
+        }
+    }
+
     // focus a window by direction
-    pub fn focus_direction<F>(&self, tags: &mut TagSet, focus_func: F)
+    fn focus_direction<F>(&self, tags: &mut TagSet, focus_func: F)
         where F: Fn(&Layout, usize, usize) -> Option<usize> {
         if let Some(current_window) = tags.focused {
             if let Some(current_index) = self.clients.iter().position(
