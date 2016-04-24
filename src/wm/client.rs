@@ -121,7 +121,7 @@ impl ClientList {
             if let Some(current_index) = self.clients.iter().position(
                 |client| client.window == current_window) {
                 if let Some(new_index) = focus_func(tags.layout.as_ref(),
-                    current_index, self.clients.len()) {
+                    current_index, self.clients.len() - 1) {
                     tags.focus_window(
                         self.clients.get(new_index).unwrap().window);
                 }

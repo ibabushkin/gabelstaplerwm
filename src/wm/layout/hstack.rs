@@ -1,11 +1,11 @@
 use wm::layout::*;
 
 // the horizontal stack layout
-// +-+-+-+-+
-// | |B| | | A: master window
-// +-+-+-+-+
-// |   A   | B: stack, hidden if fixed=false and num_windows <= 1
 // +-------+
+// |   A   | A: master window
+// +-+-+-+-+
+// | |B| | | B: stack, hidden if fixed=false and num_windows <= 1
+// +-+-+-+-+
 pub struct HStack {
     pub master_factor: u8, // percent
     pub inverted: bool,    // invert the layout?
@@ -73,17 +73,17 @@ impl Layout for HStack {
 
     fn top_window(&self, index: usize, max: usize) -> Option<usize> {
         if index == 0 {
-            if !self.inverted && max >= 1 { Some(1) } else { None }
+            if self.inverted && max >= 1 { Some(1) } else { None }
         } else {
-            if self.inverted { None } else { Some(0)}
+            if !self.inverted { Some(0) } else { None }
         }
     }
 
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize> {
         if index == 0 {
-            if self.inverted && max >= 1 { Some(1) } else { None }
+            if !self.inverted && max >= 1 { Some(1) } else { None }
         } else {
-            if !self.inverted { None } else { Some(0) }
+            if self.inverted { Some(0) } else { None }
         }
     }
 }
