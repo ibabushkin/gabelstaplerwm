@@ -6,23 +6,30 @@ pub mod dstack;
 // a screen size to be accounted for when arranging windows
 #[derive(Clone)]
 pub struct ScreenSize {
+    pub offset_x: u16,
+    pub offset_y: u16,
     pub width: u16,
     pub height: u16,
 }
 
 impl ScreenSize {
     pub fn new(old: &ScreenSize, width: u16, height: u16) -> ScreenSize {
-        let new_width = if old.width < width {
-            old.width
+        let new_width = if old.width + old.offset_x < width {
+            old.width - old.offset_x
         } else {
             width
         };
-        let new_height = if old.height < height {
-            old.height
+        let new_height = if old.height + old.offset_y < height {
+            old.height - old.offset_y
         } else {
             height
         };
-        ScreenSize { width: new_width, height: new_height }
+        ScreenSize {
+            offset_x: old.offset_x,
+            offset_y: old.offset_y,
+            width: new_width,
+            height: new_height
+        }
     }
 }
 

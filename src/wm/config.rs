@@ -29,7 +29,9 @@ pub fn generate_config() -> WmConfig {
         f_color: (0xffff, 0x0, 0x0),
         u_color: (0x00, 0x00, 0x00),
         border_width: 1,
-        screen: ScreenSize { width: 800, height: 600 },
+        screen: ScreenSize {
+            offset_x: 0, offset_y: 20, width: 800, height: 600
+        },
     }
 }
 
