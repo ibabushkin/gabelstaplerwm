@@ -4,9 +4,26 @@ pub mod hstack;
 pub mod dstack;
 
 // a screen size to be accounted for when arranging windows
+#[derive(Clone)]
 pub struct ScreenSize {
     pub width: u16,
     pub height: u16,
+}
+
+impl ScreenSize {
+    pub fn new(old: &ScreenSize, width: u16, height: u16) -> ScreenSize {
+        let new_width = if old.width < width {
+            old.width
+        } else {
+            width
+        };
+        let new_height = if old.height < height {
+            old.height
+        } else {
+            height
+        };
+        ScreenSize { width: new_width, height: new_height }
+    }
 }
 
 // a window's geometry

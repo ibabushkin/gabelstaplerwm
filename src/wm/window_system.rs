@@ -30,6 +30,7 @@ pub struct WmConfig {
     pub f_color: (u16, u16, u16), // color of focused window's border
     pub u_color: (u16, u16, u16), // color of unfocused window's border
     pub border_width: u8,         // window border width
+    pub screen: ScreenSize,       // wanted screen parameters, reset by the wm
 }
 
 // a window manager, wrapping a Connection and a root window
@@ -55,10 +56,11 @@ impl<'a> Wm<'a> {
             let width = screen.width_in_pixels();
             let height = screen.height_in_pixels();
             let colormap = screen.default_colormap();
+            let new_screen = ScreenSize::new(&config.screen, width, height);
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => Ok(Wm {con: con, root: screen.root(),
                     config: config.clone(),
-                    screen: ScreenSize {width: width, height: height},
+                    screen: new_screen,
                     border_colors: Wm::setup_colors(con, colormap,
                                                     config.f_color,
                                                     config.u_color),

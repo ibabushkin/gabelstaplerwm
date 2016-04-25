@@ -1,6 +1,7 @@
 use wm::client::{TagSet, TagStack};
 use wm::kbd::*;
 
+use wm::layout::ScreenSize;
 use wm::layout::monocle::Monocle;
 use wm::layout::vstack::VStack;
 use wm::layout::hstack::HStack;
@@ -28,6 +29,7 @@ pub fn generate_config() -> WmConfig {
         f_color: (0xffff, 0x0, 0x0),
         u_color: (0x00, 0x00, 0x00),
         border_width: 1,
+        screen: ScreenSize { width: 800, height: 600 },
     }
 }
 
