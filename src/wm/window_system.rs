@@ -188,8 +188,11 @@ impl<'a> Wm<'a> {
     // color the borders of the currently focused window
     fn set_focused_border_color(&self, color: u32) {
         if let Some(win) = self.tag_stack.current().and_then(|t| t.focused) {
-            xproto::change_window_attributes(
+            let cookie = xproto::change_window_attributes(
                 self.con, win, &[(xproto::CW_BORDER_PIXEL, color)]);
+            if let Err(_) = cookie.request_check() {
+                println!("could not reset window border color")
+            }
         }
     }
 
@@ -241,7 +244,8 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // look for a matching key binding upon event receival
+    // look for a matching key binding upon event receival and react
+    // accordingly: call a callback closure if necessary and optionally redraw
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev);
         println!("Key pressed: {:?}", key);
@@ -300,9 +304,9 @@ impl<'a> Wm<'a> {
                 println!("Could not create a client :(");
             }
             // set border width
-            let _ = xproto::configure_window(
-                self.con, window, &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                                     self.config.border_width as u32)]);
+            xproto::configure_window(self.con, window,
+                &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                   self.config.border_width as u32)]);
             self.focus_window(window);
             self.arrange_windows();
         }
