@@ -17,7 +17,8 @@ impl Layout for Monocle {
         -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // master window is shown
-        res.push(Some(Geometry {x: self.offset_x, y: self.offset_y,
+        res.push(Some(Geometry {x: self.offset_x + screen.offset_x,
+            y: self.offset_y + screen.offset_y,
             width: screen.width - 2 * self.offset_x,
             height: screen.height - 2 * self.offset_y}));
         // all other windows are hidden

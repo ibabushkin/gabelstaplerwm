@@ -17,12 +17,12 @@ impl ScreenSize {
         let new_width = if old.width + old.offset_x < width {
             old.width - old.offset_x
         } else {
-            width
+            width - old.offset_x
         };
         let new_height = if old.height + old.offset_y < height {
             old.height - old.offset_y
         } else {
-            height
+            height - old.offset_y
         };
         ScreenSize {
             offset_x: old.offset_x,

@@ -31,7 +31,7 @@ impl Layout for VStack {
         if num_windows == 1 {
             // one window only - fullscreen or fixed size
             let w = if self.fixed { master_width } else { screen.width };
-            res.push(Some(Geometry {x: 0, y: 0,
+            res.push(Some(Geometry {x: screen.offset_x, y: screen.offset_y,
                 width: w, height: screen.height}));
         } else if num_windows > 1 {
             // optionally swap stack and master area
@@ -41,14 +41,15 @@ impl Layout for VStack {
                 (0, master_width)
             };
             // master window
-            res.push(Some(Geometry {x: master_x, y: 0,
-                width: master_width, height: screen.height}));
+            res.push(Some(Geometry {x: master_x + screen.offset_x,
+                y: screen.offset_y, width: master_width,
+                height: screen.height}));
             // slave windows
             let slave_height = screen.height / (num_windows as u16 - 1);
             for i in 1..num_windows {
                 res.push(Some(Geometry {
-                    x: slave_x,
-                    y: (i as u16 - 1) * slave_height,
+                    x: slave_x + screen.offset_x,
+                    y: (i as u16 - 1) * slave_height + screen.offset_y,
                     width: screen.width - master_width,
                     height: slave_height})
                 );

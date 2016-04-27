@@ -31,7 +31,7 @@ impl Layout for DStack {
         };
         if num_windows == 1 && !self.fixed {
             // one window only - fullscreen
-            res.push(Some(Geometry {x: 0, y: 0,
+            res.push(Some(Geometry {x: screen.offset_x, y: screen.offset_y,
                 width: screen.width, height: screen.height}));
         } else if num_windows > 1 {
             let slave_width = (screen.width - master_width) / 2;
@@ -44,16 +44,17 @@ impl Layout for DStack {
                     (slave_width, slave_width + master_width)
                 };
             // master window
-            res.push(Some(Geometry {x: master_x, y: 0,
-                width: master_width, height: screen.height}));
+            res.push(Some(Geometry {x: master_x + screen.offset_x,
+                y: screen.offset_y, width: master_width, height: screen.height
+            }));
             // num_left_slaves <= num_right_slaves
             let num_left_slaves = (num_windows - 1) / 2;
             if num_left_slaves > 0 {
                 let slave_height_left = screen.height / num_left_slaves as u16;
                 // slave windows - left stack
                 for i in 0..num_left_slaves {
-                    res.push(Some(Geometry {
-                        x: 0, y: i as u16 * slave_height_left,
+                    res.push(Some(Geometry { x: screen.offset_x,
+                        y: i as u16 * slave_height_left + screen.offset_y,
                         height: slave_height_left, width: slave_width}));
                 }
             }
@@ -71,7 +72,8 @@ impl Layout for DStack {
                 // slave windows - right stack
                 for i in 0..num_right_slaves {
                     res.push(Some(Geometry {
-                        x: slave_right_x, y: i as u16 * slave_height_right,
+                        x: slave_right_x + screen.offset_x,
+                        y: i as u16 * slave_height_right + screen.offset_y,
                         height: slave_height_right, width: width}));
                 }
             }
