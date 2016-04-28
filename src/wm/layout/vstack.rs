@@ -13,6 +13,7 @@ pub struct VStack {
 }
 
 impl VStack {
+    #[allow(dead_code)]
     pub fn default() -> VStack {
         VStack {master_factor: 50, inverted: false, fixed: false}
     }

@@ -13,6 +13,7 @@ pub struct HStack {
 }
 
 impl HStack {
+    #[allow(dead_code)]
     pub fn default() -> HStack {
         HStack {master_factor: 50, inverted: false, fixed: false}
     }

@@ -13,8 +13,7 @@ use wm::window_system::{Wm,WmConfig,WmCommand};
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tag {
     Foo,
-    Bar,
-    Baz
+    Bar
 }
 
 impl Tag {
@@ -45,17 +44,15 @@ macro_rules! bind {
 // setup datastructures for the window manager, ie keybindings and tagstack
 pub fn setup_wm(wm: &mut Wm) {
     wm.setup_bindings(
-        vec![bind!(42, 12, |_, s| { s.swap_top();  WmCommand::Redraw }),
-             bind!(10, 12, |_, s| { s.swap_nth(0); WmCommand::Redraw }),
-             bind!(11, 12, |_, s| { s.swap_nth(1); WmCommand::Redraw }),
-             bind!(12, 12, |_, s| { s.swap_nth(2); WmCommand::Redraw }),
-             bind!(13, 12, |_, s| { s.swap_nth(3); WmCommand::Redraw }),
-             bind!(14, 12, |_, s| { s.swap_nth(4); WmCommand::Redraw }),
-             bind!(15, 12, |_, s| { s.swap_nth(5); WmCommand::Redraw }),
-             bind!(16, 12, |_, s| { s.swap_nth(6); WmCommand::Redraw }),
-             bind!(17, 12, |_, s| { s.swap_nth(7); WmCommand::Redraw }),
-             bind!(18, 12, |_, s| { s.swap_nth(8); WmCommand::Redraw }),
-             bind!(19, 12, |_, s| { s.swap_nth(9); WmCommand::Redraw }),
+        vec![bind!(10, 12, |_, s| {
+                 s.push(TagSet::new(vec![Tag::Foo], VStack::default()));
+                 WmCommand::Redraw
+             }),
+             bind!(11, 12, |_, s| {
+                 s.push(TagSet::new(vec![Tag::Bar], HStack::default()));
+                 WmCommand::Redraw
+             }),
+             bind!(42, 12, |_, s| { s.swap_top();  WmCommand::Redraw }),
              bind!(43, 12, |c, s| {
                  if let Some(t) = s.current_mut() {
                      c.focus_left(t);
@@ -95,10 +92,6 @@ pub fn setup_wm(wm: &mut Wm) {
         ]
     );
     wm.setup_tags(TagStack::from_vec(
-        vec![TagSet::new(vec![Tag::Foo], Monocle::default()),
-             TagSet::new(vec![Tag::Baz], DStack::default()),
-             TagSet::new(vec![Tag::Foo], VStack::default()),
-             TagSet::new(vec![Tag::Bar], HStack::default())
-        ]
+        vec![TagSet::new(vec![Tag::Foo], Monocle::default())]
     ));
 }

@@ -159,7 +159,7 @@ pub struct TagSet {
 
 impl TagSet {
     // initialize a new tag set
-    pub fn new<T: Layout + 'static>(tags: Vec<Tag>, layout: T) -> TagSet {
+    pub fn new<L: Layout + 'static>(tags: Vec<Tag>, layout: L) -> TagSet {
         TagSet {tags: tags, layout: Box::new(layout), focused: None}
     }
 
@@ -177,6 +177,11 @@ impl TagSet {
             self.tags.push(tag);
         }
     }
+
+    #[allow(dead_code)]
+    pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
+        self.layout = Box::new(layout);
+    }
 }
 
 impl fmt::Debug for TagSet {
@@ -188,7 +193,7 @@ impl fmt::Debug for TagSet {
 // a history stack of tag sets
 #[derive(Debug)]
 pub struct TagStack {
-    pub tags: Vec<TagSet>, // tag sets, last is current
+    tags: Vec<TagSet>, // tag sets, last is current
 }
 
 impl TagStack {
@@ -212,7 +217,17 @@ impl TagStack {
         self.tags.last_mut()
     }
 
+    // push a new tag
+    pub fn push(&mut self, tag: TagSet) {
+        let len = self.tags.len();
+        if len >= 4 {
+            self.tags.drain(..len-3);
+        }
+        self.tags.push(tag);
+    }
+
     // switch to last tag set
+    #[allow(dead_code)]
     pub fn swap_top(&mut self) {
         if self.tags.len() >= 2 {
             let last = self.tags.pop().unwrap();
@@ -223,6 +238,7 @@ impl TagStack {
     }
 
     // switch to a different tag by number
+    #[allow(dead_code)]
     pub fn swap_nth(&mut self, index: usize) {
         if self.tags.len() > index {
             let new_last = self.tags.remove(index);
