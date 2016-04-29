@@ -16,8 +16,8 @@ pub enum Tag {
     Bar
 }
 
-impl Tag {
-    pub fn default() -> Tag {
+impl Default for Tag {
+    fn default() -> Tag {
         Tag::Foo
     }
 }
@@ -29,8 +29,8 @@ pub enum Mode {
     Normal
 }
 
-impl Mode {
-    pub fn default() -> Mode {
+impl Default for Mode {
+    fn default() -> Mode {
         Mode::Normal
     }
 }

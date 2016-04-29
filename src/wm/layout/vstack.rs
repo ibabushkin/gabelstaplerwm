@@ -12,9 +12,8 @@ pub struct VStack {
     pub fixed: bool,       // make the master window fixed-size?
 }
 
-impl VStack {
-    #[allow(dead_code)]
-    pub fn default() -> VStack {
+impl Default for VStack {
+    fn default() -> VStack {
         VStack {master_factor: 50, inverted: false, fixed: false}
     }
 }

@@ -6,9 +6,8 @@ pub struct Monocle {
     pub offset_y: u16,
 }
 
-impl Monocle { 
-    #[allow(dead_code)]
-    pub fn default() -> Monocle {
+impl Default for Monocle { 
+    fn default() -> Monocle {
         Monocle {offset_x: 20, offset_y: 20}
     }
 }

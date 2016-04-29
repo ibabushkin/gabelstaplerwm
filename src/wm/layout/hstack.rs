@@ -12,9 +12,8 @@ pub struct HStack {
     pub fixed: bool,       // make the master window fixed-size?
 }
 
-impl HStack {
-    #[allow(dead_code)]
-    pub fn default() -> HStack {
+impl Default for HStack {
+    fn default() -> HStack {
         HStack {master_factor: 50, inverted: false, fixed: false}
     }
 }

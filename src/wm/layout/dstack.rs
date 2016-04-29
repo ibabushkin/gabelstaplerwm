@@ -13,9 +13,8 @@ pub struct DStack {
     fixed: bool,
 }
 
-impl DStack {
-    #[allow(dead_code)]
-    pub fn default() -> DStack {
+impl Default for DStack {
+    fn default() -> DStack {
         DStack {master_factor: 34, fixed: false}
     }
 }
