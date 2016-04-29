@@ -249,7 +249,7 @@ impl<'a> Wm<'a> {
     // look for a matching key binding upon event receival and react
     // accordingly: call a callback closure if necessary and optionally redraw
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
-        let key = from_key(ev);
+        let key = from_key(ev, self.tag_stack.mode);
         println!("Key pressed: {:?}", key);
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {

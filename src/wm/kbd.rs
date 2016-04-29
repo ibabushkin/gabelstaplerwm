@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use xcb::xkb as xkb;
 
 use wm::client::{ClientList,TagStack};
+use wm::config::Mode;
 use wm::window_system::WmCommand;
 
 // constants for easier modifier handling
@@ -24,7 +25,8 @@ const MOD4: u8 = 64;
 const ALTGR: u8 = 136;
 
 // closure type of a callback function running on key press
-pub type KeyCallback = Box<Fn(&mut ClientList, &mut TagStack) -> WmCommand>;
+pub type KeyCallback =
+    Box<Fn(&mut ClientList, &mut TagStack) -> WmCommand>;
 // keybinding map
 pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 
@@ -33,9 +35,10 @@ pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 pub struct KeyPress {
     pub code: u8,
     pub mods: u8,
+    pub mode: Mode,
 }
 
 // get a KeyPress struct from a StateNotifyEvent
-pub fn from_key(event: &xkb::StateNotifyEvent) -> KeyPress {
-    KeyPress {code: event.xkbType(), mods: event.keycode()}
+pub fn from_key(event: &xkb::StateNotifyEvent, mode: Mode) -> KeyPress {
+    KeyPress {code: event.xkbType(), mods: event.keycode(), mode: mode}
 }

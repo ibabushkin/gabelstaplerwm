@@ -2,7 +2,7 @@ use std::fmt;
 
 use xcb::xproto as xproto;
 
-use wm::config::Tag;
+use wm::config::{Tag,Mode};
 use wm::layout::Layout;
 use wm::window_system::Wm;
 
@@ -194,17 +194,18 @@ impl fmt::Debug for TagSet {
 #[derive(Debug)]
 pub struct TagStack {
     tags: Vec<TagSet>, // tag sets, last is current
+    pub mode: Mode,    // current mode
 }
 
 impl TagStack {
     // setup an empty tag stack
     pub fn new() -> TagStack {
-        TagStack {tags: Vec::new()}
+        TagStack {tags: Vec::new(), mode: Mode::default()}
     }
 
     // setup a tag stack from a vector of tag sets
     pub fn from_vec(vec: Vec<TagSet>) -> TagStack {
-        TagStack {tags: vec}
+        TagStack {tags: vec, mode: Mode::default()}
     }
 
     // get the current tag set
