@@ -16,12 +16,13 @@ static ATOM_VEC: [&'static str; 6] = [
     "_NET_WM_WINDOW_TYPE", "_NET_WM_TAKE_FOCUS"
 ];
 
+// assoc list type for atoms and their names
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 
 // enumeration type used to fine-tune the behaviour after a callback
 pub enum WmCommand {
-    Redraw,
-    NoCommand,
+    Redraw,    // redraw everything
+    NoCommand, // No-Op
 }
 
 // configuration information used by the window manager

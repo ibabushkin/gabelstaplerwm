@@ -79,6 +79,7 @@ impl ClientList {
         self.clients.iter().filter(|elem| elem.has_tags(tags)).collect()
     }
 
+    // get a reference to a a master window visible on a set of tags
     pub fn match_master_by_tags(&self, tags: &[Tag]) -> Option<&Client> {
         self.clients.iter().find(|elem| elem.has_tags(tags))
     }
@@ -178,6 +179,7 @@ impl TagSet {
         }
     }
 
+    // set a layout on the tagset
     #[allow(dead_code)]
     pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
         self.layout = Box::new(layout);
