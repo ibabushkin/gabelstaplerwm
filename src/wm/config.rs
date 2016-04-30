@@ -108,6 +108,13 @@ pub fn setup_wm(wm: &mut Wm) {
                  }
                  WmCommand::NoCommand
              }),
+             bind!(54, 12, Mode::Normal, |_, s| {
+                  if let Some(win) = s.current_mut().and_then(|t| t.focused) {
+                      WmCommand::Kill(win)
+                  } else {
+                      WmCommand::NoCommand
+                  }
+             }),
         ]
     );
     wm.setup_tags(TagStack::from_vec(

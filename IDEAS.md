@@ -4,7 +4,6 @@ very simple to remove tags, bar(s), fancy layouts etc.
 That way, users can choose components and replace/extend at will.
 
 ## General component ideas
-* [ ] modal interface of sorts - Mode enum
 * additional functionality is placed in additional modules, that don't need
   to be compiled in (seperate crates)
   * scratchpad or similar concept

@@ -21,8 +21,9 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 
 // enumeration type used to fine-tune the behaviour after a callback
 pub enum WmCommand {
-    Redraw,    // redraw everything
-    NoCommand, // No-Op
+    Redraw,               // redraw everything
+    Kill(xproto::Window), // kill the window's process
+    NoCommand,            // No-Op
 }
 
 // configuration information used by the window manager
@@ -176,6 +177,12 @@ impl<'a> Wm<'a> {
               (xproto::CONFIG_WINDOW_Y as u16, 0)]);
     }
 
+    // destroy a window
+    // FIXME: send client message ;)
+    fn destroy_window(&self, window: xproto::Window) {
+        xproto::kill_client(self.con, window);
+    }
+
     // set the keyboard focus on a window
     fn focus_window(&mut self, window: xproto::Window) {
         self.set_focused_border_color(self.border_colors.1);
@@ -258,6 +265,7 @@ impl<'a> Wm<'a> {
         }
         match command {
             WmCommand::Redraw => self.arrange_windows(),
+            WmCommand::Kill(win) => self.destroy_window(win),
             WmCommand::NoCommand => (),
         };
         if let Some(win) = self.tag_stack.current().and_then(|ts| ts.focused) {
@@ -310,7 +318,8 @@ impl<'a> Wm<'a> {
             xproto::configure_window(self.con, window,
                 &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                    self.config.border_width as u32)]);
-            self.focus_window(window);
+            self.focus_window(window); // FIXME on monocle layout 
+            self.visible_windows.push(window);
             self.arrange_windows();
         }
     }

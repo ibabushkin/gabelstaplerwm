@@ -93,7 +93,6 @@ impl ClientList {
     // add a new client
     pub fn add(&mut self, client: Client) {
         self.clients.push(client);
-        //self.current = self.clients.last();
     }
 
     // remove the client corresponding to a window
