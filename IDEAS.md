@@ -15,8 +15,3 @@ That way, users can choose components and replace/extend at will.
     over it, so `Vec` is probably still the best idea
 * [ ] helper util to get keycodes (via X I assume?)
 * [ ] notification support (look how naughty does it)
-
-## Short term goals
-* [ ] clean the code even more ;)
-* [ ] maybe find a better way than having 3(!) functions for focus setting in
-  different places
