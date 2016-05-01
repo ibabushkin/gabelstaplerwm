@@ -1,0 +1,3 @@
+Xephyr -ac -br -noreset -screen 800x600 :1.0 &
+sleep 1
+DISPLAY=:1.0 ./target/debug/gabelstaplerwm

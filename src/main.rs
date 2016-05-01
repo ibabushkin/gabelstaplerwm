@@ -1,3 +1,4 @@
+#![feature(process_session_leader)]
 extern crate xcb;
 
 use xcb::base::*;

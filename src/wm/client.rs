@@ -9,6 +9,10 @@ use wm::window_system::Wm;
 // a client wrapping a window
 #[derive(Debug)]
 pub struct Client {
+    // TODO: enhance strucutre to hold all protocol atoms
+    // this would allow to kill clients gracefully by sending them the message
+    // see https://github.com/awesomeWM/awesome/blob/master/client.c
+    // to compare to awesomeWM's implementation
     pub window: xproto::Window, // the window (a direct child of root)
     urgent: bool,               // is the urgency hint set?
     w_type: xproto::Atom,       // client/window type

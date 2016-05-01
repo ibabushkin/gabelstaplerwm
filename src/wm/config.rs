@@ -1,3 +1,6 @@
+use std::os::unix::process::CommandExt;
+use std::process::Command;
+
 use wm::client::{TagSet, TagStack};
 use wm::kbd::*;
 
@@ -106,6 +109,10 @@ pub fn setup_wm(wm: &mut Wm) {
                  if let Some(t) = s.current_mut() {
                      c.focus_offset(t, -1);
                  }
+                 WmCommand::NoCommand
+             }),
+             bind!(31, 12, Mode::Normal, |_, _| {
+                 let _ = Command::new("termite").session_leader(true).spawn();
                  WmCommand::NoCommand
              }),
              bind!(54, 12, Mode::Normal, |_, s| {
