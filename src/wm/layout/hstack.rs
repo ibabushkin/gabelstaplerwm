@@ -32,7 +32,7 @@ impl Layout for HStack {
             // one window only - fullscreen or fixed size
             let h = if self.fixed { master_height } else { screen.height };
             res.push(Some(Geometry {x: screen.offset_x, y: screen.offset_y,
-                width: screen.width, height: h}));
+                width: screen.width, height: h - 2}));
         } else if num_windows > 1 {
             // optionally swap stack and master area
             let (master_y, slave_y) = if self.inverted {
@@ -42,16 +42,16 @@ impl Layout for HStack {
             };
             // master window
             res.push(Some(Geometry {x: screen.offset_x,
-                y: master_y + screen.offset_y, width: screen.width,
-                height: master_height}));
+                y: master_y + screen.offset_y, width: screen.width - 2,
+                height: master_height - 2}));
             // slave windows
             let slave_width = screen.width / (num_windows as u16 - 1);
             for i in 1..num_windows {
                 res.push(Some(Geometry {
                     x: (i as u16 - 1) * slave_width + screen.offset_x,
                     y: slave_y + screen.offset_y,
-                    width: slave_width,
-                    height: screen.height - master_height})
+                    width: slave_width - 2,
+                    height: screen.height - master_height - 2})
                 );
             }
         }

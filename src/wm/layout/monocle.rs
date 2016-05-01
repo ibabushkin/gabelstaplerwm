@@ -19,8 +19,8 @@ impl Layout for Monocle {
         // master window is shown
         res.push(Some(Geometry {x: self.offset_x + screen.offset_x,
             y: self.offset_y + screen.offset_y,
-            width: screen.width - 2 * self.offset_x,
-            height: screen.height - 2 * self.offset_y}));
+            width: screen.width - 2 * self.offset_x - 2,
+            height: screen.height - 2 * self.offset_y - 2}));
         // all other windows are hidden
         for _ in 1..num_windows {
             res.push(None);

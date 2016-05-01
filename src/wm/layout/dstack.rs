@@ -32,7 +32,7 @@ impl Layout for DStack {
         if num_windows == 1 && !self.fixed {
             // one window only - fullscreen
             res.push(Some(Geometry {x: screen.offset_x, y: screen.offset_y,
-                width: screen.width, height: screen.height}));
+                width: screen.width, height: screen.height - 2}));
         } else if num_windows > 1 {
             let slave_width = (screen.width - master_width) / 2;
             // setup two slave stacks if needed
@@ -45,7 +45,8 @@ impl Layout for DStack {
                 };
             // master window
             res.push(Some(Geometry {x: master_x + screen.offset_x,
-                y: screen.offset_y, width: master_width, height: screen.height
+                y: screen.offset_y, width: master_width - 2,
+                height: screen.height - 2
             }));
             // num_left_slaves <= num_right_slaves
             let num_left_slaves = (num_windows - 1) / 2;
@@ -55,7 +56,9 @@ impl Layout for DStack {
                 for i in 0..num_left_slaves {
                     res.push(Some(Geometry { x: screen.offset_x,
                         y: i as u16 * slave_height_left + screen.offset_y,
-                        height: slave_height_left, width: slave_width}));
+                        height: slave_height_left - 2,
+                        width: slave_width - 2
+                    }));
                 }
             }
             let num_right_slaves = num_windows - 1 - num_left_slaves;
@@ -74,7 +77,8 @@ impl Layout for DStack {
                     res.push(Some(Geometry {
                         x: slave_right_x + screen.offset_x,
                         y: i as u16 * slave_height_right + screen.offset_y,
-                        height: slave_height_right, width: width}));
+                        height: slave_height_right - 2, width: width - 2
+                    }));
                 }
             }
         }
