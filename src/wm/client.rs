@@ -108,18 +108,23 @@ impl ClientList {
     }
 
     // focus a window by index difference
-    pub fn focus_offset(&self, tags: &mut TagSet, offset: isize) {
+    pub fn focus_offset(&self, tags: &mut TagSet, offset: isize)
+        -> Option<xproto::Window> {
         if let Some(current_window) = tags.focused {
             let current_index = self.clients.iter().position(
                 |client| client.window == current_window).unwrap();
             let new_index = (current_index as isize + offset) as usize
                 % self.clients.len();
             tags.focus_window(self.clients.get(new_index).unwrap().window);
+            Some(current_window)
+        } else {
+            None
         }
     }
 
     // focus a window by direction
     fn focus_direction<F>(&self, tags: &mut TagSet, focus_func: F)
+        -> Option<xproto::Window>
         where F: Fn(&Layout, usize, usize) -> Option<usize> {
         if let Some(current_window) = tags.focused {
             if let Some(current_index) = self.clients.iter().position(
@@ -128,28 +133,30 @@ impl ClientList {
                     current_index, self.clients.len() - 1) {
                     tags.focus_window(
                         self.clients.get(new_index).unwrap().window);
+                    return Some(current_window);
                 }
             }
         }
+        None
     }
 
     // focus the window to the right
-    pub fn focus_right(&self, tags: &mut TagSet) {
+    pub fn focus_right(&self, tags: &mut TagSet) -> Option<xproto::Window> {
         self.focus_direction(tags, |l, i, m| l.right_window(i, m))
     }
 
     // focus the window to the left
-    pub fn focus_left(&self, tags: &mut TagSet) {
+    pub fn focus_left(&self, tags: &mut TagSet) -> Option<xproto::Window> {
         self.focus_direction(tags, |l, i, m| l.left_window(i, m))
     }
 
     // focus the window to the top
-    pub fn focus_top(&self, tags: &mut TagSet) {
+    pub fn focus_top(&self, tags: &mut TagSet) -> Option<xproto::Window> {
         self.focus_direction(tags, |l, i, m| l.top_window(i, m))
     }
 
     // focus the window to the bottom
-    pub fn focus_bottom(&self, tags: &mut TagSet) {
+    pub fn focus_bottom(&self, tags: &mut TagSet) -> Option<xproto::Window> {
         self.focus_direction(tags, |l, i, m| l.bottom_window(i, m))
     }
 }

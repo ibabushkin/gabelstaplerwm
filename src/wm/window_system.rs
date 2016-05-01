@@ -21,9 +21,10 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 
 // enumeration type used to fine-tune the behaviour after a callback
 pub enum WmCommand {
-    Redraw,               // redraw everything
-    Kill(xproto::Window), // kill the window's process
-    NoCommand,            // No-Op
+    Redraw,                        // redraw everything
+    Focus(Option<xproto::Window>), // focus has been reset, old window returned
+    Kill(xproto::Window),          // kill the window's process
+    NoCommand,                     // No-Op
 }
 
 // configuration information used by the window manager
@@ -183,56 +184,48 @@ impl<'a> Wm<'a> {
         xproto::kill_client(self.con, window);
     }
 
-    // set the keyboard focus on a window
-    fn focus_window(&mut self, window: xproto::Window) {
-        self.clear_border_color();
-        let _ = xproto::set_input_focus(
-            self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
-            window, xproto::TIME_CURRENT_TIME).request_check();
-        if let Some(tagset) = self.tag_stack.current_mut() {
-            tagset.focus_window(window);
+    // set focus - the datastructures need to be altered, and we have to
+    // realize what they promise.
+    fn focus_window(&mut self, new: xproto::Window) {
+        if let Some(old) = self.tag_stack.current().and_then(|t| t.focused) {
+            self.set_border_color(old, self.border_colors.1);
         }
-        self.set_focused_border_color();
+        if let Some(tags) = self.tag_stack.current_mut() {
+            let _ = xproto::set_input_focus(
+                self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+                new, xproto::TIME_CURRENT_TIME).request_check();
+            tags.focus_window(new);
+        }
+        self.set_border_color(new, self.border_colors.0);
     }
 
-    // reset all border colors
-    fn clear_border_color(&self) {
-        let mut cookies = Vec::with_capacity(self.visible_windows.len());
-        for window in self.visible_windows.iter() {
-            cookies.push(xproto::change_window_attributes(self.con, *window,
-                &[(xproto::CW_BORDER_PIXEL, self.border_colors.1)]));
-        }
-        for cookie in cookies {
-            if let Err(_) = cookie.request_check() {
-                println!("could not reset window border color")
-            }
+    // reset focus - the datastructures have been altered, we need to realize
+    // what they promise.
+    fn reset_focus(&self, old: xproto::Window) {
+        if let Some(new) = self.tag_stack.current().and_then(|t| t.focused) {
+            self.set_border_color(old, self.border_colors.1);
+            let _ = xproto::set_input_focus(
+                self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+                new, xproto::TIME_CURRENT_TIME).request_check();
+            self.set_border_color(new, self.border_colors.0);
         }
     }
 
     // color the borders of the currently focused window
-    // TODO: find out where stuff gets out of sync
-    fn set_focused_border_color(&self) {
-        if let Some(win) = self.tag_stack.current().and_then(|t| t.focused) {
-            let cookie = xproto::change_window_attributes(self.con, win,
-                &[(xproto::CW_BORDER_PIXEL, self.border_colors.0)]);
-            if let Err(_) = cookie.request_check() {
-                println!("could not set window border color")
-            }
+    fn set_border_color(&self, window: xproto::Window, color: u32) {
+        let cookie = xproto::change_window_attributes(self.con, window,
+            &[(xproto::CW_BORDER_PIXEL, color)]);
+        if let Err(_) = cookie.request_check() {
+            println!("could not set window border color");
         }
     }
 
     // focus master window if the currently focused one is gone
     fn revert_focus_master(&mut self, window: xproto::Window) {
-        if let Some(tagset) = self.tag_stack.current_mut() {
-            if let Some(&Client {window: master, ..}) =
-                self.clients.match_master_by_tags(&tagset.tags) {
-                if Some(window) == tagset.focused {
-                    let _ = xproto::set_input_focus(
-                        self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
-                        master, xproto::TIME_CURRENT_TIME).request_check();
-                    tagset.focus_window(master);
-                }
-            }
+        if let Some(&Client {window: master, ..}) =
+            self.tag_stack.current().and_then(
+            |t| self.clients.match_master_by_tags(&t.tags)) {
+            self.focus_window(master);
         }
     }
 
@@ -280,12 +273,12 @@ impl<'a> Wm<'a> {
         }
         match command {
             WmCommand::Redraw => self.arrange_windows(),
+            WmCommand::Focus(old_win) => if let Some(win) = old_win {
+                self.reset_focus(win)
+            },
             WmCommand::Kill(win) => self.destroy_window(win),
             WmCommand::NoCommand => (),
         };
-        if let Some(win) = self.tag_stack.current().and_then(|ts| ts.focused) {
-            self.focus_window(win);
-        }
         println!("TagStack: {:?}", self.tag_stack);
     }
 
