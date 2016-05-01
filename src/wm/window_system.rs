@@ -185,23 +185,38 @@ impl<'a> Wm<'a> {
 
     // set the keyboard focus on a window
     fn focus_window(&mut self, window: xproto::Window) {
-        self.set_focused_border_color(self.border_colors.1);
+        self.clear_border_color();
         let _ = xproto::set_input_focus(
             self.con, xproto::INPUT_FOCUS_POINTER_ROOT as u8,
             window, xproto::TIME_CURRENT_TIME).request_check();
         if let Some(tagset) = self.tag_stack.current_mut() {
             tagset.focus_window(window);
         }
-        self.set_focused_border_color(self.border_colors.0);
+        self.set_focused_border_color();
+    }
+
+    // reset all border colors
+    fn clear_border_color(&self) {
+        let mut cookies = Vec::with_capacity(self.visible_windows.len());
+        for window in self.visible_windows.iter() {
+            cookies.push(xproto::change_window_attributes(self.con, *window,
+                &[(xproto::CW_BORDER_PIXEL, self.border_colors.1)]));
+        }
+        for cookie in cookies {
+            if let Err(_) = cookie.request_check() {
+                println!("could not reset window border color")
+            }
+        }
     }
 
     // color the borders of the currently focused window
-    fn set_focused_border_color(&self, color: u32) {
+    // TODO: find out where stuff gets out of sync
+    fn set_focused_border_color(&self) {
         if let Some(win) = self.tag_stack.current().and_then(|t| t.focused) {
-            let cookie = xproto::change_window_attributes(
-                self.con, win, &[(xproto::CW_BORDER_PIXEL, color)]);
+            let cookie = xproto::change_window_attributes(self.con, win,
+                &[(xproto::CW_BORDER_PIXEL, self.border_colors.0)]);
             if let Err(_) = cookie.request_check() {
-                println!("could not reset window border color")
+                println!("could not set window border color")
             }
         }
     }
