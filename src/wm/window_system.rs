@@ -211,7 +211,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // color the borders of the currently focused window
+    // color the borders of a window
     fn set_border_color(&self, window: xproto::Window, color: u32) {
         let cookie = xproto::change_window_attributes(self.con, window,
             &[(xproto::CW_BORDER_PIXEL, color)]);
@@ -222,10 +222,12 @@ impl<'a> Wm<'a> {
 
     // focus master window if the currently focused one is gone
     fn revert_focus_master(&mut self, window: xproto::Window) {
-        if let Some(&Client {window: master, ..}) =
-            self.tag_stack.current().and_then(
-            |t| self.clients.match_master_by_tags(&t.tags)) {
-            self.focus_window(master);
+        if let Some(&Client {window: master, ..}) = self.tag_stack.current()
+            .and_then(|t| self.clients.match_master_by_tags(&t.tags)) {
+            if self.tag_stack.current()
+                .and_then(|t| t.focused) == Some(window) {
+                self.focus_window(master);
+            }
         }
     }
 
