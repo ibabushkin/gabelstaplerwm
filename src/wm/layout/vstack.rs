@@ -62,7 +62,7 @@ impl Layout for VStack {
         if index == 0 {
             if !self.inverted && max >= 1 { Some(1) } else { None }
         } else {
-            if self.inverted { None } else { Some(0)}
+            if self.inverted { Some(0) } else { None }
         }
     }
 
@@ -70,7 +70,7 @@ impl Layout for VStack {
         if index == 0 {
             if self.inverted && max >= 1 { Some(1) } else { None }
         } else {
-            if !self.inverted { None } else { Some(0) }
+            if self.inverted { None } else { Some(0) }
         }
     }
 
