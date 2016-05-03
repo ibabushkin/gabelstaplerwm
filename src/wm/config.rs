@@ -15,13 +15,20 @@ use wm::window_system::{Wm,WmConfig,WmCommand};
 // a set of (symbolic) tags - to be extended/modified
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tag {
-    Foo,
-    Bar
+    Web,
+    Work2,
+    Work3,
+    Work4,
+    Work5,
+    Media,
+    Chat,
+    Logs,
+    Monitoring,
 }
 
 impl Default for Tag {
     fn default() -> Tag {
-        Tag::Foo
+        Tag::Work2
     }
 }
 
@@ -61,15 +68,39 @@ macro_rules! bind {
 pub fn setup_wm(wm: &mut Wm) {
     wm.setup_bindings(
         vec![bind!(10, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Foo], VStack::default()));
+                 s.push(TagSet::new(vec![Tag::Web], VStack::default()));
                  WmCommand::Redraw
              }),
              bind!(11, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Bar], HStack::default()));
+                 s.push(TagSet::new(vec![Tag::Work2], VStack::default()));
                  WmCommand::Redraw
              }),
              bind!(12, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Bar], DStack::default()));
+                 s.push(TagSet::new(vec![Tag::Work3], VStack::default()));
+                 WmCommand::Redraw
+             }),
+             bind!(13, 12, Mode::Normal, |_, s| {
+                 s.push(TagSet::new(vec![Tag::Work4], VStack::default()));
+                 WmCommand::Redraw
+             }),
+             bind!(14, 12, Mode::Normal, |_, s| {
+                 s.push(TagSet::new(vec![Tag::Work5], VStack::default()));
+                 WmCommand::Redraw
+             }),
+             bind!(15, 12, Mode::Normal, |_, s| {
+                 s.push(TagSet::new(vec![Tag::Media], DStack::default()));
+                 WmCommand::Redraw
+             }),
+             bind!(16, 12, Mode::Normal, |_, s| {
+                 s.push(TagSet::new(vec![Tag::Chat], HStack::default()));
+                 WmCommand::Redraw
+             }),
+             bind!(17, 12, Mode::Normal, |_, s| {
+                 s.push(TagSet::new(vec![Tag::Logs], VStack::default()));
+                 WmCommand::Redraw
+             }),
+             bind!(18, 12, Mode::Normal, |_, s| {
+                 s.push(TagSet::new(vec![Tag::Monitoring], VStack::default()));
                  WmCommand::Redraw
              }),
              bind!(42, 12, Mode::Normal, |_, s| {
@@ -105,12 +136,18 @@ pub fn setup_wm(wm: &mut Wm) {
                      WmCommand::Focus(c.focus_offset(t, -1))
                  } else { WmCommand::NoCommand }
              ),
+             bind!(65, 12, Mode::Normal, |_, s| {
+                 if let Some(t) = s.current_mut() {
+                     t.set_layout(Monocle::default());
+                 }
+                 WmCommand::Redraw
+             }),
              bind!(31, 12, Mode::Normal, |_, _| {
                  let _ = Command::new("termite").session_leader(true).spawn();
                  WmCommand::NoCommand
              }),
              bind!(54, 12, Mode::Normal, |_, s| {
-                  if let Some(win) = s.current_mut().and_then(|t| t.focused) {
+                  if let Some(win) = s.current().and_then(|t| t.focused) {
                       WmCommand::Kill(win)
                   } else {
                       WmCommand::NoCommand
@@ -119,6 +156,6 @@ pub fn setup_wm(wm: &mut Wm) {
         ]
     );
     wm.setup_tags(TagStack::from_vec(
-        vec![TagSet::new(vec![Tag::Foo], Monocle::default())]
+        vec![TagSet::new(vec![Tag::Work2], VStack::default())]
     ));
 }

@@ -240,7 +240,6 @@ impl TagStack {
     }
 
     // switch to last tag set
-    #[allow(dead_code)]
     pub fn swap_top(&mut self) {
         if self.tags.len() >= 2 {
             let last = self.tags.pop().unwrap();
