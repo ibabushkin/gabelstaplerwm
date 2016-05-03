@@ -78,6 +78,12 @@ impl ClientList {
         ClientList {clients: Vec::new()}
     }
 
+    // get a reference to a client given it's window handle
+    pub fn match_client_by_window(&self, window: xproto::Window)
+        -> Option<&Client> {
+        self.clients.iter().find(|c| c.window == window)
+    }
+
     // get a list of references of windows that are visible on a set of tags
     pub fn match_clients_by_tags(&self, tags: &[Tag]) -> Vec<&Client> {
         self.clients.iter().filter(|elem| elem.has_tags(tags)).collect()
