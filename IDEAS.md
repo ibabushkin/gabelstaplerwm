@@ -15,3 +15,7 @@ That way, users can choose components and replace/extend at will.
     over it, so `Vec` is probably still the best idea
 * [ ] helper util to get keycodes (via X I assume?)
 * [ ] notification support (look how naughty does it)
+
+## Short term stuff
+* add helper methods using wrapper structs to avoid as many closures as
+  possible in config.rs

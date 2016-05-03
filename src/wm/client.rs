@@ -79,9 +79,9 @@ impl ClientList {
     }
 
     // get a reference to a client given it's window handle
-    pub fn match_client_by_window(&self, window: xproto::Window)
-        -> Option<&Client> {
-        self.clients.iter().find(|c| c.window == window)
+    pub fn match_client_by_window(&mut self, window: xproto::Window)
+        -> Option<&mut Client> {
+        self.clients.iter_mut().find(|c| c.window == window)
     }
 
     // get a list of references of windows that are visible on a set of tags
