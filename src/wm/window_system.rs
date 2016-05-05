@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::transmute;
 
 use xcb::base as base;
 use xcb::xkb as xkb;
@@ -11,9 +12,10 @@ use wm::kbd::*;
 use wm::layout::*;
 
 // atoms we will register
-static ATOM_VEC: [&'static str; 6] = [
+static ATOM_VEC: [&'static str; 8] = [
     "WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_STATE", "WM_TAKE_FOCUS",
-    "_NET_WM_WINDOW_TYPE", "_NET_WM_TAKE_FOCUS"
+    "_NET_WM_WINDOW_TYPE", "_NET_WM_TAKE_FOCUS", "_NET_WM_NAME",
+    "_NET_WM_CLASS"
 ];
 
 // assoc list type for atoms and their names
@@ -43,7 +45,7 @@ pub struct Wm<'a> {
     config: WmConfig,          // user defined configuration values
     screen: ScreenSize,        // screen parameters
     border_colors: (u32, u32), // colors available for borders
-    bindings: Keybindings,     // keybindings, TODO: move to config
+    bindings: Keybindings,     // keybindings
     clients: ClientList,       // all clients
     tag_stack: TagStack,       // all visible tags + history
     atoms: AtomList<'a>,       // registered atoms
@@ -365,11 +367,29 @@ impl<'a> Wm<'a> {
         panic!("Unregistered atom used: {}!", name)
     }
     
-    // get a window's EWMH property (like window type and such)
-    pub fn get_ewmh_property(&self, window: xproto::Window,
-                             atom_name: &'a str) -> xproto::GetPropertyCookie {
-        xproto::get_property(self.con, false, window,
-                             self.lookup_atom(atom_name),
-                             xproto::ATOM_ATOM, 0, 0xffffffff)
+    // get a window's properties (like window type and such)
+    pub fn get_properties(&self, window: xproto::Window)
+        -> Option<ClientProps> {
+        let cookie1 = xproto::get_property(
+            self.con, false, window, self.lookup_atom("_NET_WM_WINDOW_TYPE"),
+            xproto::ATOM_ATOM, 0, 0xffffffff);
+        let cookie2 = xproto::get_property(
+            self.con, false, window, self.lookup_atom("_NET_WM_NAME"),
+            xproto::ATOM_STRING, 0, 0xffffffff);
+        let cookie3 = xproto::get_property(
+            self.con, false, window, self.lookup_atom("_NET_WM_CLASS"),
+            xproto::ATOM_STRING, 0, 0xffffffff);
+        if let (Ok(r1), Ok(r2), Ok(r3)) =
+            (cookie1.get_reply(), cookie1.get_reply(), cookie1.get_reply()) {
+            unsafe {
+                let type_atom: xproto::Atom =
+                    transmute(*r1.value().iter().next().unwrap());
+                Some(ClientProps {
+                    window_type: type_atom.clone()
+                })
+            }
+        } else {
+            None
+        }
     }
 }

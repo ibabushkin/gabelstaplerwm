@@ -6,6 +6,13 @@ use wm::config::{Tag,Mode};
 use wm::layout::Layout;
 use wm::window_system::Wm;
 
+#[derive(Debug)]
+pub struct ClientProps {
+    pub window_type: xproto::Atom, // client/window type
+    // name: String,
+    // class: String,
+}
+
 // a client wrapping a window
 #[derive(Debug)]
 pub struct Client {
@@ -14,8 +21,8 @@ pub struct Client {
     // see https://github.com/awesomeWM/awesome/blob/master/client.c
     // to compare to awesomeWM's implementation
     pub window: xproto::Window, // the window (a direct child of root)
+    props: ClientProps,         // client properties
     urgent: bool,               // is the urgency hint set?
-    w_type: xproto::Atom,       // client/window type
     tags: Vec<Tag>,             // all tags this client is visible on
 }
 
@@ -23,16 +30,15 @@ impl Client {
     // setup a new client from a window manager for a specific window
     pub fn new(wm: &Wm, window: xproto::Window, tags: Vec<Tag>)
         -> Option<Client> {
-        let cookie = wm.get_ewmh_property(window, "_NET_WM_WINDOW_TYPE");
-        match cookie.get_reply() {
-            Ok(props) => {
-                let w_type = props.type_();
-                Some(Client {window: window,
-                    urgent: false, w_type: w_type, tags: tags})
-            },
-            Err(_) => {
-                None
-            }
+        if let Some(props) = wm.get_properties(window) {
+            Some(Client {
+                window: window,
+                props: props,
+                urgent: false,
+                tags: tags
+            })
+        } else {
+            None
         }
     }
 
