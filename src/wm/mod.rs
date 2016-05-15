@@ -1,5 +1,3 @@
-extern crate xcb;
-
 // TODO's:
 // * add more consistency to error handling
 // * decide on a more consistent separation between windows and clients

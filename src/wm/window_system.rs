@@ -1,5 +1,9 @@
+use libc::c_char;
+
 use std::collections::HashMap;
+use std::ffi::CStr;
 use std::mem::transmute;
+use std::str;
 
 use xcb::base as base;
 use xcb::xkb as xkb;
@@ -380,13 +384,23 @@ impl<'a> Wm<'a> {
             self.con, false, window, self.lookup_atom("_NET_WM_CLASS"),
             xproto::ATOM_STRING, 0, 0xffffffff);
         if let (Ok(r1), Ok(r2), Ok(r3)) =
-            (cookie1.get_reply(), cookie1.get_reply(), cookie1.get_reply()) {
+            (cookie1.get_reply(), cookie2.get_reply(), cookie3.get_reply()) {
             unsafe {
-                let type_atom: xproto::Atom =
-                    transmute(*r1.value().iter().next().unwrap());
-                Some(ClientProps {
-                    window_type: type_atom.clone()
-                })
+                let type_atoms: &[xproto::Atom] = transmute(r1.value());
+                let name_atoms: &[*const c_char] = transmute(r2.value());
+                let class_atoms: &[*const c_char] = transmute(r3.value());
+                let name = CStr::from_ptr(name_atoms[0]).to_bytes();
+                let class = CStr::from_ptr(class_atoms[0]).to_bytes();
+                if let (Ok(n), Ok(c)) =
+                    (str::from_utf8(name), str::from_utf8(class)) {
+                    Some(ClientProps {
+                        window_type: type_atoms[0].clone(),
+                        name: n.to_owned(),
+                        class: c.to_owned(),
+                    })
+                } else {
+                    None
+                }
             }
         } else {
             None

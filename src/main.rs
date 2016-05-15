@@ -1,5 +1,6 @@
 #![feature(process_session_leader)]
 extern crate xcb;
+extern crate libc;
 
 use xcb::base::*;
 

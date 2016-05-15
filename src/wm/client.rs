@@ -9,8 +9,8 @@ use wm::window_system::Wm;
 #[derive(Debug)]
 pub struct ClientProps {
     pub window_type: xproto::Atom, // client/window type
-    // name: String,
-    // class: String,
+    pub name: String,
+    pub class: String,
 }
 
 // a client wrapping a window
