@@ -1,6 +1,6 @@
 use std::process::exit;
 
-use xcb::base as base;
+use xcb::base;
 
 // an error encountered by the WM
 pub enum WmError {
@@ -9,25 +9,27 @@ pub enum WmError {
     CouldNotRegisterAtom(String),
     OtherWmRunning,
     ConnectionInterrupted,
-    IOError
+    IOError,
 }
 
 impl WmError {
     // handle an error, ie. print error message and exit
     pub fn handle(self) -> ! {
         match self {
-            WmError::CouldNotConnect(e) =>
-                println!("Could not connect: {:?}", e),
-            WmError::CouldNotAcquireScreen =>
-                println!("Could not acquire screen."),
-            WmError::CouldNotRegisterAtom(s) =>
-                println!("Could not register atom. {}", s),
-            WmError::OtherWmRunning =>
-                println!("Another WM is running."),
-            WmError::ConnectionInterrupted =>
-                println!("Connection interrupted."),
-            WmError::IOError =>
-                println!("IO error occured.")
+            WmError::CouldNotConnect(e) => {
+                println!("Could not connect: {:?}", e)
+            }
+            WmError::CouldNotAcquireScreen => {
+                println!("Could not acquire screen.")
+            }
+            WmError::CouldNotRegisterAtom(s) => {
+                println!("Could not register atom. {}", s)
+            }
+            WmError::OtherWmRunning => println!("Another WM is running."),
+            WmError::ConnectionInterrupted => {
+                println!("Connection interrupted.")
+            }
+            WmError::IOError => println!("IO error occured."),
         };
         exit(1);
     }

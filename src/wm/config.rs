@@ -10,7 +10,7 @@ use wm::layout::vstack::VStack;
 use wm::layout::hstack::HStack;
 use wm::layout::dstack::DStack;
 
-use wm::window_system::{Wm,WmConfig,WmCommand};
+use wm::window_system::{Wm, WmConfig, WmCommand};
 
 // a set of (symbolic) tags - to be extended/modified
 #[derive(Debug, PartialEq, Clone)]
@@ -36,7 +36,7 @@ impl Default for Tag {
 // functionality
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum Mode {
-    Normal
+    Normal,
 }
 
 impl Default for Mode {
@@ -52,7 +52,10 @@ pub fn generate_config() -> WmConfig {
         u_color: (0x00, 0x00, 0x00),
         border_width: 1,
         screen: ScreenSize {
-            offset_x: 0, offset_y: 20, width: 800, height: 600
+            offset_x: 0,
+            offset_y: 20,
+            width: 800,
+            height: 600,
         },
     }
 }
@@ -66,8 +69,7 @@ macro_rules! bind {
 
 // setup datastructures for the window manager, ie keybindings and tagstack
 pub fn setup_wm(wm: &mut Wm) {
-    wm.setup_bindings(
-        vec![bind!(10, 12, Mode::Normal, |_, s| {
+    wm.setup_bindings(vec![bind!(10, 12, Mode::Normal, |_, s| {
                  s.push(TagSet::new(vec![Tag::Web], VStack::default()));
                  WmCommand::Redraw
              }),
@@ -162,9 +164,7 @@ pub fn setup_wm(wm: &mut Wm) {
                       WmCommand::NoCommand
                   }
              }),
-        ]
-    );
-    wm.setup_tags(TagStack::from_vec(
-        vec![TagSet::new(vec![Tag::Work2], VStack::default())]
-    ));
+        ]);
+    wm.setup_tags(TagStack::from_vec(vec![TagSet::new(vec![Tag::Work2],
+                                                      VStack::default())]));
 }

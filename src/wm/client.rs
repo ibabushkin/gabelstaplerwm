@@ -1,8 +1,8 @@
 use std::fmt;
 
-use xcb::xproto as xproto;
+use xcb::xproto;
 
-use wm::config::{Tag,Mode};
+use wm::config::{Tag, Mode};
 use wm::layout::Layout;
 
 #[derive(Debug)]
@@ -20,20 +20,22 @@ pub struct Client {
     // see https://github.com/awesomeWM/awesome/blob/master/client.c
     // to compare to awesomeWM's implementation
     pub window: xproto::Window, // the window (a direct child of root)
-    props: ClientProps,         // client properties
-    urgent: bool,               // is the urgency hint set?
-    tags: Vec<Tag>,             // all tags this client is visible on
+    props: ClientProps, // client properties
+    urgent: bool, // is the urgency hint set?
+    tags: Vec<Tag>, // all tags this client is visible on
 }
 
 impl Client {
     // setup a new client from a window manager for a specific window
-    pub fn new(window: xproto::Window, tags: Vec<Tag>, props: ClientProps)
-        -> Client {
+    pub fn new(window: xproto::Window,
+               tags: Vec<Tag>,
+               props: ClientProps)
+               -> Client {
         Client {
             window: window,
             props: props,
             urgent: false,
-            tags: tags
+            tags: tags,
         }
     }
 
@@ -76,12 +78,13 @@ impl ClientList {
     // initialize an empty client list
     // TODO: decide upon an optional with_capacity() call
     pub fn new() -> ClientList {
-        ClientList {clients: Vec::new()}
+        ClientList { clients: Vec::new() }
     }
 
     // get a reference to a client given it's window handle
-    pub fn match_client_by_window(&mut self, window: xproto::Window)
-        -> Option<&mut Client> {
+    pub fn match_client_by_window(&mut self,
+                                  window: xproto::Window)
+                                  -> Option<&mut Client> {
         self.clients.iter_mut().find(|c| c.window == window)
     }
 
@@ -96,8 +99,9 @@ impl ClientList {
     }
 
     // get a client that corresponds to the given window
-    pub fn get_client_by_window(&self, window: xproto::Window)
-        -> Option<&Client> {
+    pub fn get_client_by_window(&self,
+                                window: xproto::Window)
+                                -> Option<&Client> {
         self.clients.iter().find(|client| client.window == window)
     }
 
@@ -108,20 +112,25 @@ impl ClientList {
 
     // remove the client corresponding to a window
     pub fn remove(&mut self, window: xproto::Window) {
-        if let Some(pos) =
-            self.clients.iter().position(|elem| elem.window == window) {
+        if let Some(pos) = self.clients
+            .iter()
+            .position(|elem| elem.window == window) {
             self.clients.remove(pos);
         }
     }
 
     // focus a window by index difference
-    pub fn focus_offset(&self, tags: &mut TagSet, offset: isize)
-        -> Option<xproto::Window> {
+    pub fn focus_offset(&self,
+                        tags: &mut TagSet,
+                        offset: isize)
+                        -> Option<xproto::Window> {
         if let Some(current_window) = tags.focused {
-            let current_index = self.clients.iter().position(
-                |client| client.window == current_window).unwrap();
-            let new_index = (current_index as isize + offset) as usize
-                % self.clients.len();
+            let current_index = self.clients
+                .iter()
+                .position(|client| client.window == current_window)
+                .unwrap();
+            let new_index = (current_index as isize + offset) as usize %
+                            self.clients.len();
             tags.focus_window(self.clients.get(new_index).unwrap().window);
             Some(current_window)
         } else {
@@ -130,16 +139,23 @@ impl ClientList {
     }
 
     // focus a window by direction
-    fn focus_direction<F>(&self, tags: &mut TagSet, focus_func: F)
-        -> Option<xproto::Window>
-        where F: Fn(&Layout, usize, usize) -> Option<usize> {
+    fn focus_direction<F>(&self,
+                          tags: &mut TagSet,
+                          focus_func: F)
+                          -> Option<xproto::Window>
+        where F: Fn(&Layout, usize, usize) -> Option<usize>
+    {
         if let Some(current_window) = tags.focused {
-            if let Some(current_index) = self.clients.iter().position(
-                |client| client.window == current_window) {
+            if let Some(current_index) = self.clients
+                .iter()
+                .position(|client| client.window == current_window) {
                 if let Some(new_index) = focus_func(tags.layout.as_ref(),
-                    current_index, self.clients.len() - 1) {
-                    tags.focus_window(
-                        self.clients.get(new_index).unwrap().window);
+                                                    current_index,
+                                                    self.clients.len() - 1) {
+                    tags.focus_window(self.clients
+                        .get(new_index)
+                        .unwrap()
+                        .window);
                     return Some(current_window);
                 }
             }
@@ -170,15 +186,19 @@ impl ClientList {
 
 // an entity shown at a given point in time
 pub struct TagSet {
-    pub tags: Vec<Tag>,                  // tags shown
-    pub layout: Box<Layout>,             // the layout used
+    pub tags: Vec<Tag>, // tags shown
+    pub layout: Box<Layout>, // the layout used
     pub focused: Option<xproto::Window>, // last focused window
 }
 
 impl TagSet {
     // initialize a new tag set
     pub fn new<L: Layout + 'static>(tags: Vec<Tag>, layout: L) -> TagSet {
-        TagSet {tags: tags, layout: Box::new(layout), focused: None}
+        TagSet {
+            tags: tags,
+            layout: Box::new(layout),
+            focused: None,
+        }
     }
 
     // mark a window as focused
@@ -213,18 +233,24 @@ impl fmt::Debug for TagSet {
 #[derive(Debug)]
 pub struct TagStack {
     tags: Vec<TagSet>, // tag sets, last is current
-    pub mode: Mode,    // current mode
+    pub mode: Mode, // current mode
 }
 
 impl TagStack {
     // setup an empty tag stack
     pub fn new() -> TagStack {
-        TagStack {tags: Vec::new(), mode: Mode::default()}
+        TagStack {
+            tags: Vec::new(),
+            mode: Mode::default(),
+        }
     }
 
     // setup a tag stack from a vector of tag sets
     pub fn from_vec(vec: Vec<TagSet>) -> TagStack {
-        TagStack {tags: vec, mode: Mode::default()}
+        TagStack {
+            tags: vec,
+            mode: Mode::default(),
+        }
     }
 
     // get the current tag set
@@ -241,7 +267,7 @@ impl TagStack {
     pub fn push(&mut self, tag: TagSet) {
         let len = self.tags.len();
         if len >= 4 {
-            self.tags.drain(..len-3);
+            self.tags.drain(..len - 3);
         }
         self.tags.push(tag);
     }

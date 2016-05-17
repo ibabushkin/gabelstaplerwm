@@ -6,21 +6,28 @@ pub struct Monocle {
     pub offset_y: u16,
 }
 
-impl Default for Monocle { 
+impl Default for Monocle {
     fn default() -> Monocle {
-        Monocle {offset_x: 20, offset_y: 20}
+        Monocle {
+            offset_x: 20,
+            offset_y: 20,
+        }
     }
 }
 
 impl Layout for Monocle {
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
-        -> Vec<Option<Geometry>> {
+    fn arrange(&self,
+               num_windows: usize,
+               screen: &ScreenSize)
+               -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // master window is shown
-        res.push(Some(Geometry {x: self.offset_x + screen.offset_x,
+        res.push(Some(Geometry {
+            x: self.offset_x + screen.offset_x,
             y: self.offset_y + screen.offset_y,
             width: screen.width - 2 * self.offset_x - 2,
-            height: screen.height - 2 * self.offset_y - 2}));
+            height: screen.height - 2 * self.offset_y - 2,
+        }));
         // all other windows are hidden
         for _ in 1..num_windows {
             res.push(None);
@@ -44,4 +51,3 @@ impl Layout for Monocle {
         None
     }
 }
-

@@ -16,13 +16,13 @@ fn main() {
     // new connection to X server
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
-        Err(e) => WmError::CouldNotConnect(e).handle()
+        Err(e) => WmError::CouldNotConnect(e).handle(),
     };
 
     // wm init
     let mut wm = match Wm::new(&con, screen_num, config) {
         Ok(w) => w,
-        Err(e) => e.handle()
+        Err(e) => e.handle(),
     };
 
     // register as a window manager and fail if another WM is running
