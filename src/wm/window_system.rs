@@ -378,29 +378,39 @@ impl<'a> Wm<'a> {
             self.con, false, window, self.lookup_atom("_NET_WM_WINDOW_TYPE"),
             xproto::ATOM_ATOM, 0, 0xffffffff);
         let cookie2 = xproto::get_property(
-            self.con, false, window, self.lookup_atom("_NET_WM_NAME"),
+            self.con, false, window, xproto::ATOM_WM_NAME,
             xproto::ATOM_STRING, 0, 0xffffffff);
         let cookie3 = xproto::get_property(
-            self.con, false, window, self.lookup_atom("_NET_WM_CLASS"),
+            self.con, false, window, xproto::ATOM_WM_CLASS,
             xproto::ATOM_STRING, 0, 0xffffffff);
         if let (Ok(r1), Ok(r2), Ok(r3)) =
             (cookie1.get_reply(), cookie2.get_reply(), cookie3.get_reply()) {
             unsafe {
+                // we get exactly one atom
                 let type_atoms: &[xproto::Atom] = transmute(r1.value());
-                let name_atoms: &[*const c_char] = transmute(r2.value());
-                let class_atoms: &[*const c_char] = transmute(r3.value());
-                let name = CStr::from_ptr(name_atoms[0]).to_bytes();
-                let class = CStr::from_ptr(class_atoms[0]).to_bytes();
-                if let (Ok(n), Ok(c)) =
-                    (str::from_utf8(name), str::from_utf8(class)) {
-                    Some(ClientProps {
-                        window_type: type_atoms[0].clone(),
-                        name: n.to_owned(),
-                        class: c.to_owned(),
-                    })
-                } else {
-                    None
+                // the name is a single (variable-sized) string
+                let name_slice: &[c_char] = transmute(r2.value());
+                let name =
+                    CStr::from_ptr(name_slice.as_ptr()).to_string_lossy();
+                // the classes are a list of strings
+                let class_slice: &[c_char] = transmute(r3.value());
+                // iterate over them
+                let mut class = Vec::new();
+                for c in class_slice.split(|ch| *ch == 0) {
+                    if c.len() > 0 {
+                        if let Ok(cl) = str::from_utf8(
+                            CStr::from_ptr(c.as_ptr()).to_bytes()) {
+                            class.push(cl.to_owned());
+                        } else {
+                            return None;
+                        }
+                    }
                 }
+                Some(ClientProps {
+                    window_type: type_atoms[0].clone(),
+                    name: name.into_owned(),
+                    class: class,
+                })
             }
         } else {
             None

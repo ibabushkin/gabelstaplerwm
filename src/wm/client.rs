@@ -10,7 +10,7 @@ use wm::window_system::Wm;
 pub struct ClientProps {
     pub window_type: xproto::Atom, // client/window type
     pub name: String,
-    pub class: String,
+    pub class: Vec<String>,
 }
 
 // a client wrapping a window
