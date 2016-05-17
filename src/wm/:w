@@ -27,7 +27,7 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 // c
 // closure type of a callback function running on key press
 pub type Matching =
-    Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
+    Box<Fn(ClientProps) -> Option<TagSet>>;
 
 // enumeration type used to fine-tune the behaviour after a callback
 pub enum WmCommand {
@@ -146,7 +146,6 @@ impl<'a> Wm<'a> {
     }
 
     // set up client matching
-    #[allow(dead_code)]
     pub fn setup_matching(&mut self, matching: Matching) {
         self.matching = Some(matching);
     }
@@ -330,28 +329,25 @@ impl<'a> Wm<'a> {
     fn handle_map_request(&mut self, ev: &xproto::MapRequestEvent) {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() {
-            if let Some(props) = self.get_properties(window) {
-                let tags = if let Some(res) =
-                    self.matching.as_ref().and_then(|f| f(&props)) {
+            let tags = if let Some(res) =
+                self.matching.and_then(|f| f(props)) {
                     res
                 } else if let Some(tagset) = self.tag_stack.current() {
                     tagset.tags.clone()
-                } else {
-                    vec![Tag::default()]
-                };
-                let client = Client::new(window, tags, props);
-                let _ = xproto::map_window(self.con, window);
-                self.clients.add(client);
-                // set border width
-                xproto::configure_window(self.con, window,
-                    &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                       self.config.border_width as u32)]);
-                self.focus_window(window); // FIXME on monocle layout 
-                self.visible_windows.push(window);
-                self.arrange_windows();
+                }
             } else {
-                println!("Could not lookup properties!");
-            }
+                vec![Tag::default()]
+            };
+            let client = Client::new(self, window, tags, props);
+            let _ = xproto::map_window(self.con, window);
+            self.clients.add(client);
+            // set border width
+            xproto::configure_window(self.con, window,
+                &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                   self.config.border_width as u32)]);
+            self.focus_window(window); // FIXME on monocle layout 
+            self.visible_windows.push(window);
+            self.arrange_windows();
         }
     }
 

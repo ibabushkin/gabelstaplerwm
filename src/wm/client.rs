@@ -4,7 +4,6 @@ use xcb::xproto as xproto;
 
 use wm::config::{Tag,Mode};
 use wm::layout::Layout;
-use wm::window_system::Wm;
 
 #[derive(Debug)]
 pub struct ClientProps {
@@ -28,17 +27,13 @@ pub struct Client {
 
 impl Client {
     // setup a new client from a window manager for a specific window
-    pub fn new(wm: &Wm, window: xproto::Window, tags: Vec<Tag>)
-        -> Option<Client> {
-        if let Some(props) = wm.get_properties(window) {
-            Some(Client {
-                window: window,
-                props: props,
-                urgent: false,
-                tags: tags
-            })
-        } else {
-            None
+    pub fn new(window: xproto::Window, tags: Vec<Tag>, props: ClientProps)
+        -> Client {
+        Client {
+            window: window,
+            props: props,
+            urgent: false,
+            tags: tags
         }
     }
 
