@@ -318,11 +318,10 @@ impl<'a> Wm<'a> {
     // a window wants to be mapped, take necessary action
     fn handle_map_request(&mut self, ev: &xproto::MapRequestEvent) {
         let window = ev.window();
-        if let None = self.clients.get_client_by_window(window) {
+        if self.clients.get_client_by_window(window).is_none() {
             let tags = match self.tag_stack.current() {
                 Some(tagset) => tagset.tags.clone(),
                 None => vec![Tag::default()]
-                    // we need to put the client somewhere
             };
             if let Some(client) = Client::new(self, window, tags) {
                 let _ = xproto::map_window(self.con, window);
