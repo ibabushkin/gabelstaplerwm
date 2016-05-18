@@ -142,4 +142,6 @@ impl Layout for DStack {
             Some(index + 1)
         }
     }
+
+    fn new_window_as_master(&self) -> bool { false }
 }

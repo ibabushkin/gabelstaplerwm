@@ -78,7 +78,6 @@ pub fn setup_wm(wm: &mut Wm) {
                      .and_then(|t| t.focused)
                      .and_then(|w| c.match_client_by_window(w)) {
                      cl.toggle_tag(Tag::Web);
-                     println!("toggled tag");
                      WmCommand::Redraw
                  } else { WmCommand::NoCommand }
              ),

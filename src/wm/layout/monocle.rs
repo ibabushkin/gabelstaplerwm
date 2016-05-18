@@ -50,4 +50,6 @@ impl Layout for Monocle {
     fn bottom_window(&self, _: usize, _: usize) -> Option<usize> {
         None
     }
+
+    fn new_window_as_master(&self) -> bool { true }
 }

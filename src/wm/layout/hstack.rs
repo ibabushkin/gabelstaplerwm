@@ -124,4 +124,6 @@ impl Layout for HStack {
             }
         }
     }
+
+    fn new_window_as_master(&self) -> bool { false }
 }

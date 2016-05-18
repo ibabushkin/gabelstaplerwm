@@ -10,7 +10,6 @@ That way, users can choose components and replace/extend at will.
   * mouse replacement
   * bar
 * tags work similarly to awesomeWM: N:M relationship between windows and tags
-  * [ ] rulesets decide upon the placement of clients
   * it's cheaper to delete them from history than perform all manipulations
     over it, so `Vec` is probably still the best idea
 * [ ] helper util to get keycodes (via X I assume?)

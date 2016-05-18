@@ -106,8 +106,12 @@ impl ClientList {
     }
 
     // add a new client
-    pub fn add(&mut self, client: Client) {
-        self.clients.push(client);
+    pub fn add(&mut self, client: Client, master: bool) {
+        if !master {
+            self.clients.push(client);
+        } else {
+            self.clients.insert(0, client);
+        }
     }
 
     // remove the client corresponding to a window

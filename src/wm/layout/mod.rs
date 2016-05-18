@@ -57,4 +57,6 @@ pub trait Layout {
     fn top_window(&self, index: usize, max: usize) -> Option<usize>;
     // get the window to the bottom of the nth window
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize>;
+    // decide whether to insert new windows as master
+    fn new_window_as_master(&self) -> bool;
 }

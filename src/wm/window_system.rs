@@ -27,7 +27,7 @@ static ATOM_VEC: [&'static str; 8] = ["WM_PROTOCOLS",
 
 // assoc list type for atoms and their names
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
-// c
+
 // closure type of a callback function running on key press
 pub type Matching = Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
 
@@ -181,6 +181,14 @@ impl<'a> Wm<'a> {
     // set up the stack of tag(sets)
     pub fn setup_tags(&mut self, stack: TagStack) {
         self.tag_stack = stack;
+    }
+
+    // check whether we create new clients as masters or slaves
+    fn new_window_as_master(&self) -> bool {
+        match self.tag_stack.current() {
+            Some(ref tagset) => tagset.layout.new_window_as_master(),
+            _ => false,
+        }
     }
 
     // using the current layout, arrange all visible windows
@@ -391,14 +399,17 @@ impl<'a> Wm<'a> {
                 };
                 let client = Client::new(window, tags, props);
                 let _ = xproto::map_window(self.con, window);
-                self.clients.add(client);
+                {
+                    let as_master = self.new_window_as_master();
+                    self.clients.add(client, as_master);
+                }
                 // set border width
                 xproto::configure_window( self.con, window,
                     &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                        self.config.border_width as u32)]);
-                self.focus_window(window); // FIXME on monocle layout
                 self.visible_windows.push(window);
                 self.arrange_windows();
+                self.focus_window(window);
             } else {
                 println!("Could not lookup properties!");
             }
