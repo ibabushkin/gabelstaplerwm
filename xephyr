@@ -4,5 +4,5 @@ sleep 1
 if [ "$1" != "-k" ]; then
   DISPLAY=:1.0 ./target/debug/gabelstaplerwm
 else
-  DISPLAY=:1.0 ./target/debug/keygrab
+  DISPLAY=:1.0 ./target/debug/gabelstaplergrab
 fi
