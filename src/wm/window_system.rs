@@ -133,7 +133,6 @@ impl<'a> Wm<'a> {
     pub fn register(&self) -> Result<(), WmError> {
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
-            //| xproto::EVENT_MASK_KEY_PRESS uncomment for all keyboard events
             | xproto::EVENT_MASK_PROPERTY_CHANGE;
         match xproto::change_window_attributes(self.con,
                                                self.root,
@@ -261,6 +260,23 @@ impl<'a> Wm<'a> {
     // what they promise.
     fn reset_focus(&self, old: xproto::Window) {
         if let Some(new) = self.tag_stack.current().and_then(|t| t.focused) {
+            /*
+             * TODO: make this happen:
+             * (we need it to make the Monocle layout happy on window switch)
+             *
+             * if self.new_window_as_master() {
+             *    self.clients.swap_master(new);
+             * }
+             *
+             * the issue here is that we save all the clients linearly.
+             * This will lead to problems in the future (read: now), because
+             * we might want different orderings on different tagsets, but
+             * the datastructure we use can only represent one.
+             *
+             * proposed fix:
+             * first off, think of better datastructures for this task.
+             * then, implement them and live on (or something)
+             */
             self.set_border_color(old, self.border_colors.1);
             let _ =
                 xproto::set_input_focus(self.con,
