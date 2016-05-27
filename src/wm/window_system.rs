@@ -1,5 +1,6 @@
 use libc::c_char;
 
+use std::cell::{RefCell};
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::transmute;
@@ -302,14 +303,17 @@ impl<'a> Wm<'a> {
 
     // focus master window if the currently focused one is gone
     fn revert_focus_master(&mut self, window: xproto::Window) {
-        if let Some(&Client { window: master, .. }) = self.tag_stack
-            .current()
+        let mut win = None;
+        if let Some(ref cl) = self.tag_stack.current()
             .and_then(|t| self.clients.match_master_by_tags(&t.tags)) {
             if self.tag_stack
                 .current()
                 .and_then(|t| t.focused) == Some(window) {
-                self.focus_window(master);
+                win = Some(cl.window);
             }
+        }
+        if let Some(w) = win {
+            self.focus_window(w);
         }
     }
 
@@ -417,7 +421,7 @@ impl<'a> Wm<'a> {
                 let _ = xproto::map_window(self.con, window);
                 {
                     let as_master = self.new_window_as_master();
-                    self.clients.add(client, as_master);
+                    self.clients.add(RefCell::new(client), as_master);
                 }
                 // set border width
                 xproto::configure_window( self.con, window,

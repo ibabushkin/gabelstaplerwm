@@ -1,3 +1,4 @@
+use std::cell::{RefCell,Ref,RefMut};
 use std::fmt;
 
 use xcb::xproto;
@@ -71,7 +72,7 @@ impl Client {
 
 // a client list, managing all direct children of the root window
 pub struct ClientList {
-    clients: Vec<Client>,
+    clients: Vec<RefCell<Client>>,
 }
 
 impl ClientList {
@@ -84,29 +85,41 @@ impl ClientList {
     // get a reference to a client given it's window handle
     pub fn match_client_by_window(&mut self,
                                   window: xproto::Window)
-                                  -> Option<&mut Client> {
-        self.clients.iter_mut().find(|c| c.window == window)
+                                  -> Option<RefMut<Client>> {
+        self.clients
+            .iter_mut()
+            .find(|c| c.borrow().window == window)
+            .map(|r| r.borrow_mut())
     }
 
     // get a list of references of windows that are visible on a set of tags
-    pub fn match_clients_by_tags(&self, tags: &[Tag]) -> Vec<&Client> {
-        self.clients.iter().filter(|elem| elem.has_tags(tags)).collect()
+    pub fn match_clients_by_tags(&self, tags: &[Tag]) -> Vec<Ref<Client>> {
+        self.clients
+            .iter()
+            .filter(|elem| elem.borrow().has_tags(tags))
+            .map(|r| r.borrow()).collect()
     }
 
     // get a reference to a a master window visible on a set of tags
-    pub fn match_master_by_tags(&self, tags: &[Tag]) -> Option<&Client> {
-        self.clients.iter().find(|elem| elem.has_tags(tags))
+    pub fn match_master_by_tags(&self, tags: &[Tag]) -> Option<Ref<Client>> {
+        self.clients
+            .iter()
+            .find(|elem| elem.borrow().has_tags(tags))
+            .map(|r| r.borrow())
     }
 
     // get a client that corresponds to the given window
     pub fn get_client_by_window(&self,
                                 window: xproto::Window)
-                                -> Option<&Client> {
-        self.clients.iter().find(|client| client.window == window)
+                                -> Option<Ref<Client>> {
+        self.clients
+            .iter()
+            .find(|client| client.borrow().window == window)
+            .map(|r| r.borrow())
     }
 
     // add a new client
-    pub fn add(&mut self, client: Client, master: bool) {
+    pub fn add(&mut self, client: RefCell<Client>, master: bool) {
         if !master {
             self.clients.push(client);
         } else {
@@ -116,9 +129,8 @@ impl ClientList {
 
     // remove the client corresponding to a window
     pub fn remove(&mut self, window: xproto::Window) {
-        if let Some(pos) = self.clients
-            .iter()
-            .position(|elem| elem.window == window) {
+        if let Some(pos) = self.clients.iter().position(
+            |elem| elem.borrow().window == window) {
             self.clients.remove(pos);
         }
     }
@@ -131,11 +143,12 @@ impl ClientList {
         if let Some(current_window) = tags.focused {
             let current_index = self.clients
                 .iter()
-                .position(|client| client.window == current_window)
+                .position(|client| client.borrow().window == current_window)
                 .unwrap();
             let new_index = (current_index as isize + offset) as usize %
                             self.clients.len();
-            tags.focus_window(self.clients.get(new_index).unwrap().window);
+            tags.focus_window(
+                self.clients.get(new_index).unwrap().borrow().window);
             Some(current_window)
         } else {
             None
@@ -150,15 +163,15 @@ impl ClientList {
         where F: Fn(&Layout, usize, usize) -> Option<usize>
     {
         if let Some(current_window) = tags.focused {
-            if let Some(current_index) = self.clients
-                .iter()
-                .position(|client| client.window == current_window) {
+            if let Some(current_index) = self.clients.iter().position(
+                |client| client.borrow().window == current_window) {
                 if let Some(new_index) = focus_func(tags.layout.as_ref(),
                                                     current_index,
                                                     self.clients.len() - 1) {
                     tags.focus_window(self.clients
                         .get(new_index)
                         .unwrap()
+                        .borrow()
                         .window);
                     return Some(current_window);
                 }

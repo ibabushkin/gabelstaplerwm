@@ -73,14 +73,14 @@ pub fn setup_wm(wm: &mut Wm) {
                  s.push(TagSet::new(vec![Tag::Web], VStack::default()));
                  WmCommand::Redraw
              }),
-             bind!(10, 13, Mode::Normal, |c, s|
-                 if let Some(cl) = s.current()
+             bind!(10, 13, Mode::Normal, |c, s| {
+                 if let Some(ref mut cl) = s.current()
                      .and_then(|t| t.focused)
                      .and_then(|w| c.match_client_by_window(w)) {
                      cl.toggle_tag(Tag::Web);
                      WmCommand::Redraw
                  } else { WmCommand::NoCommand }
-             ),
+             }),
              bind!(11, 12, Mode::Normal, |_, s| {
                  s.push(TagSet::new(vec![Tag::Work2], VStack::default()));
                  WmCommand::Redraw
