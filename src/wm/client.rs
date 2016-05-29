@@ -121,15 +121,11 @@ impl ClientList {
     }
 
     // add a new client
-    pub fn add(&mut self, client: Client, master: bool)
+    pub fn add(&mut self, client: Client)
         -> Weak<RefCell<Client>> {
         let wrapped_client = Rc::new(RefCell::new(client));
         let weak = Rc::downgrade(&wrapped_client);
-        if !master {
-            self.clients.push(wrapped_client);
-        } else {
-            self.clients.insert(0, wrapped_client);
-        }
+        self.clients.push(wrapped_client);
         weak
     }
 
@@ -210,7 +206,6 @@ impl ClientList {
 // an entity shown at a given point in time
 pub struct TagSet {
     pub tags: Vec<Tag>, // tags shown
-    pub client_order: Vec<Weak<RefCell<Client>>>, // visible clients in order
     pub layout: Box<Layout>, // the layout used
     pub focused: Option<xproto::Window>, // last focused window
 }
@@ -220,13 +215,12 @@ impl TagSet {
     pub fn new<L: Layout + 'static>(tags: Vec<Tag>, layout: L) -> TagSet {
         TagSet {
             tags: tags,
-            client_order: Vec::new(),
             layout: Box::new(layout),
             focused: None,
         }
     }
 
-    // add a new client
+    /* add a new client
     pub fn add_client(&mut self, client: Weak<RefCell<Client>>, master: bool) {
         if !master {
             self.client_order.push(client);
@@ -247,6 +241,7 @@ impl TagSet {
         self.client_order = ret;
         self.client_order.to_vec()
     }
+    */
 
     // mark a window as focused
     pub fn focus_window(&mut self, window: xproto::Window) {

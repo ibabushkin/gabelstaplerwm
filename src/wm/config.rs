@@ -13,7 +13,7 @@ use wm::layout::dstack::DStack;
 use wm::window_system::{Wm, WmConfig, WmCommand};
 
 // a set of (symbolic) tags - to be extended/modified
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Tag {
     Web,
     Work2,
