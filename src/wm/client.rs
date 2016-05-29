@@ -1,5 +1,6 @@
 use std::cell::{RefCell,Ref,RefMut};
 use std::fmt;
+use std::rc::{Rc,Weak};
 
 use xcb::xproto;
 
@@ -71,8 +72,9 @@ impl Client {
 }
 
 // a client list, managing all direct children of the root window
+#[derive(Debug)]
 pub struct ClientList {
-    clients: Vec<RefCell<Client>>,
+    clients: Vec<Rc<RefCell<Client>>>,
 }
 
 impl ClientList {
@@ -119,12 +121,16 @@ impl ClientList {
     }
 
     // add a new client
-    pub fn add(&mut self, client: RefCell<Client>, master: bool) {
+    pub fn add(&mut self, client: Client, master: bool)
+        -> Weak<RefCell<Client>> {
+        let wrapped_client = Rc::new(RefCell::new(client));
+        let weak = Rc::downgrade(&wrapped_client);
         if !master {
-            self.clients.push(client);
+            self.clients.push(wrapped_client);
         } else {
-            self.clients.insert(0, client);
+            self.clients.insert(0, wrapped_client);
         }
+        weak
     }
 
     // remove the client corresponding to a window
@@ -204,6 +210,7 @@ impl ClientList {
 // an entity shown at a given point in time
 pub struct TagSet {
     pub tags: Vec<Tag>, // tags shown
+    pub client_order: Vec<Weak<RefCell<Client>>>, // visible clients in order
     pub layout: Box<Layout>, // the layout used
     pub focused: Option<xproto::Window>, // last focused window
 }
@@ -213,9 +220,32 @@ impl TagSet {
     pub fn new<L: Layout + 'static>(tags: Vec<Tag>, layout: L) -> TagSet {
         TagSet {
             tags: tags,
+            client_order: Vec::new(),
             layout: Box::new(layout),
             focused: None,
         }
+    }
+
+    // add a new client
+    pub fn add_client(&mut self, client: Weak<RefCell<Client>>, master: bool) {
+        if !master {
+            self.client_order.push(client);
+        } else {
+            self.client_order.insert(0, client);
+        }
+    }
+
+    // get all clients on the tagset in order
+    // TCS: up to 2*n clones
+    pub fn get_clients(&mut self) -> Vec<Weak<RefCell<Client>>> {
+        let mut ret = Vec::new();
+        for client in self.client_order.iter() {
+            if client.upgrade().is_some() {
+                ret.push(client.clone());
+            }
+        }
+        self.client_order = ret;
+        self.client_order.to_vec()
     }
 
     // mark a window as focused

@@ -1,6 +1,5 @@
 use libc::c_char;
 
-use std::cell::{RefCell};
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::transmute;
@@ -200,11 +199,9 @@ impl<'a> Wm<'a> {
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
         // setup current client list
-        let (clients, layout) = match self.tag_stack.current() {
-            Some(ref tagset) => {
-                (self.clients.match_clients_by_tags(&tagset.tags),
-                 &tagset.layout)
-            }
+        let tagset = self.tag_stack.current_mut();
+        let (clients, layout) = match tagset {
+            Some(tagset) => (tagset.get_clients(), &tagset.layout),
             None => return, // nothing to do here
         };
         // get geometries ...
@@ -212,9 +209,10 @@ impl<'a> Wm<'a> {
         for (client, geometry) in clients.iter().zip(geometries.iter()) {
             // ... and apply them if a window is to be displayed
             if let &Some(ref geom) = geometry {
-                self.visible_windows.push(client.window);
+                let cl = client.upgrade().unwrap();
+                self.visible_windows.push(cl.borrow().window);
                 let _ = xproto::configure_window(
-                    self.con, client.window,
+                    self.con, cl.borrow().window,
                     &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
                       (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
                       (xproto::CONFIG_WINDOW_WIDTH as u16, geom.width as u32),
@@ -366,7 +364,9 @@ impl<'a> Wm<'a> {
             command = func(&mut self.clients, &mut self.tag_stack);
         }
         match command {
-            WmCommand::Redraw => self.arrange_windows(),
+            WmCommand::Redraw => {
+                self.arrange_windows();
+            },
             WmCommand::Focus(old_win) => {
                 if let Some(win) = old_win {
                     self.reset_focus(win)
@@ -421,7 +421,10 @@ impl<'a> Wm<'a> {
                 let _ = xproto::map_window(self.con, window);
                 {
                     let as_master = self.new_window_as_master();
-                    self.clients.add(RefCell::new(client), as_master);
+                    let weak = self.clients.add(client, as_master);
+                    if let Some(tagset) = self.tag_stack.current_mut() {
+                        tagset.add_client(weak, as_master);
+                    }
                 }
                 // set border width
                 xproto::configure_window( self.con, window,
