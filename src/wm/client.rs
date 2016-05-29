@@ -158,12 +158,9 @@ impl ClientList {
     }
 
     // focus a window by direction
-    fn focus_direction<F>(&self,
-                          tags: &mut TagSet,
-                          focus_func: F)
-                          -> Option<xproto::Window>
-        where F: Fn(&Layout, usize, usize) -> Option<usize>
-    {
+    fn focus_direction<F>(&self, tags: &mut TagSet, focus_func: F)
+        -> Option<xproto::Window>
+        where F: Fn(&Layout, usize, usize) -> Option<usize> {
         if let Some(current_window) = tags.focused {
             if let Some(current_index) = self.clients.iter().position(
                 |client| client.borrow().window == current_window) {
@@ -219,29 +216,6 @@ impl TagSet {
             focused: None,
         }
     }
-
-    /* add a new client
-    pub fn add_client(&mut self, client: Weak<RefCell<Client>>, master: bool) {
-        if !master {
-            self.client_order.push(client);
-        } else {
-            self.client_order.insert(0, client);
-        }
-    }
-
-    // get all clients on the tagset in order
-    // TCS: up to 2*n clones
-    pub fn get_clients(&mut self) -> Vec<Weak<RefCell<Client>>> {
-        let mut ret = Vec::new();
-        for client in self.client_order.iter() {
-            if client.upgrade().is_some() {
-                ret.push(client.clone());
-            }
-        }
-        self.client_order = ret;
-        self.client_order.to_vec()
-    }
-    */
 
     // mark a window as focused
     pub fn focus_window(&mut self, window: xproto::Window) {
@@ -332,4 +306,14 @@ impl TagStack {
             self.tags.push(new_last);
         }
     }
+}
+
+pub fn clean_clients(clients: &mut Vec<Weak<RefCell<Client>>>) {
+    let mut ret = Vec::new();
+    for client in clients.iter() {
+        if client.upgrade().is_some() {
+            ret.push(client.clone());
+        }
+    }
+    *clients = ret;
 }
