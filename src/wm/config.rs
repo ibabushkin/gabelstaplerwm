@@ -116,7 +116,7 @@ pub fn setup_wm(wm: &mut Wm) {
              bind!(42, 12, Mode::Normal, |_, s| {
                  s.swap_top(); WmCommand::Redraw
              }),
-             bind!(43, 12, Mode::Normal, |c, s|
+             /*bind!(43, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
                      WmCommand::Focus(c.focus_left(t))
                  } else { WmCommand::NoCommand }
@@ -145,7 +145,7 @@ pub fn setup_wm(wm: &mut Wm) {
                  if let Some(t) = s.current_mut() {
                      WmCommand::Focus(c.focus_offset(t, -1))
                  } else { WmCommand::NoCommand }
-             ),
+             ),*/
              bind!(65, 12, Mode::Normal, |_, s| {
                  if let Some(t) = s.current_mut() {
                      t.set_layout(Monocle::default());

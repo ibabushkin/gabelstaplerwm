@@ -209,7 +209,7 @@ impl<'a> Wm<'a> {
         let (clients, layout) = match self.tag_stack.current() {
             Some(tagset) => if let Some(order) =
                 self.cl_order.get_mut(&tagset.tags) {
-                clean_clients(order);
+                clean_clients(order); // lazy cleanup
                 (order, &tagset.layout)
             } else {
                 return; // nothing to do here - empty tagset

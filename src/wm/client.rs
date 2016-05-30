@@ -136,68 +136,6 @@ impl ClientList {
             self.clients.remove(pos);
         }
     }
-
-    // focus a window by index difference
-    pub fn focus_offset(&self,
-                        tags: &mut TagSet,
-                        offset: isize)
-                        -> Option<xproto::Window> {
-        if let Some(current_window) = tags.focused {
-            let current_index = self.clients
-                .iter()
-                .position(|client| client.borrow().window == current_window)
-                .unwrap();
-            let new_index = (current_index as isize + offset) as usize %
-                            self.clients.len();
-            tags.focus_window(
-                self.clients.get(new_index).unwrap().borrow().window);
-            Some(current_window)
-        } else {
-            None
-        }
-    }
-
-    // focus a window by direction
-    fn focus_direction<F>(&self, tags: &mut TagSet, focus_func: F)
-        -> Option<xproto::Window>
-        where F: Fn(&Layout, usize, usize) -> Option<usize> {
-        if let Some(current_window) = tags.focused {
-            if let Some(current_index) = self.clients.iter().position(
-                |client| client.borrow().window == current_window) {
-                if let Some(new_index) = focus_func(tags.layout.as_ref(),
-                                                    current_index,
-                                                    self.clients.len() - 1) {
-                    tags.focus_window(self.clients
-                        .get(new_index)
-                        .unwrap()
-                        .borrow()
-                        .window);
-                    return Some(current_window);
-                }
-            }
-        }
-        None
-    }
-
-    // focus the window to the right
-    pub fn focus_right(&self, tags: &mut TagSet) -> Option<xproto::Window> {
-        self.focus_direction(tags, |l, i, m| l.right_window(i, m))
-    }
-
-    // focus the window to the left
-    pub fn focus_left(&self, tags: &mut TagSet) -> Option<xproto::Window> {
-        self.focus_direction(tags, |l, i, m| l.left_window(i, m))
-    }
-
-    // focus the window to the top
-    pub fn focus_top(&self, tags: &mut TagSet) -> Option<xproto::Window> {
-        self.focus_direction(tags, |l, i, m| l.top_window(i, m))
-    }
-
-    // focus the window to the bottom
-    pub fn focus_bottom(&self, tags: &mut TagSet) -> Option<xproto::Window> {
-        self.focus_direction(tags, |l, i, m| l.bottom_window(i, m))
-    }
 }
 
 // an entity shown at a given point in time
@@ -220,6 +158,90 @@ impl TagSet {
     // mark a window as focused
     pub fn focus_window(&mut self, window: xproto::Window) {
         self.focused = Some(window);
+    }
+
+    // focus a window by index difference
+    pub fn focus_offset(&mut self,
+                        clients: &Vec<Weak<RefCell<Client>>>,
+                        offset: isize) -> Option<xproto::Window> {
+        if let Some(current_window) = self.focused {
+            let current_index = clients
+                .iter()
+                .position(|client| {
+                    if let Some(r) = client.upgrade() {
+                        r.borrow().window == current_window
+                    } else {
+                        false
+                    }
+                })
+                .unwrap();
+            let new_index =
+                (current_index as isize + offset) as usize % clients.len();
+            if let Some(win) = clients
+                .get(new_index)
+                .and_then(|r| r.upgrade())
+                .map(|c| c.borrow().window) {
+                self.focus_window(win);
+            }
+            Some(current_window)
+        } else {
+            None
+        }
+    }
+
+    // focus a window by direction
+    fn focus_direction<F>(&mut self,
+                          clients: &Vec<Weak<RefCell<Client>>>,
+                          focus_func: F) -> Option<xproto::Window>
+        where F: Fn(&Layout, usize, usize) -> Option<usize> {
+        if let Some(current_window) = self.focused {
+            let current_index = clients
+                .iter()
+                .position(|client| {
+                    if let Some(r) = client.upgrade() {
+                        r.borrow().window == current_window
+                    } else {
+                        false
+                    }
+                })
+                .unwrap();
+            if let Some(new_index) = focus_func(self.layout.as_ref(),
+                                                current_index,
+                                                clients.len() - 1) {
+                if let Some(win) = clients
+                    .get(new_index)
+                    .and_then(|r| r.upgrade())
+                    .map(|r| r.borrow().window) {
+                    self.focus_window(win);
+                }
+                return Some(current_window);
+            }
+        }
+        None
+    }
+
+    // focus the window to the right
+    pub fn focus_right(&mut self, clients: &Vec<Weak<RefCell<Client>>>)
+        -> Option<xproto::Window> {
+        self.focus_direction(clients, |l, i, m| l.right_window(i, m))
+    }
+
+    // focus the window to the left
+    pub fn focus_left(&mut self, clients: &Vec<Weak<RefCell<Client>>>)
+        -> Option<xproto::Window> {
+        self.focus_direction(clients, |l, i, m| l.left_window(i, m))
+    }
+
+    // focus the window to the top
+    pub fn focus_top(&mut self, clients: &Vec<Weak<RefCell<Client>>>)
+        -> Option<xproto::Window> {
+        self.focus_direction(clients, |l, i, m| l.top_window(i, m))
+    }
+
+    // focus the window to the bottom
+    pub fn focus_bottom(&mut self, clients: &Vec<Weak<RefCell<Client>>>)
+        -> Option<xproto::Window> {
+        self.focus_direction(clients, |l, i, m| l.bottom_window(i, m))
     }
 
     // toggle a tag on the tagset
