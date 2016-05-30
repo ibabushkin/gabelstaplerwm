@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Weak;
 
 use xcb::xkb;
 
-use wm::client::{ClientList, TagStack};
+use wm::client::{Client, TagStack};
 use wm::config::Mode;
 use wm::window_system::WmCommand;
 
@@ -25,7 +27,8 @@ const MOD4: u8 = 64;
 const ALTGR: u8 = 136;
 
 // closure type of a callback function running on key press
-pub type KeyCallback = Box<Fn(&mut ClientList, &mut TagStack) -> WmCommand>;
+pub type KeyCallback = Box<Fn(&mut Vec<Weak<RefCell<Client>>>, &mut TagStack)
+    -> WmCommand>;
 // keybinding map
 pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 

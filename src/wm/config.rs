@@ -73,14 +73,14 @@ pub fn setup_wm(wm: &mut Wm) {
                  s.push(TagSet::new(vec![Tag::Web], VStack::default()));
                  WmCommand::Redraw
              }),
-             bind!(10, 13, Mode::Normal, |c, s| {
+             /*bind!(10, 13, Mode::Normal, |c, s| {
                  if let Some(ref mut cl) = s.current()
                      .and_then(|t| t.focused)
                      .and_then(|w| c.match_client_by_window(w)) {
                      cl.toggle_tag(Tag::Web);
                      WmCommand::Redraw
                  } else { WmCommand::NoCommand }
-             }),
+             }),*/
              bind!(11, 12, Mode::Normal, |_, s| {
                  s.push(TagSet::new(vec![Tag::Work2], VStack::default()));
                  WmCommand::Redraw
@@ -116,36 +116,36 @@ pub fn setup_wm(wm: &mut Wm) {
              bind!(42, 12, Mode::Normal, |_, s| {
                  s.swap_top(); WmCommand::Redraw
              }),
-             /*bind!(43, 12, Mode::Normal, |c, s|
+             bind!(43, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(c.focus_left(t))
+                     WmCommand::Focus(t.focus_left(c))
                  } else { WmCommand::NoCommand }
              ),
              bind!(44, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(c.focus_bottom(t))
+                     WmCommand::Focus(t.focus_bottom(c))
                  } else { WmCommand::NoCommand }
              ),
              bind!(45, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(c.focus_top(t))
+                     WmCommand::Focus(t.focus_top(c))
                  } else { WmCommand::NoCommand }
              ),
              bind!(46, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(c.focus_right(t))
+                     WmCommand::Focus(t.focus_right(c))
                  } else { WmCommand::NoCommand }
              ),
              bind!(35, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(c.focus_offset(t, 1))
+                     WmCommand::Focus(t.focus_offset(c, 1))
                  } else { WmCommand::NoCommand }
              ),
              bind!(61, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(c.focus_offset(t, -1))
+                     WmCommand::Focus(t.focus_offset(c, -1))
                  } else { WmCommand::NoCommand }
-             ),*/
+             ),
              bind!(65, 12, Mode::Normal, |_, s| {
                  if let Some(t) = s.current_mut() {
                      t.set_layout(Monocle::default());

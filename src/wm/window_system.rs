@@ -373,7 +373,10 @@ impl<'a> Wm<'a> {
         println!("Key pressed: {:?}", key);
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
-            command = func(&mut self.clients, &mut self.tag_stack);
+            if let Some(t) = self.tag_stack.current().map(|t| t.tags.clone()) {
+                let rv = self.cl_order.entry(t).or_insert(Vec::new());
+                command = func(rv, &mut self.tag_stack);
+            }
         }
         match command {
             WmCommand::Redraw => {
