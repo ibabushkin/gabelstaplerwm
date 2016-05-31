@@ -1,4 +1,4 @@
-use std::cell::{RefCell,Ref,RefMut};
+use std::cell::{RefCell,Ref};
 use std::fmt;
 use std::rc::{Rc,Weak};
 
@@ -17,7 +17,7 @@ pub struct ClientProps {
 // a client wrapping a window
 #[derive(Debug)]
 pub struct Client {
-    // TODO: enhance strucutre to hold all protocol atoms
+    // TODO: enhance structure to hold all protocol atoms
     // this would allow to kill clients gracefully by sending them the message
     // see https://github.com/awesomeWM/awesome/blob/master/client.c
     // to compare to awesomeWM's implementation
@@ -82,24 +82,6 @@ impl ClientList {
     // TODO: decide upon an optional with_capacity() call
     pub fn new() -> ClientList {
         ClientList { clients: Vec::new() }
-    }
-
-    // get a reference to a client given it's window handle
-    pub fn match_client_by_window(&mut self,
-                                  window: xproto::Window)
-                                  -> Option<RefMut<Client>> {
-        self.clients
-            .iter_mut()
-            .find(|c| c.borrow().window == window)
-            .map(|r| r.borrow_mut())
-    }
-
-    // get a list of references of windows that are visible on a set of tags
-    pub fn match_clients_by_tags(&self, tags: &[Tag]) -> Vec<Ref<Client>> {
-        self.clients
-            .iter()
-            .filter(|elem| elem.borrow().has_tags(tags))
-            .map(|r| r.borrow()).collect()
     }
 
     // get a reference to a a master window visible on a set of tags

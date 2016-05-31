@@ -390,7 +390,6 @@ impl<'a> Wm<'a> {
             WmCommand::Kill(win) => self.destroy_window(win),
             WmCommand::NoCommand => (),
         };
-        println!("TagStack: {:?}", self.tag_stack);
     }
 
     // TODO: implement
