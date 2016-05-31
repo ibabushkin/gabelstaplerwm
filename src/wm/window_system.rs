@@ -201,8 +201,7 @@ impl<'a> Wm<'a> {
         // setup current client list
         let (clients, layout) = match self.tag_stack.current() {
             Some(tagset) => if let Some(order) =
-                self.clients.get_order_mut(&tagset.tags) {
-                clean_clients(order); // lazy cleanup
+                self.clients.clean_order(&tagset.tags) { // lazy cleanup
                 (order, &tagset.layout)
             } else {
                 return; // nothing to do here - empty tagset
@@ -210,8 +209,8 @@ impl<'a> Wm<'a> {
             None => return, // nothing to do here - no tagset on stack
         };
         // get geometries ...
-        let geometries = layout.arrange(clients.len(), &self.screen);
-        for (client, geometry) in clients.iter().zip(geometries.iter()) {
+        let geometries = layout.arrange(clients.1.len(), &self.screen);
+        for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
             // ... and apply them if a window is to be displayed
             if let &Some(ref geom) = geometry {
                 let cl = client.upgrade().unwrap();
@@ -368,7 +367,7 @@ impl<'a> Wm<'a> {
         if let Some(func) = self.bindings.get(&key) {
             if let Some(t) = self.tag_stack.current().map(|t| t.tags.clone()) {
                 let order = self.clients.get_order_or_insert(t);
-                command = func(order, &mut self.tag_stack);
+                command = func(&mut order.1, &mut self.tag_stack);
             }
         }
         match command {
@@ -433,9 +432,9 @@ impl<'a> Wm<'a> {
                         let entry = self.clients
                             .get_order_or_insert(tagset.tags.clone());
                         if as_master {
-                            entry.insert(0, weak);
+                            entry.1.insert(0, weak);
                         } else {
-                            entry.push(weak);
+                            entry.1.push(weak);
                         }
                     }
                 }

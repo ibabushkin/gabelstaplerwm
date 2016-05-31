@@ -76,11 +76,13 @@ impl Client {
 pub type WeakClientRef = Weak<RefCell<Client>>;
 pub type ClientRef = Rc<RefCell<Client>>;
 
+pub type OrderEntry = (Option<WeakClientRef>, Vec<WeakClientRef>);
+
 // a client list, managing all direct children of the root window
 #[derive(Debug)]
 pub struct ClientSet {
     clients: Vec<ClientRef>,
-    order: HashMap<Vec<Tag>, Vec<WeakClientRef>>,
+    order: HashMap<Vec<Tag>, OrderEntry>,
 }
 
 impl ClientSet {
@@ -108,18 +110,32 @@ impl ClientSet {
             .map(|r| r.borrow())
     }
 
-    pub fn get_order(&self, tags: &Vec<Tag>) -> Option<&Vec<WeakClientRef>> {
+    pub fn get_order(&self, tags: &Vec<Tag>) -> Option<&OrderEntry> {
         self.order.get(tags)
     }
 
+    pub fn clean_order(&mut self, tags: &Vec<Tag>) -> Option<&mut OrderEntry> {
+        if let Some(clients) = self.order.get_mut(tags) {
+            let mut ret = Vec::new();
+            for client in clients.1.iter() {
+                if client.upgrade().is_some() {
+                    ret.push(client.clone());
+                }
+            }
+            clients.1 = ret;
+            Some(clients)
+        } else {
+            None
+        }
+    }
+
     pub fn get_order_mut(&mut self, tags: &Vec<Tag>)
-        -> Option<&mut Vec<WeakClientRef>> {
+        -> Option<&mut OrderEntry> {
         self.order.get_mut(tags)
     }
 
-    pub fn get_order_or_insert(&mut self, tags: Vec<Tag>)
-        -> &mut Vec<WeakClientRef> {
-        self.order.entry(tags).or_insert(Vec::new())
+    pub fn get_order_or_insert(&mut self, tags: Vec<Tag>) -> &mut OrderEntry {
+        self.order.entry(tags).or_insert((None, Vec::new()))
     }
 
     // add a new client
@@ -330,14 +346,4 @@ impl TagStack {
             self.tags.push(new_last);
         }
     }
-}
-
-pub fn clean_clients(clients: &mut Vec<Weak<RefCell<Client>>>) {
-    let mut ret = Vec::new();
-    for client in clients.iter() {
-        if client.upgrade().is_some() {
-            ret.push(client.clone());
-        }
-    }
-    *clients = ret;
 }
