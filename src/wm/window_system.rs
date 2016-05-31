@@ -1,10 +1,8 @@
 use libc::c_char;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::transmute;
-use std::rc::Weak;
 use std::str;
 
 use xcb::base;
@@ -29,9 +27,6 @@ static ATOM_VEC: [&'static str; 8] = ["WM_PROTOCOLS",
 
 // assoc list type for atoms and their names
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
-
-// type of a reference to a client
-type ClientRef = Weak<RefCell<Client>>;
 
 // closure type of a callback function running on key press
 pub type Matching = Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
@@ -62,8 +57,7 @@ pub struct Wm<'a> {
     border_colors: (u32, u32), // colors available for borders
     bindings: Keybindings, // keybindings
     matching: Option<Matching>, // matching function for client placement
-    clients: ClientList, // all clients
-    cl_order: HashMap<Vec<Tag>, Vec<ClientRef>>, // client order
+    clients: ClientSet, // all clients
     tag_stack: TagStack, // all visible tags + history
     atoms: AtomList<'a>, // registered atoms
     visible_windows: Vec<xproto::Window>, // all windows currently visible
@@ -94,8 +88,7 @@ impl<'a> Wm<'a> {
                                                         config.u_color),
                         bindings: HashMap::new(),
                         matching: None,
-                        clients: ClientList::new(),
-                        cl_order: HashMap::new(),
+                        clients: ClientSet::new(),
                         tag_stack: TagStack::new(),
                         atoms: atoms,
                         visible_windows: Vec::new(),
@@ -208,7 +201,7 @@ impl<'a> Wm<'a> {
         // setup current client list
         let (clients, layout) = match self.tag_stack.current() {
             Some(tagset) => if let Some(order) =
-                self.cl_order.get_mut(&tagset.tags) {
+                self.clients.get_order_mut(&tagset.tags) {
                 clean_clients(order); // lazy cleanup
                 (order, &tagset.layout)
             } else {
@@ -374,8 +367,8 @@ impl<'a> Wm<'a> {
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
             if let Some(t) = self.tag_stack.current().map(|t| t.tags.clone()) {
-                let rv = self.cl_order.entry(t).or_insert(Vec::new());
-                command = func(rv, &mut self.tag_stack);
+                let order = self.clients.get_order_or_insert(t);
+                command = func(order, &mut self.tag_stack);
             }
         }
         match command {
@@ -437,8 +430,8 @@ impl<'a> Wm<'a> {
                     let as_master = self.new_window_as_master();
                     let weak = self.clients.add(client);
                     if let Some(tagset) = self.tag_stack.current_mut() {
-                        let entry = self.cl_order
-                            .entry(tagset.tags.clone()).or_insert(Vec::new());
+                        let entry = self.clients
+                            .get_order_or_insert(tagset.tags.clone());
                         if as_master {
                             entry.insert(0, weak);
                         } else {

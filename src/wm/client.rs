@@ -1,4 +1,5 @@
 use std::cell::{RefCell,Ref};
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::{Rc,Weak};
 
@@ -71,17 +72,22 @@ impl Client {
     }
 }
 
+// type of a reference to a client
+pub type WeakClientRef = Weak<RefCell<Client>>;
+pub type ClientRef = Rc<RefCell<Client>>;
+
 // a client list, managing all direct children of the root window
 #[derive(Debug)]
-pub struct ClientList {
-    clients: Vec<Rc<RefCell<Client>>>,
+pub struct ClientSet {
+    clients: Vec<ClientRef>,
+    order: HashMap<Vec<Tag>, Vec<WeakClientRef>>,
 }
 
-impl ClientList {
+impl ClientSet {
     // initialize an empty client list
     // TODO: decide upon an optional with_capacity() call
-    pub fn new() -> ClientList {
-        ClientList { clients: Vec::new() }
+    pub fn new() -> ClientSet {
+        ClientSet { clients: Vec::new(), order: HashMap::new() }
     }
 
     // get a reference to a a master window visible on a set of tags
@@ -100,6 +106,20 @@ impl ClientList {
             .iter()
             .find(|client| client.borrow().window == window)
             .map(|r| r.borrow())
+    }
+
+    pub fn get_order(&self, tags: &Vec<Tag>) -> Option<&Vec<WeakClientRef>> {
+        self.order.get(tags)
+    }
+
+    pub fn get_order_mut(&mut self, tags: &Vec<Tag>)
+        -> Option<&mut Vec<WeakClientRef>> {
+        self.order.get_mut(tags)
+    }
+
+    pub fn get_order_or_insert(&mut self, tags: Vec<Tag>)
+        -> &mut Vec<WeakClientRef> {
+        self.order.entry(tags).or_insert(Vec::new())
     }
 
     // add a new client
