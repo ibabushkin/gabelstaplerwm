@@ -157,14 +157,13 @@ pub fn setup_wm(wm: &mut Wm) {
                  WmCommand::NoCommand
              }),
              bind!(54, 12, Mode::Normal, |c, s| {
-                 // TODO: provide API :)
-                  if let Some(win) = s
-                      .current()
-                      .and_then(|t| c.get_focused(&t.tags)) {
-                      WmCommand::Kill(win)
-                  } else {
-                      WmCommand::NoCommand
-                  }
+                 if let Some(win) = s
+                     .current()
+                     .and_then(|t| c.get_focused(&t.tags)) {
+                     WmCommand::Kill(win)
+                 } else {
+                     WmCommand::NoCommand
+                 }
              }),
         ]);
     wm.setup_tags(TagStack::from_vec(vec![TagSet::new(vec![Tag::Work2],

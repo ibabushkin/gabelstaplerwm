@@ -30,10 +30,8 @@ pub struct Client {
 
 impl Client {
     // setup a new client from a window manager for a specific window
-    pub fn new(window: xproto::Window,
-               tags: Vec<Tag>,
-               props: ClientProps)
-               -> Client {
+    pub fn new(window: xproto::Window, tags: Vec<Tag>, props: ClientProps)
+        -> Client {
         Client {
             window: window,
             props: props,
@@ -62,14 +60,16 @@ impl Client {
     }
 }
 
-// type of a reference to a client
+// weak reference to a client
 pub type WeakClientRef = Weak<RefCell<Client>>;
+// strong reference to a client
 pub type ClientRef = Rc<RefCell<Client>>;
 
+// an entry in the order HashMap of a ClientSet
 pub type OrderEntry = (Option<WeakClientRef>, Vec<WeakClientRef>);
 
-// a client list, managing all direct children of the root window
-#[derive(Debug)]
+// a client set, managing all direct children of the root window
+// as well as their orderings on different tagsets
 pub struct ClientSet {
     clients: Vec<ClientRef>,
     order: HashMap<Vec<Tag>, OrderEntry>,
@@ -98,10 +98,12 @@ impl ClientSet {
             .find(|client| client.borrow().window == window)
     }
 
+    // get an order entry for a set of tags
     pub fn get_order(&self, tags: &Vec<Tag>) -> Option<&OrderEntry> {
         self.order.get(tags)
     }
 
+    // get the currently focused window on a set of tags
     pub fn get_focused(&self, tags: &Vec<Tag>) -> Option<xproto::Window> {
         self.get_order(tags)
             .and_then(|t| t.0.clone())
@@ -109,10 +111,12 @@ impl ClientSet {
             .map(|r| r.borrow().window)
     }
 
+    // get the order entry for a set of tags and create it if necessary 
     pub fn get_order_or_insert(&mut self, tags: Vec<Tag>) -> &mut OrderEntry {
         self.order.entry(tags).or_insert((None, Vec::new()))
     }
 
+    // clean the order entry for a set of tags from invalidated WeakClientRef's
     pub fn clean_order(&mut self, tags: &Vec<Tag>) -> Option<&mut OrderEntry> {
         if let Some(clients) = self.order.get_mut(tags) {
             let mut ret = Vec::new();
@@ -145,6 +149,7 @@ impl ClientSet {
         }
     }
 
+    // focus a window on a set of tags
     pub fn focus_window(&mut self, tags: &Vec<Tag>, window: xproto::Window) {
         self.get_client_by_window(window)
             .map(|r| Rc::downgrade(r))
@@ -277,7 +282,6 @@ impl fmt::Debug for TagSet {
 }
 
 // a history stack of tag sets
-#[derive(Debug)]
 pub struct TagStack {
     tags: Vec<TagSet>, // tag sets, last is current
     pub mode: Mode, // current mode
