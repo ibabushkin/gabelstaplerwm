@@ -1,4 +1,4 @@
-use std::cell::{RefCell,Ref};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::{Rc,Weak};
@@ -42,16 +42,6 @@ impl Client {
         }
     }
 
-    // is a client visible on a set of tags?
-    fn has_tags(&self, tags: &[Tag]) -> bool {
-        for tag in tags {
-            if self.tags.contains(tag) {
-                return true;
-            }
-        }
-        false
-    }
-
     // *move* a window to a new location
     #[allow(dead_code)]
     pub fn set_tags(&mut self, tags: &[Tag]) {
@@ -93,25 +83,34 @@ impl ClientSet {
     }
 
     // get a reference to a a master window visible on a set of tags
-    pub fn match_master_by_tags(&self, tags: &[Tag]) -> Option<Ref<Client>> {
-        self.clients
-            .iter()
-            .find(|elem| elem.borrow().has_tags(tags))
-            .map(|r| r.borrow())
+    pub fn match_master_by_tags(&self, tags: &[Tag]) -> Option<ClientRef> {
+        self.order
+            .get(tags)
+            .and_then(
+                |&(ref focus, _)| focus.clone().and_then(|c| c.upgrade()))
     }
 
     // get a client that corresponds to the given window
-    pub fn get_client_by_window(&self,
-                                window: xproto::Window)
-                                -> Option<Ref<Client>> {
+    pub fn get_client_by_window(&self, window: xproto::Window)
+        -> Option<&ClientRef> {
         self.clients
             .iter()
             .find(|client| client.borrow().window == window)
-            .map(|r| r.borrow())
     }
 
     pub fn get_order(&self, tags: &Vec<Tag>) -> Option<&OrderEntry> {
         self.order.get(tags)
+    }
+
+    pub fn get_focused(&self, tags: &Vec<Tag>) -> Option<xproto::Window> {
+        self.get_order(tags)
+            .and_then(|t| t.0.clone())
+            .and_then(|r| r.upgrade())
+            .map(|r| r.borrow().window)
+    }
+
+    pub fn get_order_or_insert(&mut self, tags: Vec<Tag>) -> &mut OrderEntry {
+        self.order.entry(tags).or_insert((None, Vec::new()))
     }
 
     pub fn clean_order(&mut self, tags: &Vec<Tag>) -> Option<&mut OrderEntry> {
@@ -127,15 +126,6 @@ impl ClientSet {
         } else {
             None
         }
-    }
-
-    pub fn get_order_mut(&mut self, tags: &Vec<Tag>)
-        -> Option<&mut OrderEntry> {
-        self.order.get_mut(tags)
-    }
-
-    pub fn get_order_or_insert(&mut self, tags: Vec<Tag>) -> &mut OrderEntry {
-        self.order.entry(tags).or_insert((None, Vec::new()))
     }
 
     // add a new client
@@ -154,35 +144,22 @@ impl ClientSet {
             self.clients.remove(pos);
         }
     }
-}
 
-// an entity shown at a given point in time
-pub struct TagSet {
-    pub tags: Vec<Tag>, // tags shown
-    pub layout: Box<Layout>, // the layout used
-    pub focused: Option<xproto::Window>, // last focused window
-}
-
-impl TagSet {
-    // initialize a new tag set
-    pub fn new<L: Layout + 'static>(tags: Vec<Tag>, layout: L) -> TagSet {
-        TagSet {
-            tags: tags,
-            layout: Box::new(layout),
-            focused: None,
-        }
-    }
-
-    // mark a window as focused
-    pub fn focus_window(&mut self, window: xproto::Window) {
-        self.focused = Some(window);
+    pub fn focus_window(&mut self, tags: &Vec<Tag>, window: xproto::Window) {
+        self.get_client_by_window(window)
+            .map(|r| Rc::downgrade(r))
+            .map(|r| self.get_order_or_insert(tags.clone()).0 = Some(r));
     }
 
     // focus a window by index difference
-    pub fn focus_offset(&mut self,
-                        clients: &Vec<Weak<RefCell<Client>>>,
-                        offset: isize) -> Option<xproto::Window> {
-        if let Some(current_window) = self.focused {
+    pub fn focus_offset(&mut self, tags: &Vec<Tag>, offset: isize)
+        -> Option<xproto::Window> {
+        let &mut (ref mut current, ref clients) =
+            self.get_order_or_insert(tags.clone());
+        if let Some(current_window) = current
+            .clone()
+            .and_then(|c| c.upgrade())
+            .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
                 .position(|client| {
@@ -195,11 +172,8 @@ impl TagSet {
                 .unwrap();
             let new_index =
                 (current_index as isize + offset) as usize % clients.len();
-            if let Some(win) = clients
-                .get(new_index)
-                .and_then(|r| r.upgrade())
-                .map(|c| c.borrow().window) {
-                self.focus_window(win);
+            if let Some(new_client) = clients.get(new_index) {
+                *current = Some(new_client.clone());
             }
             Some(current_window)
         } else {
@@ -209,10 +183,15 @@ impl TagSet {
 
     // focus a window by direction
     fn focus_direction<F>(&mut self,
-                          clients: &Vec<Weak<RefCell<Client>>>,
+                          tags: &Vec<Tag>,
                           focus_func: F) -> Option<xproto::Window>
-        where F: Fn(&Layout, usize, usize) -> Option<usize> {
-        if let Some(current_window) = self.focused {
+        where F: Fn(usize, usize) -> Option<usize> {
+        let &mut (ref mut current, ref mut clients) =
+            self.get_order_or_insert(tags.clone());
+        if let Some(current_window) = current
+            .clone()
+            .and_then(|c| c.upgrade())
+            .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
                 .position(|client| {
@@ -223,14 +202,10 @@ impl TagSet {
                     }
                 })
                 .unwrap();
-            if let Some(new_index) = focus_func(self.layout.as_ref(),
-                                                current_index,
+            if let Some(new_index) = focus_func(current_index,
                                                 clients.len() - 1) {
-                if let Some(win) = clients
-                    .get(new_index)
-                    .and_then(|r| r.upgrade())
-                    .map(|r| r.borrow().window) {
-                    self.focus_window(win);
+                if let Some(new_client) = clients.get(new_index) {
+                    *current = Some(new_client.clone());
                 }
                 return Some(current_window);
             }
@@ -239,27 +214,43 @@ impl TagSet {
     }
 
     // focus the window to the right
-    pub fn focus_right(&mut self, clients: &Vec<Weak<RefCell<Client>>>)
-        -> Option<xproto::Window> {
-        self.focus_direction(clients, |l, i, m| l.right_window(i, m))
+    pub fn focus_right(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
+        self.focus_direction(&tagset.tags,
+                             |i, m| tagset.layout.right_window(i, m))
     }
 
     // focus the window to the left
-    pub fn focus_left(&mut self, clients: &Vec<Weak<RefCell<Client>>>)
-        -> Option<xproto::Window> {
-        self.focus_direction(clients, |l, i, m| l.left_window(i, m))
+    pub fn focus_left(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
+        self.focus_direction(&tagset.tags,
+                             |i, m| tagset.layout.left_window(i, m))
     }
 
     // focus the window to the top
-    pub fn focus_top(&mut self, clients: &Vec<Weak<RefCell<Client>>>)
-        -> Option<xproto::Window> {
-        self.focus_direction(clients, |l, i, m| l.top_window(i, m))
+    pub fn focus_top(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
+        self.focus_direction(&tagset.tags,
+                             |i, m| tagset.layout.top_window(i, m))
     }
 
     // focus the window to the bottom
-    pub fn focus_bottom(&mut self, clients: &Vec<Weak<RefCell<Client>>>)
-        -> Option<xproto::Window> {
-        self.focus_direction(clients, |l, i, m| l.bottom_window(i, m))
+    pub fn focus_bottom(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
+        self.focus_direction(&tagset.tags,
+                             |i, m| tagset.layout.bottom_window(i, m))
+    }
+}
+
+// an entity shown at a given point in time
+pub struct TagSet {
+    pub tags: Vec<Tag>, // tags shown
+    pub layout: Box<Layout>, // the layout used
+}
+
+impl TagSet {
+    // initialize a new tag set
+    pub fn new<L: Layout + 'static>(tags: Vec<Tag>, layout: L) -> TagSet {
+        TagSet {
+            tags: tags,
+            layout: Box::new(layout),
+        }
     }
 
     // toggle a tag on the tagset

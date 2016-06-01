@@ -118,32 +118,32 @@ pub fn setup_wm(wm: &mut Wm) {
              }),
              bind!(43, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(t.focus_left(c))
+                     WmCommand::Focus(c.focus_left(&t))
                  } else { WmCommand::NoCommand }
              ),
              bind!(44, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(t.focus_bottom(c))
+                     WmCommand::Focus(c.focus_bottom(&t))
                  } else { WmCommand::NoCommand }
              ),
              bind!(45, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(t.focus_top(c))
+                     WmCommand::Focus(c.focus_top(&t))
                  } else { WmCommand::NoCommand }
              ),
              bind!(46, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(t.focus_right(c))
+                     WmCommand::Focus(c.focus_right(&t))
                  } else { WmCommand::NoCommand }
              ),
              bind!(35, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(t.focus_offset(c, 1))
+                     WmCommand::Focus(c.focus_offset(&t.tags, 1))
                  } else { WmCommand::NoCommand }
              ),
              bind!(61, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current_mut() {
-                     WmCommand::Focus(t.focus_offset(c, -1))
+                     WmCommand::Focus(c.focus_offset(&t.tags, -1))
                  } else { WmCommand::NoCommand }
              ),
              bind!(65, 12, Mode::Normal, |_, s| {
@@ -156,8 +156,11 @@ pub fn setup_wm(wm: &mut Wm) {
                  let _ = Command::new("termite").session_leader(true).spawn();
                  WmCommand::NoCommand
              }),
-             bind!(54, 12, Mode::Normal, |_, s| {
-                  if let Some(win) = s.current().and_then(|t| t.focused) {
+             bind!(54, 12, Mode::Normal, |c, s| {
+                 // TODO: provide API :)
+                  if let Some(win) = s
+                      .current()
+                      .and_then(|t| c.get_focused(&t.tags)) {
                       WmCommand::Kill(win)
                   } else {
                       WmCommand::NoCommand

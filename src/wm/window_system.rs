@@ -244,17 +244,19 @@ impl<'a> Wm<'a> {
     // set focus - the datastructures need to be altered, and we have to
     // realize what they promise.
     fn focus_window(&mut self, new: xproto::Window) {
-        if let Some(old) = self.tag_stack.current().and_then(|t| t.focused) {
+        if let Some(old) = self.tag_stack
+            .current()
+            .and_then(|t| self.clients.get_focused(&t.tags)) {
             self.set_border_color(old, self.border_colors.1);
         }
-        if let Some(tags) = self.tag_stack.current_mut() {
+        if let Some(tagset) = self.tag_stack.current() {
             let _ =
                 xproto::set_input_focus(self.con,
                                         xproto::INPUT_FOCUS_POINTER_ROOT as u8,
                                         new,
                                         xproto::TIME_CURRENT_TIME)
                     .request_check();
-            tags.focus_window(new);
+            self.clients.focus_window(&tagset.tags, new);
         }
         self.set_border_color(new, self.border_colors.0);
     }
@@ -262,7 +264,9 @@ impl<'a> Wm<'a> {
     // reset focus - the datastructures have been altered, we need to realize
     // what they promise.
     fn reset_focus(&self, old: xproto::Window) {
-        if let Some(new) = self.tag_stack.current().and_then(|t| t.focused) {
+        if let Some(new) = self.tag_stack
+            .current()
+            .and_then(|t| self.clients.get_focused(&t.tags)) {
             /*
              * TODO: make this happen:
              * (we need it to make the Monocle layout happy on window switch)
@@ -310,8 +314,9 @@ impl<'a> Wm<'a> {
             .and_then(|t| self.clients.match_master_by_tags(&t.tags)) {
             if self.tag_stack
                 .current()
-                .and_then(|t| t.focused) == Some(window) {
-                win = Some(cl.window);
+                .and_then(|t| self.clients.get_focused(&t.tags))
+                == Some(window) {
+                win = Some(cl.borrow().window);
             }
         }
         if let Some(w) = win {
@@ -365,10 +370,7 @@ impl<'a> Wm<'a> {
         println!("Key pressed: {:?}", key);
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
-            if let Some(t) = self.tag_stack.current().map(|t| t.tags.clone()) {
-                let order = self.clients.get_order_or_insert(t);
-                command = func(&mut order.1, &mut self.tag_stack);
-            }
+            command = func(&mut self.clients, &mut self.tag_stack);
         }
         match command {
             WmCommand::Redraw => {
@@ -423,19 +425,18 @@ impl<'a> Wm<'a> {
                 } else {
                     vec![Tag::default()]
                 };
-                let client = Client::new(window, tags, props);
+                let client = Client::new(window, tags.clone(), props);
                 let _ = xproto::map_window(self.con, window);
                 {
+                    // TODO: loop over suitable tags instead of
+                    // inserting only here!
                     let as_master = self.new_window_as_master();
                     let weak = self.clients.add(client);
-                    if let Some(tagset) = self.tag_stack.current_mut() {
-                        let entry = self.clients
-                            .get_order_or_insert(tagset.tags.clone());
-                        if as_master {
-                            entry.1.insert(0, weak);
-                        } else {
-                            entry.1.push(weak);
-                        }
+                    let entry = self.clients.get_order_or_insert(tags);
+                    if as_master {
+                        entry.1.insert(0, weak);
+                    } else {
+                        entry.1.push(weak);
                     }
                 }
                 // set border width
