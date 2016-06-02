@@ -264,19 +264,15 @@ impl<'a> Wm<'a> {
 
     // reset focus - the datastructures have been altered, we need to realize
     // what they promise. If an old window is given, uncolor it's border.
-    fn reset_focus(&self, old: Option<xproto::Window>) {
+    fn reset_focus(&mut self, old: Option<xproto::Window>) {
         if let Some(new) = self
             .tag_stack
             .current()
             .and_then(|t| self.clients.get_focused(&t.tags)) {
-            /*
-             * TODO: make this happen:
-             * (we need it to make the Monocle layout happy on window switch)
-             *
-             * if self.new_window_as_master() {
-             *    self.clients.swap_master(new);
-             * }
-             */
+            if self.new_window_as_master() {
+               self.clients.swap_master(self.tag_stack.current().unwrap());
+               self.arrange_windows();
+            }
             if let Some(old_w) = old {
                 self.set_border_color(old_w, self.border_colors.1);
             }

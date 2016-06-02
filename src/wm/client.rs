@@ -182,6 +182,30 @@ impl ClientSet {
         }
     }
 
+    // swap with current window by index difference
+    pub fn swap_offset(&mut self, tags: &Vec<Tag>, offset: isize) {
+        let &mut (ref current, ref mut clients) =
+            self.get_order_or_insert(tags.clone());
+        if let Some(current_window) = current
+            .clone()
+            .and_then(|c| c.upgrade())
+            .map(|r| r.borrow().window) {
+            let current_index = clients
+                .iter()
+                .position(|client| {
+                    if let Some(r) = client.upgrade() {
+                        r.borrow().window == current_window
+                    } else {
+                        false
+                    }
+                })
+                .unwrap();
+            let new_index =
+                (current_index as isize + offset) as usize % clients.len();
+            clients.swap(current_index, new_index);
+        }
+    }
+
     // focus a window by direction
     fn focus_direction<F>(&mut self, tags: &Vec<Tag>, focus_func: F)
         -> Option<xproto::Window>
@@ -202,8 +226,8 @@ impl ClientSet {
                     }
                 })
                 .unwrap();
-            if let Some(new_index) = focus_func(current_index,
-                                                clients.len() - 1) {
+            if let Some(new_index) =
+                focus_func(current_index, clients.len() - 1) {
                 if let Some(new_client) = clients.get(new_index) {
                     *current = Some(new_client.clone());
                 }
@@ -213,10 +237,44 @@ impl ClientSet {
         None
     }
 
+    // swap with current window by direction
+    fn swap_direction<F>(&mut self, tags: &Vec<Tag>, focus_func: F)
+        where F: Fn(usize, usize) -> Option<usize> {
+        let &mut (ref current, ref mut clients) =
+            self.get_order_or_insert(tags.clone());
+        if let Some(current_window) = current
+            .clone()
+            .and_then(|c| c.upgrade())
+            .map(|r| r.borrow().window) {
+            let current_index = clients
+                .iter()
+                .position(|client| {
+                    if let Some(r) = client.upgrade() {
+                        r.borrow().window == current_window
+                    } else {
+                        false
+                    }
+                })
+                .unwrap();
+            if let Some(new_index) =
+                focus_func(current_index, clients.len() - 1) {
+                if new_index < clients.len() {
+                    clients.swap(current_index, new_index);
+                }
+            }
+        }
+    }
+
     // focus the window to the right
     pub fn focus_right(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.right_window(i, m))
+    }
+
+    // swap with the window to the right
+    pub fn swap_right(&mut self, tagset: &TagSet) {
+        self.swap_direction(&tagset.tags,
+                            |i, m| tagset.layout.right_window(i, m));
     }
 
     // focus the window to the left
@@ -225,16 +283,39 @@ impl ClientSet {
                              |i, m| tagset.layout.left_window(i, m))
     }
 
+    // swap with the window to the left
+    pub fn swap_left(&mut self, tagset: &TagSet) {
+        self.swap_direction(&tagset.tags,
+                            |i, m| tagset.layout.left_window(i, m));
+    }
+
     // focus the window to the top
     pub fn focus_top(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.top_window(i, m))
     }
 
+    // swap with the window to the left
+    pub fn swap_top(&mut self, tagset: &TagSet) {
+        self.swap_direction(&tagset.tags,
+                            |i, m| tagset.layout.top_window(i, m));
+    }
+
     // focus the window to the bottom
     pub fn focus_bottom(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.bottom_window(i, m))
+    }
+
+    // swap with the window to the left
+    pub fn swap_bottom(&mut self, tagset: &TagSet) {
+        self.swap_direction(&tagset.tags,
+                            |i, m| tagset.layout.bottom_window(i, m));
+    }
+
+    // swap with the master window
+    pub fn swap_master(&mut self, tagset: &TagSet) {
+        self.swap_direction(&tagset.tags, |_, _| Some(0));
     }
 }
 
