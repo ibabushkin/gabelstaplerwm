@@ -82,14 +82,6 @@ impl ClientSet {
         ClientSet { clients: Vec::new(), order: HashMap::new() }
     }
 
-    // get a reference to a a master window visible on a set of tags
-    pub fn match_master_by_tags(&self, tags: &[Tag]) -> Option<ClientRef> {
-        self.order
-            .get(tags)
-            .and_then(
-                |&(ref focus, _)| focus.clone().and_then(|c| c.upgrade()))
-    }
-
     // get a client that corresponds to the given window
     pub fn get_client_by_window(&self, window: xproto::Window)
         -> Option<&ClientRef> {
@@ -104,6 +96,7 @@ impl ClientSet {
     }
 
     // get the currently focused window on a set of tags
+    // NOTE: assumes a clean state
     pub fn get_focused(&self, tags: &Vec<Tag>) -> Option<xproto::Window> {
         self.get_order(tags)
             .and_then(|t| t.0.clone())
@@ -116,20 +109,26 @@ impl ClientSet {
         self.order.entry(tags).or_insert((None, Vec::new()))
     }
 
-    // clean the order entry for a set of tags from invalidated WeakClientRef's
-    pub fn clean_order(&mut self, tags: &Vec<Tag>) -> Option<&mut OrderEntry> {
-        if let Some(clients) = self.order.get_mut(tags) {
+    // clean client store from invalidated weak references
+    fn clean(&mut self) {
+        for entry in self.order.values_mut() {
             let mut ret = Vec::new();
-            for client in clients.1.iter() {
+            for client in entry.1.iter() {
                 if client.upgrade().is_some() {
                     ret.push(client.clone());
                 }
             }
-            clients.1 = ret;
-            Some(clients)
-        } else {
-            None
+            entry.1 = ret;
+            if entry.0.clone().and_then(|r| r.upgrade()).is_none() {
+                entry.0 = entry.1.first().map(|r| r.clone());
+            }
         }
+    }
+
+    // clean the order entry for a set of tags from invalidated WeakClientRef's
+    pub fn get_order_mut(&mut self, tags: &Vec<Tag>)
+        -> Option<&mut OrderEntry> {
+        self.order.get_mut(tags)
     }
 
     // add a new client
@@ -147,10 +146,11 @@ impl ClientSet {
             |elem| elem.borrow().window == window) {
             self.clients.remove(pos);
         }
+        self.clean();
     }
 
     // focus a window on a set of tags
-    pub fn focus_window(&mut self, tags: &Vec<Tag>, window: xproto::Window) {
+    pub fn set_focused(&mut self, tags: &Vec<Tag>, window: xproto::Window) {
         self.get_client_by_window(window)
             .map(|r| Rc::downgrade(r))
             .map(|r| self.get_order_or_insert(tags.clone()).0 = Some(r));

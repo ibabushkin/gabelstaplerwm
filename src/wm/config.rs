@@ -69,7 +69,8 @@ macro_rules! bind {
 
 // setup datastructures for the window manager, ie keybindings and tagstack
 pub fn setup_wm(wm: &mut Wm) {
-    wm.setup_bindings(vec![bind!(10, 12, Mode::Normal, |_, s| {
+    wm.setup_bindings(
+        vec![bind!(10, 12, Mode::Normal, |_, s| {
                  s.push(TagSet::new(vec![Tag::Web], VStack::default()));
                  WmCommand::Redraw
              }),
@@ -117,32 +118,32 @@ pub fn setup_wm(wm: &mut Wm) {
                  s.swap_top(); WmCommand::Redraw
              }),
              bind!(43, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current_mut() {
+                 if let Some(t) = s.current() {
                      WmCommand::Focus(c.focus_left(&t))
                  } else { WmCommand::NoCommand }
              ),
              bind!(44, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current_mut() {
+                 if let Some(t) = s.current() {
                      WmCommand::Focus(c.focus_bottom(&t))
                  } else { WmCommand::NoCommand }
              ),
              bind!(45, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current_mut() {
+                 if let Some(t) = s.current() {
                      WmCommand::Focus(c.focus_top(&t))
                  } else { WmCommand::NoCommand }
              ),
              bind!(46, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current_mut() {
+                 if let Some(t) = s.current() {
                      WmCommand::Focus(c.focus_right(&t))
                  } else { WmCommand::NoCommand }
              ),
              bind!(35, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current_mut() {
+                 if let Some(t) = s.current() {
                      WmCommand::Focus(c.focus_offset(&t.tags, 1))
                  } else { WmCommand::NoCommand }
              ),
              bind!(61, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current_mut() {
+                 if let Some(t) = s.current() {
                      WmCommand::Focus(c.focus_offset(&t.tags, -1))
                  } else { WmCommand::NoCommand }
              ),
@@ -166,6 +167,9 @@ pub fn setup_wm(wm: &mut Wm) {
                  }
              }),
         ]);
-    wm.setup_tags(TagStack::from_vec(vec![TagSet::new(vec![Tag::Work2],
-                                                      VStack::default())]));
+    wm.setup_tags(
+        TagStack::from_vec(
+            vec![TagSet::new(vec![Tag::Work2], VStack::default())]
+        )
+    );
 }
