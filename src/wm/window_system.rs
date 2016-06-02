@@ -276,15 +276,6 @@ impl<'a> Wm<'a> {
              * if self.new_window_as_master() {
              *    self.clients.swap_master(new);
              * }
-             *
-             * the issue here is that we save all the clients linearly.
-             * This will lead to problems in the future (read: now), because
-             * we might want different orderings on different tagsets, but
-             * the datastructure we use can only represent one.
-             *
-             * proposed fix:
-             * first off, think of better datastructures for this task.
-             * then, implement them and live on (or something)
              */
             if let Some(old_w) = old {
                 self.set_border_color(old_w, self.border_colors.1);

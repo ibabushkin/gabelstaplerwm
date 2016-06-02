@@ -71,7 +71,7 @@ pub type OrderEntry = (Option<WeakClientRef>, Vec<WeakClientRef>);
 // a client set, managing all direct children of the root window
 // as well as their orderings on different tagsets
 pub struct ClientSet {
-    clients: Vec<ClientRef>,
+    clients: HashMap<xproto::Window, ClientRef>,
     order: HashMap<Vec<Tag>, OrderEntry>,
 }
 
@@ -79,15 +79,13 @@ impl ClientSet {
     // initialize an empty client list
     // TODO: decide upon an optional with_capacity() call
     pub fn new() -> ClientSet {
-        ClientSet { clients: Vec::new(), order: HashMap::new() }
+        ClientSet { clients: HashMap::new(), order: HashMap::new() }
     }
 
     // get a client that corresponds to the given window
     pub fn get_client_by_window(&self, window: xproto::Window)
         -> Option<&ClientRef> {
-        self.clients
-            .iter()
-            .find(|client| client.borrow().window == window)
+        self.clients.get(&window)
     }
 
     // get an order entry for a set of tags
@@ -132,21 +130,19 @@ impl ClientSet {
     }
 
     // add a new client
-    pub fn add(&mut self, client: Client)
-        -> Weak<RefCell<Client>> {
+    pub fn add(&mut self, client: Client) -> Weak<RefCell<Client>> {
+        let window = client.window;
         let wrapped_client = Rc::new(RefCell::new(client));
         let weak = Rc::downgrade(&wrapped_client);
-        self.clients.push(wrapped_client);
+        self.clients.insert(window, wrapped_client);
         weak
     }
 
     // remove the client corresponding to a window
     pub fn remove(&mut self, window: xproto::Window) {
-        if let Some(pos) = self.clients.iter().position(
-            |elem| elem.borrow().window == window) {
-            self.clients.remove(pos);
+        if self.clients.remove(&window).is_some() {
+            self.clean();
         }
-        self.clean();
     }
 
     // focus a window on a set of tags
@@ -187,9 +183,8 @@ impl ClientSet {
     }
 
     // focus a window by direction
-    fn focus_direction<F>(&mut self,
-                          tags: &Vec<Tag>,
-                          focus_func: F) -> Option<xproto::Window>
+    fn focus_direction<F>(&mut self, tags: &Vec<Tag>, focus_func: F)
+        -> Option<xproto::Window>
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
             self.get_order_or_insert(tags.clone());
