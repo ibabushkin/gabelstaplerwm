@@ -93,15 +93,6 @@ impl ClientSet {
         self.order.get(tags)
     }
 
-    // get the currently focused window on a set of tags
-    // NOTE: assumes a clean state
-    pub fn get_focused(&self, tags: &Vec<Tag>) -> Option<xproto::Window> {
-        self.get_order(tags)
-            .and_then(|t| t.0.clone())
-            .and_then(|r| r.upgrade())
-            .map(|r| r.borrow().window)
-    }
-
     // get the order entry for a set of tags and create it if necessary 
     pub fn get_order_or_insert(&mut self, tags: Vec<Tag>) -> &mut OrderEntry {
         self.order.entry(tags).or_insert((None, Vec::new()))
@@ -143,6 +134,15 @@ impl ClientSet {
         if self.clients.remove(&window).is_some() {
             self.clean();
         }
+    }
+
+    // get the currently focused window on a set of tags
+    // NOTE: assumes a clean state
+    pub fn get_focused(&self, tags: &Vec<Tag>) -> Option<xproto::Window> {
+        self.get_order(tags)
+            .and_then(|t| t.0.clone())
+            .and_then(|r| r.upgrade())
+            .map(|r| r.borrow().window)
     }
 
     // focus a window on a set of tags
@@ -345,7 +345,6 @@ impl TagSet {
     }
 
     // set a layout on the tagset
-    #[allow(dead_code)]
     pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
         self.layout = Box::new(layout);
     }
