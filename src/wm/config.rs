@@ -1,4 +1,3 @@
-use std::os::unix::process::CommandExt;
 use std::process::Command;
 
 use wm::client::{TagSet, TagStack};
@@ -75,10 +74,7 @@ pub fn setup_wm(wm: &mut Wm) {
                  WmCommand::Redraw
              }),
              /*bind!(10, 13, Mode::Normal, |c, s| {
-                 if let Some(ref mut cl) = s.current()
-                     .and_then(|t| t.focused)
-                     .and_then(|w| c.match_client_by_window(w)) {
-                     cl.toggle_tag(Tag::Web);
+                 if let Some(cl) = s {
                      WmCommand::Redraw
                  } else { WmCommand::NoCommand }
              }),*/
@@ -154,7 +150,7 @@ pub fn setup_wm(wm: &mut Wm) {
                  WmCommand::Redraw
              }),
              bind!(31, 12, Mode::Normal, |_, _| {
-                 let _ = Command::new("termite").session_leader(true).spawn();
+                 let _ = Command::new("termite").spawn();
                  WmCommand::NoCommand
              }),
              bind!(54, 12, Mode::Normal, |c, s| {
