@@ -183,6 +183,7 @@ impl ClientSet {
     }
 
     // swap with current window by index difference
+    #[allow(dead_code)]
     pub fn swap_offset(&mut self, tags: &Vec<Tag>, offset: isize) {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(tags.clone());
@@ -272,6 +273,7 @@ impl ClientSet {
     }
 
     // swap with the window to the right
+    #[allow(dead_code)]
     pub fn swap_right(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags,
                             |i, m| tagset.layout.right_window(i, m));
@@ -284,6 +286,7 @@ impl ClientSet {
     }
 
     // swap with the window to the left
+    #[allow(dead_code)]
     pub fn swap_left(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags,
                             |i, m| tagset.layout.left_window(i, m));
@@ -296,6 +299,7 @@ impl ClientSet {
     }
 
     // swap with the window to the left
+    #[allow(dead_code)]
     pub fn swap_top(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags,
                             |i, m| tagset.layout.top_window(i, m));
@@ -308,6 +312,7 @@ impl ClientSet {
     }
 
     // swap with the window to the left
+    #[allow(dead_code)]
     pub fn swap_bottom(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags,
                             |i, m| tagset.layout.bottom_window(i, m));

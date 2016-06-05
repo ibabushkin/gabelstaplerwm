@@ -9,9 +9,6 @@ That way, users can choose components and replace/extend at will.
   * scratchpad or similar concept
   * mouse replacement
   * bar
-* tags work similarly to awesomeWM: N:M relationship between windows and tags
-  * it's cheaper to delete them from history than perform all manipulations
-    over it, so `Vec` is probably still the best idea
 * [ ] notification support (look how naughty does it)
 
 ## Short term stuff

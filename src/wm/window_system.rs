@@ -159,13 +159,16 @@ impl<'a> Wm<'a> {
                 println!("Overwriting binding for a key!");
             } else {
                 // register for the corresponding event
-                xproto::grab_key(self.con,
-                                 true,
-                                 self.root,
-                                 key.mods as u16,
-                                 key.code,
-                                 xproto::GRAB_MODE_ASYNC as u8,
-                                 xproto::GRAB_MODE_ASYNC as u8);
+                let cookie = xproto::grab_key(self.con,
+                                              true,
+                                              self.root,
+                                              key.mods as u16,
+                                              key.code,
+                                              xproto::GRAB_MODE_ASYNC as u8,
+                                              xproto::GRAB_MODE_ASYNC as u8);
+                if cookie.request_check().is_err() {
+                    println!("could not grab key");
+                }
             }
         }
         self.bindings = map;
@@ -215,13 +218,16 @@ impl<'a> Wm<'a> {
             if let &Some(ref geom) = geometry {
                 let cl = client.upgrade().unwrap();
                 self.visible_windows.push(cl.borrow().window);
-                let _ = xproto::configure_window(
+                let cookie = xproto::configure_window(
                     self.con, cl.borrow().window,
                     &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
                       (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
                       (xproto::CONFIG_WINDOW_WIDTH as u16, geom.width as u32),
                       (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height as u32)
                     ]);
+                if cookie.request_check().is_err() {
+                    println!("could not set window geometry");
+                }
             }
         }
     }
@@ -229,16 +235,20 @@ impl<'a> Wm<'a> {
     // hide a window by moving it offscreen
     fn hide_window(&self, window: xproto::Window) {
         let safe_x = (self.screen.width * 2) as u32;
-        xproto::configure_window(self.con,
-                                 window,
-                                 &[(xproto::CONFIG_WINDOW_X as u16, safe_x),
-                                   (xproto::CONFIG_WINDOW_Y as u16, 0)]);
+        let cookie = xproto::configure_window(
+            self.con, window, &[(xproto::CONFIG_WINDOW_X as u16, safe_x),
+                                (xproto::CONFIG_WINDOW_Y as u16, 0)]);
+        if cookie.request_check().is_err() {
+            println!("could not move window offscreen");
+        }
     }
 
     // destroy a window
     // FIXME: send client message ;)
     fn destroy_window(&self, window: xproto::Window) {
-        xproto::kill_client(self.con, window);
+        if xproto::kill_client(self.con, window).request_check().is_err() {
+            println!("could not kill client");
+        }
     }
 
     // set focus - the datastructures need to be altered, and we have to
@@ -251,12 +261,14 @@ impl<'a> Wm<'a> {
             self.set_border_color(old, self.border_colors.1);
         }
         if let Some(tagset) = self.tag_stack.current() {
-            let _ =
+            let cookie =
                 xproto::set_input_focus(self.con,
                                         xproto::INPUT_FOCUS_POINTER_ROOT as u8,
                                         new,
-                                        xproto::TIME_CURRENT_TIME)
-                    .request_check();
+                                        xproto::TIME_CURRENT_TIME);
+            if cookie.request_check().is_err() {
+                println!("could not focus window");
+            }
             self.clients.set_focused(&tagset.tags, new);
         }
         self.set_border_color(new, self.border_colors.0);
@@ -276,12 +288,14 @@ impl<'a> Wm<'a> {
             if let Some(old_w) = old {
                 self.set_border_color(old_w, self.border_colors.1);
             }
-            let _ =
+            let cookie =
                 xproto::set_input_focus(self.con,
                                         xproto::INPUT_FOCUS_POINTER_ROOT as u8,
                                         new,
-                                        xproto::TIME_CURRENT_TIME)
-                    .request_check();
+                                        xproto::TIME_CURRENT_TIME);
+            if cookie.request_check().is_err() {
+                println!("could not focus window");
+            }
             self.set_border_color(new, self.border_colors.0);
         }
     }
@@ -293,7 +307,7 @@ impl<'a> Wm<'a> {
                                              window,
                                              &[(xproto::CW_BORDER_PIXEL,
                                                 color)]);
-        if let Err(_) = cookie.request_check() {
+        if cookie.request_check().is_err() {
             println!("could not set window border color");
         }
     }
@@ -401,9 +415,12 @@ impl<'a> Wm<'a> {
                     vec![Tag::default()]
                 };
                 let client = Client::new(window, tags.clone(), props);
-                let _ = xproto::map_window(self.con, window);
+                let cookie = xproto::map_window(self.con, window);
+                if cookie.request_check().is_err() {
+                    println!("could not map window.");
+                }
                 {
-                    // TODO: loop over suitable tags instead of
+                    // FIXME: loop over suitable tags instead of
                     // inserting only here!
                     let as_master = self.new_window_as_master();
                     let weak = self.clients.add(client);
@@ -415,14 +432,17 @@ impl<'a> Wm<'a> {
                     }
                 }
                 // set border width
-                xproto::configure_window( self.con, window,
+                let cookie = xproto::configure_window(self.con, window,
                     &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                        self.config.border_width as u32)]);
+                if cookie.request_check().is_err() {
+                    println!("could not set border width.");
+                }
                 self.visible_windows.push(window);
                 self.arrange_windows();
                 self.set_focus(window);
             } else {
-                println!("Could not lookup properties!");
+                println!("could not lookup properties.");
             }
         }
     }
