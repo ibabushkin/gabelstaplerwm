@@ -204,7 +204,7 @@ impl<'a> Wm<'a> {
         // setup current client list
         let (clients, layout) = match self.tag_stack.current() {
             Some(tagset) => (
-                self.clients.get_order_or_insert(tagset.tags.clone()),
+                self.clients.get_order_or_insert(&tagset.tags),
                 &tagset.layout
             ),
             None => return, // nothing to do here - no tagset on stack

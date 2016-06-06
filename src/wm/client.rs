@@ -99,15 +99,15 @@ impl ClientSet {
     }
 
     // get the order entry for a set of tags and create it if necessary 
-    pub fn get_order_or_insert(&mut self, tags: Vec<Tag>) -> &mut OrderEntry {
+    pub fn get_order_or_insert(&mut self, tags: &Vec<Tag>) -> &mut OrderEntry {
         let clients: Vec<WeakClientRef> = self
             .clients
             .values()
-            .filter(|cl| cl.borrow().match_tags(&tags))
+            .filter(|cl| cl.borrow().match_tags(tags))
             .map(|r| Rc::downgrade(r))
             .collect();
         let focused = clients.first().map(|r| r.clone());
-        self.order.entry(tags).or_insert((focused, clients))
+        self.order.entry(tags.clone()).or_insert((focused, clients))
     }
 
     // clean client store from invalidated weak references
@@ -160,14 +160,14 @@ impl ClientSet {
     pub fn set_focused(&mut self, tags: &Vec<Tag>, window: xproto::Window) {
         self.get_client_by_window(window)
             .map(|r| Rc::downgrade(r))
-            .map(|r| self.get_order_or_insert(tags.clone()).0 = Some(r));
+            .map(|r| self.get_order_or_insert(&tags).0 = Some(r));
     }
 
     // focus a window by index difference
     pub fn focus_offset(&mut self, tags: &Vec<Tag>, offset: isize)
         -> Option<xproto::Window> {
         let &mut (ref mut current, ref clients) =
-            self.get_order_or_insert(tags.clone());
+            self.get_order_or_insert(&tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -197,7 +197,7 @@ impl ClientSet {
     #[allow(dead_code)]
     pub fn swap_offset(&mut self, tags: &Vec<Tag>, offset: isize) {
         let &mut (ref current, ref mut clients) =
-            self.get_order_or_insert(tags.clone());
+            self.get_order_or_insert(&tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -223,7 +223,7 @@ impl ClientSet {
         -> Option<xproto::Window>
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
-            self.get_order_or_insert(tags.clone());
+            self.get_order_or_insert(&tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -253,7 +253,7 @@ impl ClientSet {
     fn swap_direction<F>(&mut self, tags: &Vec<Tag>, focus_func: F)
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref current, ref mut clients) =
-            self.get_order_or_insert(tags.clone());
+            self.get_order_or_insert(&tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
