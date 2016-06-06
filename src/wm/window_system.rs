@@ -203,12 +203,10 @@ impl<'a> Wm<'a> {
         self.visible_windows.clear();
         // setup current client list
         let (clients, layout) = match self.tag_stack.current() {
-            Some(tagset) => if let Some(order) =
-                self.clients.get_order_mut(&tagset.tags) { // lazy cleanup
-                (order, &tagset.layout)
-            } else {
-                return; // nothing to do here - empty tagset
-            },
+            Some(tagset) => (
+                self.clients.get_order_or_insert(tagset.tags.clone()),
+                &tagset.layout
+            ),
             None => return, // nothing to do here - no tagset on stack
         };
         // get geometries ...
@@ -419,16 +417,10 @@ impl<'a> Wm<'a> {
                 if cookie.request_check().is_err() {
                     println!("could not map window.");
                 }
-                {
-                    // FIXME: loop over suitable tags instead of
-                    // inserting only here!
-                    let as_master = self.new_window_as_master();
-                    let weak = self.clients.add(client);
-                    let entry = self.clients.get_order_or_insert(tags);
-                    if as_master {
-                        entry.1.insert(0, weak);
-                    } else {
-                        entry.1.push(weak);
+                self.clients.add(client);
+                if let Some(tagset) = self.tag_stack.current() {
+                    if self.new_window_as_master() {
+                        self.clients.swap_master(&tagset);
                     }
                 }
                 // set border width

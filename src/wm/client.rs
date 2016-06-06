@@ -8,7 +8,7 @@ use xcb::xproto;
 use wm::config::{Tag, Mode};
 use wm::layout::Layout;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ClientProps {
     pub window_type: xproto::Atom, // client/window type
     pub name: String,
@@ -16,7 +16,7 @@ pub struct ClientProps {
 }
 
 // a client wrapping a window
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client {
     // TODO: enhance structure to hold all protocol atoms
     // this would allow to kill clients gracefully by sending them the message
@@ -58,6 +58,11 @@ impl Client {
             self.tags.push(tag);
         }
     }
+
+    // check if a client is visible on some tags
+    pub fn match_tags(&self, tags: &Vec<Tag>) -> bool {
+        self.tags.iter().any(|t| tags.iter().find(|t2| t == *t2).is_some())
+    }
 }
 
 // weak reference to a client
@@ -95,7 +100,14 @@ impl ClientSet {
 
     // get the order entry for a set of tags and create it if necessary 
     pub fn get_order_or_insert(&mut self, tags: Vec<Tag>) -> &mut OrderEntry {
-        self.order.entry(tags).or_insert((None, Vec::new()))
+        let clients: Vec<WeakClientRef> = self
+            .clients
+            .values()
+            .filter(|cl| cl.borrow().match_tags(&tags))
+            .map(|r| Rc::downgrade(r))
+            .collect();
+        let focused = clients.first().map(|r| r.clone());
+        self.order.entry(tags).or_insert((focused, clients))
     }
 
     // clean client store from invalidated weak references
@@ -114,19 +126,18 @@ impl ClientSet {
         }
     }
 
-    // clean the order entry for a set of tags from invalidated WeakClientRef's
-    pub fn get_order_mut(&mut self, tags: &Vec<Tag>)
-        -> Option<&mut OrderEntry> {
-        self.order.get_mut(tags)
-    }
-
     // add a new client
-    pub fn add(&mut self, client: Client) -> Weak<RefCell<Client>> {
+    pub fn add(&mut self, client: Client) {
         let window = client.window;
+        let dummy_client = client.clone();
         let wrapped_client = Rc::new(RefCell::new(client));
         let weak = Rc::downgrade(&wrapped_client);
         self.clients.insert(window, wrapped_client);
-        weak
+        for (tags, &mut (_, ref mut clients)) in self.order.iter_mut() {
+            if dummy_client.match_tags(tags) {
+                clients.push(weak.clone());
+            }
+        }
     }
 
     // remove the client corresponding to a window
