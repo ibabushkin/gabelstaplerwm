@@ -82,7 +82,6 @@ pub struct ClientSet {
 
 impl ClientSet {
     // initialize an empty client list
-    // TODO: decide upon an optional with_capacity() call
     pub fn new() -> ClientSet {
         ClientSet { clients: HashMap::new(), order: HashMap::new() }
     }
