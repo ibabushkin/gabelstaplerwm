@@ -19,3 +19,4 @@ That way, users can choose components and replace/extend at will.
     datastructures.
   * second, we need to decide upon the general paradigm of laziness considering
     client lists
+* add proper error handling to `handle_map_request()` et al

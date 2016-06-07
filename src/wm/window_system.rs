@@ -25,18 +25,19 @@ static ATOM_VEC: [&'static str; 8] = ["WM_PROTOCOLS",
                                       "_NET_WM_NAME",
                                       "_NET_WM_CLASS"];
 
-// assoc list type for atoms and their names
+// association vector type for atoms and their names
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 
-// closure type of a callback function running on key press
+// closure type of a callback function determining client placement on
+// creation, used to implement default tagsets for specific clients
 pub type Matching = Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
 
 // enumeration type used to fine-tune the behaviour after a callback
 pub enum WmCommand {
-    Redraw, // redraw everything
+    Redraw,                        // redraw everything
     Focus(Option<xproto::Window>), // focus has been reset, old window returned
-    Kill(xproto::Window), // kill the window's process
-    NoCommand, // No-Op
+    Kill(xproto::Window),          // kill the window's process
+    NoCommand,                     // don't do anything
 }
 
 // configuration information used by the window manager
@@ -44,22 +45,24 @@ pub enum WmCommand {
 pub struct WmConfig {
     pub f_color: (u16, u16, u16), // color of focused window's border
     pub u_color: (u16, u16, u16), // color of unfocused window's border
-    pub border_width: u8, // window border width
-    pub screen: ScreenSize, // wanted screen parameters, reset by the wm
+    pub border_width: u8,         // window border width
+    pub screen: ScreenSize,       // wanted screen parameters, reset by the wm
 }
 
-// a window manager, wrapping a Connection and a root window
+// a window manager is the central instance coordinating the communication
+// with the X server, as well as containing structures to manage tags
+// and clients.
 pub struct Wm<'a> {
-    con: &'a base::Connection, // connection to the X server
-    root: xproto::Window, // root window
-    config: WmConfig, // user defined configuration values
-    screen: ScreenSize, // screen parameters
-    border_colors: (u32, u32), // colors available for borders
-    bindings: Keybindings, // keybindings
+    con: &'a base::Connection,  // connection to the X server
+    root: xproto::Window,       // root window
+    config: WmConfig,           // user defined configuration values
+    screen: ScreenSize,         // screen parameters
+    border_colors: (u32, u32),  // colors available for borders
+    bindings: Keybindings,      // keybindings
     matching: Option<Matching>, // matching function for client placement
-    clients: ClientSet, // all clients
-    tag_stack: TagStack, // tags history
-    atoms: AtomList<'a>, // registered atoms
+    clients: ClientSet,         // client set
+    tag_stack: TagStack,        // tagset history
+    atoms: AtomList<'a>,        // registered atoms
     visible_windows: Vec<xproto::Window>, // all windows currently visible
 }
 
@@ -180,7 +183,7 @@ impl<'a> Wm<'a> {
         self.matching = Some(matching);
     }
 
-    // set up the stack of tag(sets)
+    // set up the stack of tagsets
     pub fn setup_tags(&mut self, stack: TagStack) {
         self.tag_stack = stack;
     }
@@ -249,8 +252,8 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // set focus - the datastructures need to be altered, and we have to
-    // realize what they promise.
+    // set focus - we want to focus a window, as well as modify
+    // the datastructures representing focus
     fn set_focus(&mut self, new: xproto::Window) {
         if let Some(old) = self
             .tag_stack
@@ -272,8 +275,8 @@ impl<'a> Wm<'a> {
         self.set_border_color(new, self.border_colors.0);
     }
 
-    // reset focus - the datastructures have been altered, we need to realize
-    // what they promise. If an old window is given, uncolor it's border.
+    // reset focus - the datastructures have been altered, we need to focus
+    // the appropriate focus. if an old window is given, uncolor it's border.
     fn reset_focus(&mut self, old: Option<xproto::Window>) {
         if let Some(new) = self
             .tag_stack
@@ -327,30 +330,25 @@ impl<'a> Wm<'a> {
     // handle an event received from the X server
     fn handle(&mut self, event: base::GenericEvent) {
         match event.response_type() {
-            xkb::STATE_NOTIFY => {
-                self.handle_state_notify(base::cast_event(&event))
-            }
-            xproto::PROPERTY_NOTIFY => {
-                self.handle_property_notify(base::cast_event(&event))
-            }
-            xproto::CLIENT_MESSAGE => {
-                self.handle_client_message(base::cast_event(&event))
-            }
-            xproto::DESTROY_NOTIFY => {
-                self.handle_destroy_notify(base::cast_event(&event))
-            }
-            xproto::CONFIGURE_REQUEST => {
-                self.handle_configure_request(base::cast_event(&event))
-            }
-            xproto::MAP_REQUEST => {
-                self.handle_map_request(base::cast_event(&event))
-            }
+            xkb::STATE_NOTIFY =>
+                self.handle_state_notify(base::cast_event(&event)),
+            xproto::PROPERTY_NOTIFY =>
+                self.handle_property_notify(base::cast_event(&event)),
+            xproto::CLIENT_MESSAGE =>
+                self.handle_client_message(base::cast_event(&event)),
+            xproto::DESTROY_NOTIFY =>
+                self.handle_destroy_notify(base::cast_event(&event)),
+            xproto::CONFIGURE_REQUEST =>
+                self.handle_configure_request(base::cast_event(&event)),
+            xproto::MAP_REQUEST =>
+                self.handle_map_request(base::cast_event(&event)),
             num => println!("Ignoring event: {}.", num),
         }
     }
 
     // look for a matching key binding upon event receival and react
     // accordingly: call a callback closure if necessary and optionally redraw
+    // the screen,
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev, self.tag_stack.mode);
         println!("Key pressed: {:?}", key);
@@ -374,14 +372,12 @@ impl<'a> Wm<'a> {
     }
 
     // TODO: implement
-    #[allow(unused_variables)]
-    fn handle_property_notify(&self, ev: &xproto::PropertyNotifyEvent) {
+    fn handle_property_notify(&self, _: &xproto::PropertyNotifyEvent) {
         ()
     }
 
     // TODO: implement
-    #[allow(unused_variables)]
-    fn handle_client_message(&self, ev: &xproto::ClientMessageEvent) {
+    fn handle_client_message(&self, _: &xproto::ClientMessageEvent) {
         ()
     }
 
@@ -393,16 +389,19 @@ impl<'a> Wm<'a> {
     }
 
     // TODO: implement
-    #[allow(unused_variables)]
-    fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
+    fn handle_configure_request(&self, _: &xproto::ConfigureRequestEvent) {
         ()
     }
 
-    // a window wants to be mapped, take necessary action
+    // a client has sent a map request - add it to the client set if it
+    // hasn't been added yet and take necessary action to display it.
     fn handle_map_request(&mut self, ev: &xproto::MapRequestEvent) {
         let window = ev.window();
+        // no client corresponding to the window, add it
         if self.clients.get_client_by_window(window).is_none() {
+            // lookup properties of window
             if let Some(props) = self.get_properties(window) {
+                // compute tags of the new client
                 let tags = if let Some(res) = self.matching
                     .as_ref()
                     .and_then(|f| f(&props)) {
@@ -412,27 +411,28 @@ impl<'a> Wm<'a> {
                 } else {
                     vec![Tag::default()]
                 };
-                let client = Client::new(window, tags.clone(), props);
+                // map window
                 let cookie = xproto::map_window(self.con, window);
-                if cookie.request_check().is_err() {
-                    println!("could not map window.");
-                }
-                self.clients.add(client);
+                // set border width
+                let cookie2 = xproto::configure_window(self.con, window,
+                    &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                       self.config.border_width as u32)]);
+                // create client object
+                self.clients.add(Client::new(window, tags.clone(), props));
                 if let Some(tagset) = self.tag_stack.current() {
                     if self.new_window_as_master() {
                         self.clients.swap_master(&tagset);
                     }
                 }
-                // set border width
-                let cookie = xproto::configure_window(self.con, window,
-                    &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                       self.config.border_width as u32)]);
-                if cookie.request_check().is_err() {
-                    println!("could not set border width.");
-                }
                 self.visible_windows.push(window);
                 self.arrange_windows();
                 self.set_focus(window);
+                if cookie.request_check().is_err() {
+                    println!("could not map window.");
+                }
+                if cookie2.request_check().is_err() {
+                    println!("could not set border width.");
+                }
             } else {
                 println!("could not lookup properties.");
             }
@@ -440,9 +440,8 @@ impl<'a> Wm<'a> {
     }
 
     // register and get back atoms
-    fn get_atoms(con: &base::Connection,
-                 names: &[&'a str])
-                 -> Result<Vec<(xproto::Atom, &'a str)>, WmError> {
+    fn get_atoms(con: &base::Connection, names: &[&'a str])
+        -> Result<Vec<(xproto::Atom, &'a str)>, WmError> {
         let mut cookies = Vec::with_capacity(names.len());
         let mut res: Vec<(xproto::Atom, &'a str)> =
             Vec::with_capacity(names.len());

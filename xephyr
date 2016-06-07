@@ -1,8 +1,9 @@
 #!/bin/sh
 Xephyr -ac -br -noreset -screen 800x600 :1.0 &
 sleep 1
+# TODO: run with proper path 
 if [ "$1" != "-k" ]; then
-  DISPLAY=:1.0 ./target/debug/gabelstaplerwm
+  DISPLAY=:1.0 "./target/debug/gabelstaplerwm"
 else
-  DISPLAY=:1.0 ./target/debug/gabelstaplergrab
+  DISPLAY=:1.0 "./target/debug/gabelstaplergrab"
 fi
