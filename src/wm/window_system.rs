@@ -258,7 +258,7 @@ impl<'a> Wm<'a> {
         if let Some(old) = self
             .tag_stack
             .current()
-            .and_then(|t| self.clients.get_focused(&t.tags)) {
+            .and_then(|t| self.clients.get_focused_window(&t.tags)) {
             self.set_border_color(old, self.border_colors.1);
         }
         if let Some(tagset) = self.tag_stack.current() {
@@ -281,7 +281,7 @@ impl<'a> Wm<'a> {
         if let Some(new) = self
             .tag_stack
             .current()
-            .and_then(|t| self.clients.get_focused(&t.tags)) {
+            .and_then(|t| self.clients.get_focused_window(&t.tags)) {
             if self.new_window_as_master() {
                self.clients.swap_master(self.tag_stack.current().unwrap());
                self.arrange_windows();

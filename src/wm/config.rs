@@ -73,11 +73,17 @@ pub fn setup_wm(wm: &mut Wm) {
                  s.push(TagSet::new(vec![Tag::Web], VStack::default()));
                  WmCommand::Redraw
              }),
-             /*bind!(10, 13, Mode::Normal, |c, s| {
-                 if let Some(cl) = s {
+             bind!(10, 13, Mode::Normal, |c, s| {
+                 if s.current()
+                     .and_then(|t| c.get_focused_window(&t.tags))
+                     .map(|w| c.update_client(w, |mut cl| {
+                         cl.toggle_tag(Tag::Web);
+                         true
+                     }))
+                     .unwrap_or(false) {
                      WmCommand::Redraw
                  } else { WmCommand::NoCommand }
-             }),*/
+             }),
              bind!(11, 12, Mode::Normal, |_, s| {
                  s.push(TagSet::new(vec![Tag::Work2], VStack::default()));
                  WmCommand::Redraw
@@ -192,7 +198,7 @@ pub fn setup_wm(wm: &mut Wm) {
              bind!(54, 12, Mode::Normal, |c, s| {
                  if let Some(win) = s
                      .current()
-                     .and_then(|t| c.get_focused(&t.tags)) {
+                     .and_then(|t| c.get_focused_window(&t.tags)) {
                      WmCommand::Kill(win)
                  } else {
                      WmCommand::NoCommand

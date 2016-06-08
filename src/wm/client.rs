@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{RefCell,RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc,Weak};
 
@@ -127,6 +127,35 @@ impl ClientSet {
         }
     }
 
+    // update all reference orderings to account for changes in a given client
+    fn fix_references(&mut self, target_client: ClientRef) {
+        for (tags, entry) in self.order.iter_mut() {
+            if !target_client.borrow().match_tags(&tags) {
+                entry.1 = entry.1
+                    .iter()
+                    .filter(|r| !Self::is_ref_to_client(*r, &target_client))
+                    .map(|r| r.clone())
+                    .collect();
+                entry.0 = entry.0
+                    .iter()
+                    .filter(|r| !Self::is_ref_to_client(*r, &target_client))
+                    .map(|r| r.clone())
+                    .next()
+                    .or(entry.1.first().map(|c| c.clone()));
+            } else if entry.1
+                .iter()
+                .find(|r| Self::is_ref_to_client(*r, &target_client))
+                .is_none() {
+                entry.1.push(Rc::downgrade(&target_client));
+            }
+        }
+    }
+
+    // check whether a weak reference is pointing to a specific client
+    fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
+         r.upgrade().map(|r| r.borrow().window) == Some(target.borrow().window)
+    }
+
     // add a new client to client set and add references to tagset-specific
     // subsets as needed
     // TODO: add as_master/as_slave distinction
@@ -150,8 +179,26 @@ impl ClientSet {
         }
     }
 
+    // apply a function to the client corresponding to a window and update
+    // references to it if needed, returns whether a redraw is necessary
+    pub fn update_client<F>(&mut self, window: xproto::Window, func: F) -> bool
+        where F: Fn(RefMut<Client>) -> bool {
+        let update = if let Some(client) = self.clients.get_mut(&window) {
+            func(client.borrow_mut())
+        } else {
+            false
+        };
+        if update {
+            let client = self.clients.get(&window).unwrap().clone();
+            self.fix_references(client);
+            true
+        } else {
+            false
+        }
+    }
+
     // get the currently focused window on a set of tags
-    pub fn get_focused(&self, tags: &[Tag]) -> Option<xproto::Window> {
+    pub fn get_focused_window(&self, tags: &[Tag]) -> Option<xproto::Window> {
         self.order
             .get(tags)
             .and_then(|t| t.0.clone())
