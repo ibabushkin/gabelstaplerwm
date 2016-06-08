@@ -50,8 +50,6 @@ impl Client {
     }
 
     // add or remove a tag from a window
-    // TODO: filter?
-    #[allow(dead_code)]
     pub fn toggle_tag(&mut self, tag: Tag) {
         if let Some(index) = self.tags.iter().position(|t| *t == tag) {
             self.tags.remove(index);
@@ -147,6 +145,11 @@ impl ClientSet {
                 .find(|r| Self::is_ref_to_client(*r, &target_client))
                 .is_none() {
                 entry.1.push(Rc::downgrade(&target_client));
+                entry.0 = entry.0
+                    .iter()
+                    .map(|r| r.clone())
+                    .next()
+                    .or(entry.1.first().map(|c| c.clone()));
             }
         }
     }
