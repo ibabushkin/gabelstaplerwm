@@ -121,7 +121,8 @@ pub fn setup_wm(wm: &mut Wm) {
              }),
              bind!(43, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current() {
-                     WmCommand::Focus(c.focus_left(&t))
+                     c.focus_left(&t);
+                     WmCommand::Focus
                  } else { WmCommand::NoCommand }
              ),
              bind!(43, 13, Mode::Normal, |c, s|
@@ -132,7 +133,8 @@ pub fn setup_wm(wm: &mut Wm) {
              ),
              bind!(44, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current() {
-                     WmCommand::Focus(c.focus_bottom(&t))
+                     c.focus_bottom(&t);
+                     WmCommand::Focus
                  } else { WmCommand::NoCommand }
              ),
              bind!(44, 13, Mode::Normal, |c, s|
@@ -143,7 +145,8 @@ pub fn setup_wm(wm: &mut Wm) {
              ),
              bind!(45, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current() {
-                     WmCommand::Focus(c.focus_top(&t))
+                     c.focus_top(&t);
+                     WmCommand::Focus
                  } else { WmCommand::NoCommand }
              ),
              bind!(45, 13, Mode::Normal, |c, s|
@@ -154,7 +157,8 @@ pub fn setup_wm(wm: &mut Wm) {
              ),
              bind!(46, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current() {
-                     WmCommand::Focus(c.focus_right(&t))
+                     c.focus_right(&t);
+                     WmCommand::Focus
                  } else { WmCommand::NoCommand }
              ),
              bind!(46, 13, Mode::Normal, |c, s|
@@ -165,7 +169,8 @@ pub fn setup_wm(wm: &mut Wm) {
              ),
              bind!(35, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current() {
-                     WmCommand::Focus(c.focus_offset(&t.tags, 1))
+                     c.focus_offset(&t.tags, 1);
+                     WmCommand::Focus
                  } else { WmCommand::NoCommand }
              ),
              bind!(35, 13, Mode::Normal, |c, s|
@@ -176,7 +181,8 @@ pub fn setup_wm(wm: &mut Wm) {
              ),
              bind!(61, 12, Mode::Normal, |c, s|
                  if let Some(t) = s.current() {
-                     WmCommand::Focus(c.focus_offset(&t.tags, -1))
+                     c.focus_offset(&t.tags, -1);
+                     WmCommand::Focus
                  } else { WmCommand::NoCommand }
              ),
              bind!(61, 13, Mode::Normal, |c, s|

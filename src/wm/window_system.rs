@@ -34,10 +34,10 @@ pub type Matching = Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
 
 // enumeration type used to fine-tune the behaviour after a callback
 pub enum WmCommand {
-    Redraw,                        // redraw everything
-    Focus(Option<xproto::Window>), // focus has been reset, old window returned
-    Kill(xproto::Window),          // kill the window's process
-    NoCommand,                     // don't do anything
+    Redraw,               // redraw everything
+    Focus,                // refocus window
+    Kill(xproto::Window), // kill the window's process
+    NoCommand,            // don't do anything
 }
 
 // configuration information used by the window manager
@@ -63,7 +63,8 @@ pub struct Wm<'a> {
     clients: ClientSet,         // client set
     tag_stack: TagStack,        // tagset history
     atoms: AtomList<'a>,        // registered atoms
-    visible_windows: Vec<xproto::Window>, // all windows currently visible
+    visible_windows: Vec<xproto::Window>,   // all windows currently visible
+    focused_window: Option<xproto::Window>, // currently focused window
 }
 
 impl<'a> Wm<'a> {
@@ -95,6 +96,7 @@ impl<'a> Wm<'a> {
                         tag_stack: TagStack::new(),
                         atoms: atoms,
                         visible_windows: Vec::new(),
+                        focused_window: None,
                     })
                 }
                 Err(e) => Err(e),
@@ -255,11 +257,8 @@ impl<'a> Wm<'a> {
     // set focus - we want to focus a window, as well as modify
     // the datastructures representing focus
     fn set_focus(&mut self, new: xproto::Window) {
-        if let Some(old) = self
-            .tag_stack
-            .current()
-            .and_then(|t| self.clients.get_focused_window(&t.tags)) {
-            self.set_border_color(old, self.border_colors.1);
+        if let Some(old_win) = self.focused_window {
+            self.set_border_color(old_win, self.border_colors.1);
         }
         if let Some(tagset) = self.tag_stack.current() {
             let cookie =
@@ -267,17 +266,18 @@ impl<'a> Wm<'a> {
                                         xproto::INPUT_FOCUS_POINTER_ROOT as u8,
                                         new,
                                         xproto::TIME_CURRENT_TIME);
+            self.focused_window = Some(new);
+            self.clients.set_focused(&tagset.tags, new);
             if cookie.request_check().is_err() {
                 println!("could not focus window");
             }
-            self.clients.set_focused(&tagset.tags, new);
         }
         self.set_border_color(new, self.border_colors.0);
     }
 
     // reset focus - the datastructures have been altered, we need to focus
     // the appropriate focus. if an old window is given, uncolor it's border.
-    fn reset_focus(&mut self, old: Option<xproto::Window>) {
+    fn reset_focus(&mut self) {
         if let Some(new) = self
             .tag_stack
             .current()
@@ -286,18 +286,19 @@ impl<'a> Wm<'a> {
                self.clients.swap_master(self.tag_stack.current().unwrap());
                self.arrange_windows();
             }
-            if let Some(old_w) = old {
-                self.set_border_color(old_w, self.border_colors.1);
+            if let Some(old_win) = self.focused_window {
+                self.set_border_color(old_win, self.border_colors.1);
             }
             let cookie =
                 xproto::set_input_focus(self.con,
                                         xproto::INPUT_FOCUS_POINTER_ROOT as u8,
                                         new,
                                         xproto::TIME_CURRENT_TIME);
+            self.focused_window = Some(new);
+            self.set_border_color(new, self.border_colors.0);
             if cookie.request_check().is_err() {
                 println!("could not focus window");
             }
-            self.set_border_color(new, self.border_colors.0);
         }
     }
 
@@ -359,13 +360,9 @@ impl<'a> Wm<'a> {
         match command {
             WmCommand::Redraw => {
                 self.arrange_windows();
-                self.reset_focus(None);
+                self.reset_focus();
             },
-            WmCommand::Focus(old_win) => {
-                if let Some(win) = old_win {
-                    self.reset_focus(Some(win))
-                }
-            }
+            WmCommand::Focus => self.reset_focus(),
             WmCommand::Kill(win) => self.destroy_window(win),
             WmCommand::NoCommand => (),
         };
@@ -384,7 +381,10 @@ impl<'a> Wm<'a> {
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
-        self.reset_focus(None);
+        if self.focused_window == Some(ev.window()) {
+            self.focused_window = None;
+        }
+        self.reset_focus();
         self.arrange_windows();
     }
 

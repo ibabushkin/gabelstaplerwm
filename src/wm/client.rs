@@ -129,11 +129,14 @@ impl ClientSet {
     fn fix_references(&mut self, target_client: ClientRef) {
         for (tags, entry) in self.order.iter_mut() {
             if !target_client.borrow().match_tags(&tags) {
+                // filter tagset's client references
                 entry.1 = entry.1
                     .iter()
                     .filter(|r| !Self::is_ref_to_client(*r, &target_client))
                     .map(|r| r.clone())
                     .collect();
+                // if left pointing to a moved client, set focus reference
+                // to current master client
                 entry.0 = entry.0
                     .iter()
                     .filter(|r| !Self::is_ref_to_client(*r, &target_client))
@@ -144,7 +147,9 @@ impl ClientSet {
                 .iter()
                 .find(|r| Self::is_ref_to_client(*r, &target_client))
                 .is_none() {
+                // add client to references
                 entry.1.push(Rc::downgrade(&target_client));
+                // if no client is focused, focus newly added client
                 entry.0 = entry.0
                     .iter()
                     .map(|r| r.clone())
@@ -218,8 +223,7 @@ impl ClientSet {
 
     // focus a window on a set of tags relative to the current
     // by index difference
-    pub fn focus_offset(&mut self, tags: &[Tag], offset: isize)
-        -> Option<xproto::Window> {
+    pub fn focus_offset(&mut self, tags: &[Tag], offset: isize) {
         let &mut (ref mut current, ref clients) =
             self.get_order_or_insert(&tags);
         if let Some(current_window) = current
@@ -241,9 +245,6 @@ impl ClientSet {
             if let Some(new_client) = clients.get(new_index) {
                 *current = Some(new_client.clone());
             }
-            Some(current_window)
-        } else {
-            None
         }
     }
 
@@ -274,7 +275,6 @@ impl ClientSet {
 
     // focus a window on a set of tags relative to the current by direction
     fn focus_direction<F>(&mut self, tags: &[Tag], focus_func: F)
-        -> Option<xproto::Window>
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
             self.get_order_or_insert(&tags);
@@ -297,10 +297,8 @@ impl ClientSet {
                 if let Some(new_client) = clients.get(new_index) {
                     *current = Some(new_client.clone());
                 }
-                return Some(current_window);
             }
         }
-        None
     }
 
     // swap with window on a set of tags relative to the current by direction
@@ -332,7 +330,7 @@ impl ClientSet {
     }
 
     // focus the window to the right
-    pub fn focus_right(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
+    pub fn focus_right(&mut self, tagset: &TagSet) {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.right_window(i, m))
     }
@@ -344,7 +342,7 @@ impl ClientSet {
     }
 
     // focus the window to the left
-    pub fn focus_left(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
+    pub fn focus_left(&mut self, tagset: &TagSet) {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.left_window(i, m))
     }
@@ -356,7 +354,7 @@ impl ClientSet {
     }
 
     // focus the window to the top
-    pub fn focus_top(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
+    pub fn focus_top(&mut self, tagset: &TagSet) {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.top_window(i, m))
     }
@@ -368,7 +366,7 @@ impl ClientSet {
     }
 
     // focus the window to the bottom
-    pub fn focus_bottom(&mut self, tagset: &TagSet) -> Option<xproto::Window> {
+    pub fn focus_bottom(&mut self, tagset: &TagSet) {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.bottom_window(i, m))
     }
