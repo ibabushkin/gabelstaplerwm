@@ -117,99 +117,87 @@ pub fn setup_wm(wm: &mut Wm) {
                  WmCommand::Redraw
              }),
              bind!(42, 12, Mode::Normal, |_, s| {
-                 s.swap_top(); WmCommand::Redraw
-             }),
-             bind!(43, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.focus_left(&t);
-                     WmCommand::Focus
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(43, 13, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.swap_left(&t);
-                     WmCommand::Redraw
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(44, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.focus_bottom(&t);
-                     WmCommand::Focus
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(44, 13, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.swap_bottom(&t);
-                     WmCommand::Redraw
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(45, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.focus_top(&t);
-                     WmCommand::Focus
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(45, 13, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.swap_top(&t);
-                     WmCommand::Redraw
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(46, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.focus_right(&t);
-                     WmCommand::Focus
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(46, 13, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.swap_right(&t);
-                     WmCommand::Redraw
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(35, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.focus_offset(&t.tags, 1);
-                     WmCommand::Focus
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(35, 13, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.swap_offset(&t.tags, 1);
-                     WmCommand::Redraw
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(61, 12, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.focus_offset(&t.tags, -1);
-                     WmCommand::Focus
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(61, 13, Mode::Normal, |c, s|
-                 if let Some(t) = s.current() {
-                     c.swap_offset(&t.tags, -1);
-                     WmCommand::Redraw
-                 } else { WmCommand::NoCommand }
-             ),
-             bind!(65, 12, Mode::Normal, |_, s| {
-                 if let Some(t) = s.current_mut() {
-                     t.set_layout(Monocle::default());
-                 }
+                 s.swap_top();
                  WmCommand::Redraw
              }),
+             bind!(43, 12, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.focus_left(t); WmCommand::Focus })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(43, 13, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.swap_left(t); WmCommand::Redraw })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(44, 12, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.focus_bottom(t); WmCommand::Focus })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(44, 13, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.swap_bottom(t); WmCommand::Redraw })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(45, 12, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.focus_top(t); WmCommand::Focus })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(45, 13, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.swap_top(t); WmCommand::Redraw })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(46, 12, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.focus_right(t); WmCommand::Focus })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(46, 13, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.swap_right(t); WmCommand::Redraw })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(35, 12, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.focus_offset(&t.tags, 1); WmCommand::Focus })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(35, 13, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.swap_offset(&t.tags, 1); WmCommand::Redraw })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(61, 12, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.focus_offset(&t.tags, -1); WmCommand::Focus })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(61, 13, Mode::Normal, |c, s|
+                 s.current()
+                 .map(|t| { c.swap_offset(&t.tags, -1); WmCommand::Redraw })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
+             bind!(65, 12, Mode::Normal, |_, s|
+                 s.current_mut()
+                 .map(|t| {
+                     t.set_layout(Monocle::default());
+                     WmCommand::Redraw
+                 })
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
              bind!(31, 12, Mode::Normal, |_, _| {
                  let _ = Command::new("termite").spawn();
                  WmCommand::NoCommand
              }),
-             bind!(54, 12, Mode::Normal, |c, s| {
-                 if let Some(win) = s
-                     .current()
-                     .and_then(|t| c.get_focused_window(&t.tags)) {
-                     WmCommand::Kill(win)
-                 } else {
-                     WmCommand::NoCommand
-                 }
-             }),
+             bind!(54, 12, Mode::Normal, |c, s|
+                 s.current()
+                 .and_then(|t| c.get_focused_window(&t.tags))
+                 .map(|w| WmCommand::Kill(w))
+                 .unwrap_or(WmCommand::NoCommand)
+             ),
         ]);
     wm.setup_tags(
         TagStack::from_vec(
