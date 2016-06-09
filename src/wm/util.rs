@@ -1,12 +1,9 @@
-// create a tuple representing a binding (no need to edit this)
-#[macro_export]
 macro_rules! bind {
     ($code:expr, $mods:expr, $mode:expr, $callback:expr) => {
         (KeyPress {code: $code, mods: $mods, mode: $mode}, Box::new($callback))
     }
 }
 
-#[macro_export]
 macro_rules! push_tagset {
     ($layout:expr, $($tag:expr),+) => {
         |_, s| {
@@ -16,7 +13,6 @@ macro_rules! push_tagset {
     }
 }
 
-#[macro_export]
 macro_rules! toggle_tag {
     ($tag:expr) => {
         |c, s| {
@@ -46,5 +42,21 @@ macro_rules! move_to_tag {
                 WmCommand::Redraw
             } else { WmCommand::NoCommand }
         }
+    }
+}
+
+macro_rules! focus {
+    ($func:expr) => {
+        |c, s| s.current()
+            .map(|t| { $func(c, t); WmCommand::Focus })
+            .unwrap_or(WmCommand::NoCommand)
+    }
+}
+
+macro_rules! swap {
+    ($func:expr) => {
+        |c, s| s.current()
+            .map(|t| { $func(c, t); WmCommand::Redraw })
+            .unwrap_or(WmCommand::NoCommand)
     }
 }

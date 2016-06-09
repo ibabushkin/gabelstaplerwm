@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use wm::client::{TagSet, TagStack};
+use wm::client::{TagSet, TagStack, ClientSet};
 use wm::kbd::*;
 
 use wm::layout::ScreenSize;
@@ -92,71 +92,20 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(16, 14, Mode::Normal, move_to_tag!(Tag::Chat)),
         bind!(17, 14, Mode::Normal, move_to_tag!(Tag::Logs)),
         bind!(18, 14, Mode::Normal, move_to_tag!(Tag::Monitoring)),
-
-        bind!(42, 12, Mode::Normal, |_, s| {
-            s.swap_top();
-            WmCommand::Redraw
-        }),
-        bind!(43, 12, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.focus_left(t); WmCommand::Focus })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(43, 13, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.swap_left(t); WmCommand::Redraw })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(44, 12, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.focus_bottom(t); WmCommand::Focus })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(44, 13, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.swap_bottom(t); WmCommand::Redraw })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(45, 12, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.focus_top(t); WmCommand::Focus })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(45, 13, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.swap_top(t); WmCommand::Redraw })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(46, 12, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.focus_right(t); WmCommand::Focus })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(46, 13, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.swap_right(t); WmCommand::Redraw })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(35, 12, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.focus_offset(&t.tags, 1); WmCommand::Focus })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(35, 13, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.swap_offset(&t.tags, 1); WmCommand::Redraw })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(61, 12, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.focus_offset(&t.tags, -1); WmCommand::Focus })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
-        bind!(61, 13, Mode::Normal, |c, s|
-            s.current()
-            .map(|t| { c.swap_offset(&t.tags, -1); WmCommand::Redraw })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
+        // focus and swap windows
+        bind!(43, 12, Mode::Normal, focus!(ClientSet::focus_left)),
+        bind!(43, 13, Mode::Normal, swap!(ClientSet::swap_left)),
+        bind!(44, 12, Mode::Normal, focus!(ClientSet::focus_bottom)),
+        bind!(44, 13, Mode::Normal, swap!(ClientSet::swap_bottom)),
+        bind!(45, 12, Mode::Normal, focus!(ClientSet::focus_top)),
+        bind!(45, 13, Mode::Normal, swap!(ClientSet::swap_top)),
+        bind!(46, 12, Mode::Normal, focus!(ClientSet::focus_right)),
+        bind!(46, 13, Mode::Normal, swap!(ClientSet::swap_right)),
+        bind!(35, 12, Mode::Normal, focus!(ClientSet::focus_next)),
+        bind!(35, 13, Mode::Normal, swap!(ClientSet::swap_next)),
+        bind!(61, 12, Mode::Normal, focus!(ClientSet::focus_prev)),
+        bind!(61, 13, Mode::Normal, swap!(ClientSet::swap_prev)),
+        // set to "fullscreen" - use monocle mode on current tagset
         bind!(65, 12, Mode::Normal, |_, s|
             s.current_mut()
             .map(|t| {
@@ -165,10 +114,17 @@ pub fn setup_wm(wm: &mut Wm) {
             })
             .unwrap_or(WmCommand::NoCommand)
         ),
+        // go back in tagset history
+        bind!(42, 12, Mode::Normal, |_, s| {
+            s.swap_top();
+            WmCommand::Redraw
+        }),
+        // spawn a terminal
         bind!(31, 12, Mode::Normal, |_, _| {
             let _ = Command::new("termite").spawn();
             WmCommand::NoCommand
         }),
+        // kill current client
         bind!(54, 12, Mode::Normal, |c, s|
             s.current()
             .and_then(|t| c.get_focused_window(&t.tags))

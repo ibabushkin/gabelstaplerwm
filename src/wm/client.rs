@@ -226,7 +226,7 @@ impl ClientSet {
 
     // focus a window on a set of tags relative to the current
     // by index difference
-    pub fn focus_offset(&mut self, tags: &[Tag], offset: isize) {
+    fn focus_offset(&mut self, tags: &[Tag], offset: isize) {
         let &mut (ref mut current, ref clients) =
             self.get_order_or_insert(&tags);
         if let Some(current_window) = current
@@ -253,7 +253,7 @@ impl ClientSet {
 
     // swap with current window on a set of tags relative to the current
     // by index difference
-    pub fn swap_offset(&mut self, tags: &[Tag], offset: isize) {
+    fn swap_offset(&mut self, tags: &[Tag], offset: isize) {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(&tags);
         if let Some(current_window) = current
@@ -274,6 +274,26 @@ impl ClientSet {
                 (current_index as isize + offset) as usize % clients.len();
             clients.swap(current_index, new_index);
         }
+    }
+
+    // focus next window
+    pub fn focus_next(&mut self, tagset: &TagSet) {
+        self.focus_offset(&tagset.tags, 1);
+    }
+
+    // swap with next window
+    pub fn swap_next(&mut self, tagset: &TagSet) {
+        self.swap_offset(&tagset.tags, 1);
+    }
+
+    // focus previous window
+    pub fn focus_prev(&mut self, tagset: &TagSet) {
+        self.focus_offset(&tagset.tags, -1);
+    }
+
+    // swap with previous window
+    pub fn swap_prev(&mut self, tagset: &TagSet) {
+        self.swap_offset(&tagset.tags, -1);
     }
 
     // focus a window on a set of tags relative to the current by direction
