@@ -59,63 +59,40 @@ pub fn generate_config() -> WmConfig {
     }
 }
 
-// create a tuple representing a binding (no need to edit this)
-macro_rules! bind {
-    ($code:expr, $mods:expr, $mode:expr, $callback:expr) => {
-        (KeyPress {code: $code, mods: $mods, mode: $mode}, Box::new($callback))
-    }
-}
-
 // setup datastructures for the window manager, ie keybindings and tagstack
 pub fn setup_wm(wm: &mut Wm) {
     wm.setup_bindings(vec![
-        bind!(10, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Web], VStack::default()));
-            WmCommand::Redraw
-        }),
-        bind!(10, 13, Mode::Normal, |c, s| {
-            if s.current()
-                .and_then(|t| c.get_focused_window(&t.tags))
-                .map(|w| c.update_client(w, |mut cl| {
-                    cl.toggle_tag(Tag::Web);
-                    true
-                }))
-                .unwrap_or(false) {
-                WmCommand::Redraw
-            } else { WmCommand::NoCommand }
-        }),
-        bind!(11, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Work2], VStack::default()));
-            WmCommand::Redraw
-        }),
-        bind!(12, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Work3], VStack::default()));
-            WmCommand::Redraw
-        }),
-        bind!(13, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Work4], VStack::default()));
-            WmCommand::Redraw
-        }),
-        bind!(14, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Work5], VStack::default()));
-            WmCommand::Redraw
-        }),
-        bind!(15, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Media], DStack::default()));
-            WmCommand::Redraw
-        }),
-        bind!(16, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Chat], HStack::default()));
-            WmCommand::Redraw
-        }),
-        bind!(17, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Logs], VStack::default()));
-            WmCommand::Redraw
-        }),
-        bind!(18, 12, Mode::Normal, |_, s| {
-            s.push(TagSet::new(vec![Tag::Monitoring], VStack::default()));
-            WmCommand::Redraw
-        }),
+        // push single-tag tagsets with default layouts
+        bind!(10, 12, Mode::Normal, push_tagset!(VStack::default(), Tag::Web)),
+        bind!(11, 12, Mode::Normal, push_tagset!(VStack::default(), Tag::Work2)),
+        bind!(12, 12, Mode::Normal, push_tagset!(VStack::default(), Tag::Work3)),
+        bind!(13, 12, Mode::Normal, push_tagset!(VStack::default(), Tag::Work4)),
+        bind!(14, 12, Mode::Normal, push_tagset!(VStack::default(), Tag::Work5)),
+        bind!(15, 12, Mode::Normal, push_tagset!(DStack::default(), Tag::Media)),
+        bind!(16, 12, Mode::Normal, push_tagset!(HStack::default(), Tag::Chat)),
+        bind!(17, 12, Mode::Normal, push_tagset!(HStack::default(), Tag::Logs)),
+        bind!(18, 12, Mode::Normal, push_tagset!(HStack::default(), Tag::Monitoring)),
+        // toggle tags on current client
+        bind!(10, 13, Mode::Normal, toggle_tag!(Tag::Web)),
+        bind!(11, 13, Mode::Normal, toggle_tag!(Tag::Work2)),
+        bind!(12, 13, Mode::Normal, toggle_tag!(Tag::Work3)),
+        bind!(13, 13, Mode::Normal, toggle_tag!(Tag::Work4)),
+        bind!(14, 13, Mode::Normal, toggle_tag!(Tag::Work5)),
+        bind!(15, 13, Mode::Normal, toggle_tag!(Tag::Media)),
+        bind!(16, 13, Mode::Normal, toggle_tag!(Tag::Chat)),
+        bind!(17, 13, Mode::Normal, toggle_tag!(Tag::Logs)),
+        bind!(18, 13, Mode::Normal, toggle_tag!(Tag::Monitoring)),
+        // move client to tags
+        bind!(10, 14, Mode::Normal, move_to_tag!(Tag::Web)),
+        bind!(11, 14, Mode::Normal, move_to_tag!(Tag::Work2)),
+        bind!(12, 14, Mode::Normal, move_to_tag!(Tag::Work3)),
+        bind!(13, 14, Mode::Normal, move_to_tag!(Tag::Work4)),
+        bind!(14, 14, Mode::Normal, move_to_tag!(Tag::Work5)),
+        bind!(15, 14, Mode::Normal, move_to_tag!(Tag::Media)),
+        bind!(16, 14, Mode::Normal, move_to_tag!(Tag::Chat)),
+        bind!(17, 14, Mode::Normal, move_to_tag!(Tag::Logs)),
+        bind!(18, 14, Mode::Normal, move_to_tag!(Tag::Monitoring)),
+
         bind!(42, 12, Mode::Normal, |_, s| {
             s.swap_top();
             WmCommand::Redraw

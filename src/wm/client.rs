@@ -44,15 +44,18 @@ impl Client {
     }
 
     // *move* a window to a new location
-    #[allow(dead_code)]
     pub fn set_tags(&mut self, tags: &[Tag]) {
-        self.tags = tags.to_vec();
+        if tags.len() > 0 {
+            self.tags = tags.to_vec();
+        }
     }
 
-    // add or remove a tag from a window
+    // add or remove a tag from a window, if client remains on at least one tag
     pub fn toggle_tag(&mut self, tag: Tag) {
         if let Some(index) = self.tags.iter().position(|t| *t == tag) {
-            self.tags.remove(index);
+            if self.tags.len() > 1 {
+                self.tags.remove(index);
+            }
         } else {
             self.tags.push(tag);
         }
