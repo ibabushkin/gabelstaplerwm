@@ -68,137 +68,137 @@ macro_rules! bind {
 
 // setup datastructures for the window manager, ie keybindings and tagstack
 pub fn setup_wm(wm: &mut Wm) {
-    wm.setup_bindings(
-        vec![bind!(10, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Web], VStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(10, 13, Mode::Normal, |c, s| {
-                 if s.current()
-                     .and_then(|t| c.get_focused_window(&t.tags))
-                     .map(|w| c.update_client(w, |mut cl| {
-                         cl.toggle_tag(Tag::Web);
-                         true
-                     }))
-                     .unwrap_or(false) {
-                     WmCommand::Redraw
-                 } else { WmCommand::NoCommand }
-             }),
-             bind!(11, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Work2], VStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(12, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Work3], VStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(13, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Work4], VStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(14, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Work5], VStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(15, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Media], DStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(16, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Chat], HStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(17, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Logs], VStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(18, 12, Mode::Normal, |_, s| {
-                 s.push(TagSet::new(vec![Tag::Monitoring], VStack::default()));
-                 WmCommand::Redraw
-             }),
-             bind!(42, 12, Mode::Normal, |_, s| {
-                 s.swap_top();
-                 WmCommand::Redraw
-             }),
-             bind!(43, 12, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.focus_left(t); WmCommand::Focus })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(43, 13, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.swap_left(t); WmCommand::Redraw })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(44, 12, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.focus_bottom(t); WmCommand::Focus })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(44, 13, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.swap_bottom(t); WmCommand::Redraw })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(45, 12, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.focus_top(t); WmCommand::Focus })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(45, 13, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.swap_top(t); WmCommand::Redraw })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(46, 12, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.focus_right(t); WmCommand::Focus })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(46, 13, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.swap_right(t); WmCommand::Redraw })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(35, 12, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.focus_offset(&t.tags, 1); WmCommand::Focus })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(35, 13, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.swap_offset(&t.tags, 1); WmCommand::Redraw })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(61, 12, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.focus_offset(&t.tags, -1); WmCommand::Focus })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(61, 13, Mode::Normal, |c, s|
-                 s.current()
-                 .map(|t| { c.swap_offset(&t.tags, -1); WmCommand::Redraw })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(65, 12, Mode::Normal, |_, s|
-                 s.current_mut()
-                 .map(|t| {
-                     t.set_layout(Monocle::default());
-                     WmCommand::Redraw
-                 })
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-             bind!(31, 12, Mode::Normal, |_, _| {
-                 let _ = Command::new("termite").spawn();
-                 WmCommand::NoCommand
-             }),
-             bind!(54, 12, Mode::Normal, |c, s|
-                 s.current()
-                 .and_then(|t| c.get_focused_window(&t.tags))
-                 .map(|w| WmCommand::Kill(w))
-                 .unwrap_or(WmCommand::NoCommand)
-             ),
-        ]);
+    wm.setup_bindings(vec![
+        bind!(10, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Web], VStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(10, 13, Mode::Normal, |c, s| {
+            if s.current()
+                .and_then(|t| c.get_focused_window(&t.tags))
+                .map(|w| c.update_client(w, |mut cl| {
+                    cl.toggle_tag(Tag::Web);
+                    true
+                }))
+                .unwrap_or(false) {
+                WmCommand::Redraw
+            } else { WmCommand::NoCommand }
+        }),
+        bind!(11, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Work2], VStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(12, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Work3], VStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(13, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Work4], VStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(14, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Work5], VStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(15, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Media], DStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(16, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Chat], HStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(17, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Logs], VStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(18, 12, Mode::Normal, |_, s| {
+            s.push(TagSet::new(vec![Tag::Monitoring], VStack::default()));
+            WmCommand::Redraw
+        }),
+        bind!(42, 12, Mode::Normal, |_, s| {
+            s.swap_top();
+            WmCommand::Redraw
+        }),
+        bind!(43, 12, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.focus_left(t); WmCommand::Focus })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(43, 13, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.swap_left(t); WmCommand::Redraw })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(44, 12, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.focus_bottom(t); WmCommand::Focus })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(44, 13, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.swap_bottom(t); WmCommand::Redraw })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(45, 12, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.focus_top(t); WmCommand::Focus })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(45, 13, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.swap_top(t); WmCommand::Redraw })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(46, 12, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.focus_right(t); WmCommand::Focus })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(46, 13, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.swap_right(t); WmCommand::Redraw })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(35, 12, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.focus_offset(&t.tags, 1); WmCommand::Focus })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(35, 13, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.swap_offset(&t.tags, 1); WmCommand::Redraw })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(61, 12, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.focus_offset(&t.tags, -1); WmCommand::Focus })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(61, 13, Mode::Normal, |c, s|
+            s.current()
+            .map(|t| { c.swap_offset(&t.tags, -1); WmCommand::Redraw })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(65, 12, Mode::Normal, |_, s|
+            s.current_mut()
+            .map(|t| {
+                t.set_layout(Monocle::default());
+                WmCommand::Redraw
+            })
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+        bind!(31, 12, Mode::Normal, |_, _| {
+            let _ = Command::new("termite").spawn();
+            WmCommand::NoCommand
+        }),
+        bind!(54, 12, Mode::Normal, |c, s|
+            s.current()
+            .and_then(|t| c.get_focused_window(&t.tags))
+            .map(|w| WmCommand::Kill(w))
+            .unwrap_or(WmCommand::NoCommand)
+        ),
+    ]);
     wm.setup_tags(
         TagStack::from_vec(
             vec![TagSet::new(vec![Tag::Work2], VStack::default())]
