@@ -92,18 +92,19 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(16, 14, Mode::Normal, move_to_tag!(Tag::Chat)),
         bind!(17, 14, Mode::Normal, move_to_tag!(Tag::Logs)),
         bind!(18, 14, Mode::Normal, move_to_tag!(Tag::Monitoring)),
-        // focus and swap windows
+        // focus windows
         bind!(43, 12, Mode::Normal, focus!(ClientSet::focus_left)),
-        bind!(43, 13, Mode::Normal, swap!(ClientSet::swap_left)),
         bind!(44, 12, Mode::Normal, focus!(ClientSet::focus_bottom)),
-        bind!(44, 13, Mode::Normal, swap!(ClientSet::swap_bottom)),
         bind!(45, 12, Mode::Normal, focus!(ClientSet::focus_top)),
-        bind!(45, 13, Mode::Normal, swap!(ClientSet::swap_top)),
         bind!(46, 12, Mode::Normal, focus!(ClientSet::focus_right)),
-        bind!(46, 13, Mode::Normal, swap!(ClientSet::swap_right)),
         bind!(35, 12, Mode::Normal, focus!(ClientSet::focus_next)),
-        bind!(35, 13, Mode::Normal, swap!(ClientSet::swap_next)),
         bind!(61, 12, Mode::Normal, focus!(ClientSet::focus_prev)),
+        // swap windows
+        bind!(43, 13, Mode::Normal, swap!(ClientSet::swap_left)),
+        bind!(44, 13, Mode::Normal, swap!(ClientSet::swap_bottom)),
+        bind!(45, 13, Mode::Normal, swap!(ClientSet::swap_top)),
+        bind!(46, 13, Mode::Normal, swap!(ClientSet::swap_right)),
+        bind!(35, 13, Mode::Normal, swap!(ClientSet::swap_next)),
         bind!(61, 13, Mode::Normal, swap!(ClientSet::swap_prev)),
         // set to "fullscreen" - use monocle mode on current tagset
         bind!(65, 12, Mode::Normal, |_, s|
