@@ -90,7 +90,10 @@ pub struct ClientSet {
 impl ClientSet {
     // initialize an empty client list
     pub fn new() -> ClientSet {
-        ClientSet { clients: HashMap::new(), order: HashMap::new() }
+        ClientSet {
+            clients: HashMap::new(),
+            order: HashMap::new(),
+        }
     }
 
     // get a client that corresponds to a given window
@@ -115,13 +118,10 @@ impl ClientSet {
     // clean client store from invalidated weak references
     fn clean(&mut self) {
         for entry in self.order.values_mut() {
-            let mut ret = Vec::new();
-            for client in entry.1.iter() {
-                if client.upgrade().is_some() {
-                    ret.push(client.clone());
-                }
-            }
-            entry.1 = ret;
+            entry.1 = entry.1
+                .iter()
+                .filter_map(|c| c.upgrade().map(|_| c.clone()))
+                .collect();
             if entry.0.clone().and_then(|r| r.upgrade()).is_none() {
                 entry.0 = entry.1.first().map(|r| r.clone());
             }
@@ -135,15 +135,25 @@ impl ClientSet {
                 // filter tagset's client references
                 entry.1 = entry.1
                     .iter()
-                    .filter(|r| !Self::is_ref_to_client(*r, &target_client))
-                    .map(|r| r.clone())
+                    .filter_map(|r|
+                        if !Self::is_ref_to_client(r, &target_client) {
+                            Some(r.clone())
+                        } else {
+                            None
+                        }
+                    )
                     .collect();
                 // if left pointing to a moved client, set focus reference
                 // to current master client
                 entry.0 = entry.0
                     .iter()
-                    .filter(|r| !Self::is_ref_to_client(*r, &target_client))
-                    .map(|r| r.clone())
+                    .filter_map(|r|
+                        if !Self::is_ref_to_client(r, &target_client) {
+                            Some(r.clone())
+                        } else {
+                            None
+                        }
+                    )
                     .next()
                     .or(entry.1.first().map(|c| c.clone()));
             } else if entry.1
@@ -194,12 +204,10 @@ impl ClientSet {
     // references to it if needed, returns whether a redraw is necessary
     pub fn update_client<F>(&mut self, window: xproto::Window, func: F) -> bool
         where F: Fn(RefMut<Client>) -> bool {
-        let update = if let Some(client) = self.clients.get_mut(&window) {
-            func(client.borrow_mut())
-        } else {
-            false
-        };
-        if update {
+        if self.clients
+            .get_mut(&window)
+            .map(|c| func(c.borrow_mut()))
+            .unwrap_or(false) {
             let client = self.clients.get(&window).unwrap().clone();
             self.fix_references(client);
             true
@@ -235,13 +243,11 @@ impl ClientSet {
             .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
-                .position(|client| {
-                    if let Some(r) = client.upgrade() {
-                        r.borrow().window == current_window
-                    } else {
-                        false
-                    }
-                })
+                .position(|client| client
+                    .upgrade()
+                    .map(|r| r.borrow().window == current_window)
+                    .unwrap_or(false)
+                )
                 .unwrap();
             let new_index =
                 (current_index as isize + offset) as usize % clients.len();
@@ -262,13 +268,11 @@ impl ClientSet {
             .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
-                .position(|client| {
-                    if let Some(r) = client.upgrade() {
-                        r.borrow().window == current_window
-                    } else {
-                        false
-                    }
-                })
+                .position(|client| client
+                    .upgrade()
+                    .map(|r| r.borrow().window == current_window)
+                    .unwrap_or(false)
+                )
                 .unwrap();
             let new_index =
                 (current_index as isize + offset) as usize % clients.len();
@@ -307,13 +311,11 @@ impl ClientSet {
             .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
-                .position(|client| {
-                    if let Some(r) = client.upgrade() {
-                        r.borrow().window == current_window
-                    } else {
-                        false
-                    }
-                })
+                .position(|client| client
+                    .upgrade()
+                    .map(|r| r.borrow().window == current_window)
+                    .unwrap_or(false)
+                )
                 .unwrap();
             if let Some(new_index) =
                 focus_func(current_index, clients.len() - 1) {
@@ -335,13 +337,11 @@ impl ClientSet {
             .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
-                .position(|client| {
-                    if let Some(r) = client.upgrade() {
-                        r.borrow().window == current_window
-                    } else {
-                        false
-                    }
-                })
+                .position(|client| client
+                    .upgrade()
+                    .map(|r| r.borrow().window == current_window)
+                    .unwrap_or(false)
+                )
                 .unwrap();
             if let Some(new_index) =
                 focus_func(current_index, clients.len() - 1) {
