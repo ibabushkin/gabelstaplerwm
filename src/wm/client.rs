@@ -23,7 +23,7 @@ pub struct ClientProps {
 pub struct Client {
     // TODO: enhance structure to hold all protocol atoms
     // this would allow to kill clients gracefully by sending them the message
-    // see https://github.com/awesomeWM/awesome/blob/master/client.c
+    // see https://github.com/awesomeWM/awesome/blob/master/objects/client.c
     // to compare to awesomeWM's implementation
     pub window: xproto::Window, // the window (a direct child of root)
     props: ClientProps,         // client properties

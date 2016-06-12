@@ -8,6 +8,7 @@ use std::str;
 use xcb::base;
 use xcb::xkb;
 use xcb::xproto;
+use xcb::ffi::xcb_client_message_data_t;
 
 use wm::client::*;
 use wm::config::Tag;
@@ -243,11 +244,21 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // destroy a window
-    // FIXME: send client message ;)
+    // destroy a window by sending a client message and killing the client the
+    // hard and merciless way if that fails.
     fn destroy_window(&self, window: xproto::Window) {
-        if xproto::kill_client(self.con, window).request_check().is_err() {
-            println!("could not kill client");
+        let data = [self.lookup_atom("WM_DELETE_WINDOW"), 0, 0, 0, 0].as_ptr()
+            as *const xcb_client_message_data_t;
+        let event: &str = unsafe {
+            transmute(xproto::ClientMessageEvent::new(
+                32, window, self.lookup_atom("WM_PROTOCOLS"), *data))
+        };
+        if xproto::send_event(self.con, false, window,
+                              xproto::EVENT_MASK_NO_EVENT, event)
+            .request_check().is_err() {
+            if xproto::kill_client(self.con, window).request_check().is_err() {
+                println!("could not kill client.");
+            }
         }
     }
 
