@@ -32,8 +32,8 @@ pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 // a key has been pressed - keycode and modifier information
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub struct KeyPress {
-    pub code: u8, // number representing key
-    pub mods: u8, // number representing modifier combination
+    pub code: u8,   // number representing key
+    pub mods: u8,   // number representing modifier combination
     pub mode: Mode, // necessary mode for modal keybindings
 }
 

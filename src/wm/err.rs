@@ -13,7 +13,7 @@ pub enum WmError {
 }
 
 impl WmError {
-    // handle an error, ie. print error message and exit
+    // "handle" an error, ie. print error message and exit
     pub fn handle(self) -> ! {
         match self {
             WmError::CouldNotConnect(e) => {

@@ -6,6 +6,7 @@ use xcb::xproto;
 
 use wm::config::{Tag, Mode};
 use wm::layout::Layout;
+use wm::window_system::WmCommand;
 
 #[derive(Debug, Clone)]
 pub struct ClientProps {
@@ -186,9 +187,11 @@ impl ClientSet {
         let wrapped_client = Rc::new(RefCell::new(client));
         let weak = Rc::downgrade(&wrapped_client);
         self.clients.insert(window, wrapped_client);
-        for (tags, &mut (_, ref mut clients)) in self.order.iter_mut() {
+        for (tags, &mut (ref mut current, ref mut clients))
+            in self.order.iter_mut() {
             if dummy_client.match_tags(tags) {
                 clients.push(weak.clone());
+                *current = Some(weak.clone());
             }
         }
     }
@@ -201,19 +204,19 @@ impl ClientSet {
     }
 
     // apply a function to the client corresponding to a window and update
-    // references to it if needed, returns whether a redraw is necessary
-    pub fn update_client<F>(&mut self, window: xproto::Window, func: F) -> bool
-        where F: Fn(RefMut<Client>) -> bool {
-        if self.clients
+    // references to it if needed, return an appropriate window manager command
+    pub fn update_client<F>(&mut self, window: xproto::Window, func: F)
+        -> Option<WmCommand>
+        where F: Fn(RefMut<Client>) -> WmCommand {
+        let res = self
+            .clients
             .get_mut(&window)
-            .map(|c| func(c.borrow_mut()))
-            .unwrap_or(false) {
+            .map(|c| func(c.borrow_mut()));
+        if res.is_some() {
             let client = self.clients.get(&window).unwrap().clone();
             self.fix_references(client);
-            true
-        } else {
-            false
         }
+        res
     }
 
     // get the currently focused window on a set of tags
@@ -223,13 +226,6 @@ impl ClientSet {
             .and_then(|t| t.0.clone())
             .and_then(|r| r.upgrade())
             .map(|r| r.borrow().window)
-    }
-
-    // focus a window on a set of tags
-    pub fn set_focused(&mut self, tags: &[Tag], window: xproto::Window) {
-        self.get_client_by_window(window)
-            .map(|r| Rc::downgrade(r))
-            .map(|r| self.get_order_or_insert(&tags).0 = Some(r));
     }
 
     // focus a window on a set of tags relative to the current

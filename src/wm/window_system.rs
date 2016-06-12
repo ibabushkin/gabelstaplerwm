@@ -16,14 +16,10 @@ use wm::kbd::*;
 use wm::layout::*;
 
 // atoms we will register
-static ATOM_VEC: [&'static str; 8] = ["WM_PROTOCOLS",
-                                      "WM_DELETE_WINDOW",
-                                      "WM_STATE",
-                                      "WM_TAKE_FOCUS",
-                                      "_NET_WM_WINDOW_TYPE",
-                                      "_NET_WM_TAKE_FOCUS",
-                                      "_NET_WM_NAME",
-                                      "_NET_WM_CLASS"];
+static ATOM_VEC: [&'static str; 8] =
+    ["WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_STATE",
+     "WM_TAKE_FOCUS", "_NET_WM_WINDOW_TYPE", "_NET_WM_TAKE_FOCUS",
+     "_NET_WM_NAME", "_NET_WM_CLASS"];
 
 // association vector type for atoms and their names
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
@@ -69,10 +65,8 @@ pub struct Wm<'a> {
 
 impl<'a> Wm<'a> {
     // wrap a connection to initialize a window manager
-    pub fn new(con: &'a base::Connection,
-               screen_num: i32,
-               config: WmConfig)
-               -> Result<Wm<'a>, WmError> {
+    pub fn new(con: &'a base::Connection, screen_num: i32, config: WmConfig)
+        -> Result<Wm<'a>, WmError> {
         let setup = con.get_setup();
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
             let width = screen.width_in_pixels();
@@ -111,7 +105,7 @@ impl<'a> Wm<'a> {
                     colormap: xproto::Colormap,
                     f_color: (u16, u16, u16),
                     u_color: (u16, u16, u16))
-                    -> (u32, u32) {
+        -> (u32, u32) {
         let f_cookie = xproto::alloc_color(con,
                                            colormap,
                                            f_color.0,
@@ -150,37 +144,35 @@ impl<'a> Wm<'a> {
     }
 
     // set up keybindings
-    pub fn setup_bindings(&mut self, keys: Vec<(KeyPress, KeyCallback)>) {
+    pub fn setup_bindings(&mut self, mut keys: Vec<(KeyPress, KeyCallback)>) {
         // don't grab anything for now
         xproto::ungrab_key(self.con,
                            xproto::GRAB_ANY as u8,
                            self.root,
                            xproto::MOD_MASK_ANY as u16);
         // compile keyboard bindings
-        let mut map: Keybindings = HashMap::with_capacity(keys.len());
-        for (key, callback) in keys {
-            if let Some(_) = map.insert(key, callback) {
-                // found a binding for a key already registered
-                println!("Overwriting binding for a key!");
-            } else {
-                // register for the corresponding event
-                let cookie = xproto::grab_key(self.con,
-                                              true,
-                                              self.root,
-                                              key.mods as u16,
-                                              key.code,
-                                              xproto::GRAB_MODE_ASYNC as u8,
-                                              xproto::GRAB_MODE_ASYNC as u8);
-                if cookie.request_check().is_err() {
-                    println!("could not grab key");
+        self.bindings = HashMap::with_capacity(keys.len());
+        let cookies: Vec<_> = keys
+            .drain(..)
+            .map(|(key, callback)| {
+                if self.bindings.insert(key, callback).is_some() {
+                    println!("overwriting bindings for a key!");
                 }
+                // register for the corresponding event
+                xproto::grab_key(self.con, true, self.root,
+                                 key.mods as u16, key.code,
+                                 xproto::GRAB_MODE_ASYNC as u8,
+                                 xproto::GRAB_MODE_ASYNC as u8)
+            })
+            .collect();
+        for cookie in cookies {
+            if cookie.request_check().is_err() {
+                println!("could not grab key!");
             }
         }
-        self.bindings = map;
     }
 
     // set up client matching
-    #[allow(dead_code)]
     pub fn setup_matching(&mut self, matching: Matching) {
         self.matching = Some(matching);
     }
@@ -216,10 +208,15 @@ impl<'a> Wm<'a> {
         };
         // get geometries ...
         let geometries = layout.arrange(clients.1.len(), &self.screen);
+        // we set geometries in serial, because otherwise window redraws are
+        // rendered lazily, at least with xephyr. to avoid this condition,
+        // we accept some additional waiting time, which doesn't matter much
+        // anyway - redraw times aren't subject to visible latency anyway.
+        // until this is fixed, the code below has to stay serial in nature
         for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
             // ... and apply them if a window is to be displayed
             if let &Some(ref geom) = geometry {
-                let cl = client.upgrade().unwrap();
+                let cl = client.upgrade().unwrap(); // TODO: get rid of unwrap
                 self.visible_windows.push(cl.borrow().window);
                 let cookie = xproto::configure_window(
                     self.con, cl.borrow().window,
@@ -252,27 +249,6 @@ impl<'a> Wm<'a> {
         if xproto::kill_client(self.con, window).request_check().is_err() {
             println!("could not kill client");
         }
-    }
-
-    // set focus - we want to focus a window, as well as modify
-    // the datastructures representing focus
-    fn set_focus(&mut self, new: xproto::Window) {
-        if let Some(old_win) = self.focused_window {
-            self.set_border_color(old_win, self.border_colors.1);
-        }
-        if let Some(tagset) = self.tag_stack.current() {
-            let cookie =
-                xproto::set_input_focus(self.con,
-                                        xproto::INPUT_FOCUS_POINTER_ROOT as u8,
-                                        new,
-                                        xproto::TIME_CURRENT_TIME);
-            self.focused_window = Some(new);
-            self.clients.set_focused(&tagset.tags, new);
-            if cookie.request_check().is_err() {
-                println!("could not focus window");
-            }
-        }
-        self.set_border_color(new, self.border_colors.0);
     }
 
     // reset focus - the datastructures have been altered, we need to focus
@@ -381,9 +357,6 @@ impl<'a> Wm<'a> {
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
-        if self.focused_window == Some(ev.window()) {
-            self.focused_window = None;
-        }
         self.reset_focus();
         self.arrange_windows();
     }
@@ -424,9 +397,9 @@ impl<'a> Wm<'a> {
                         self.clients.swap_master(&tagset);
                     }
                 }
-                self.visible_windows.push(window);
+                //self.visible_windows.push(window);
                 self.arrange_windows();
-                self.set_focus(window);
+                self.reset_focus();
                 if cookie.request_check().is_err() {
                     println!("could not map window.");
                 }
