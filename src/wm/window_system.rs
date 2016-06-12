@@ -216,8 +216,8 @@ impl<'a> Wm<'a> {
         // until this is fixed, the code below has to stay serial in nature
         for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
             // ... and apply them if a window is to be displayed
-            if let &Some(ref geom) = geometry {
-                let cl = client.upgrade().unwrap(); // TODO: get rid of unwrap
+            if let (Some(ref cl), &Some(ref geom))
+                = (client.upgrade(), geometry) {
                 self.visible_windows.push(cl.borrow().window);
                 let cookie = xproto::configure_window(
                     self.con, cl.borrow().window,
@@ -408,7 +408,7 @@ impl<'a> Wm<'a> {
                         self.clients.swap_master(&tagset);
                     }
                 }
-                //self.visible_windows.push(window);
+                self.visible_windows.push(window);
                 self.arrange_windows();
                 self.reset_focus();
                 if cookie.request_check().is_err() {

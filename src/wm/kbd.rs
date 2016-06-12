@@ -8,21 +8,18 @@ use wm::window_system::WmCommand;
 
 // constants for easier modifier handling
 #[allow(dead_code)]
-const NO_MODIFIER: u8 = 0;
+pub const NO_MODIFIER: u8 = 0;
+pub const SHIFT: u8 = 1;
 #[allow(dead_code)]
-const SHIFT: u8 = 1;
+pub const CAPSLOCK: u8 = 2;
+pub const CTRL: u8 = 4;
 #[allow(dead_code)]
-const CAPSLOCK: u8 = 2;
+pub const ALT: u8 = 8;
 #[allow(dead_code)]
-const CTRL: u8 = 4;
+pub const NUMLOCK: u8 = 16;
 #[allow(dead_code)]
-const ALT: u8 = 8;
-#[allow(dead_code)]
-const NUMLOCK: u8 = 16;
-#[allow(dead_code)]
-const MOD4: u8 = 64;
-#[allow(dead_code)]
-const ALTGR: u8 = 136;
+pub const MOD4: u8 = 64;
+pub const ALTGR: u8 = 136;
 
 // closure type of a callback function running on key press
 pub type KeyCallback = Box<Fn(&mut ClientSet, &mut TagStack) -> WmCommand>;

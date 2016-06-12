@@ -61,62 +61,70 @@ pub fn generate_config() -> WmConfig {
 
 // setup datastructures for the window manager, ie keybindings and tagstack
 pub fn setup_wm(wm: &mut Wm) {
+    // keybindings
+    let modkey = ALTGR;
     wm.setup_bindings(vec![
         // push single-tag tagsets with default layouts
-        bind!(10, 12, Mode::Normal,
+        bind!(10, modkey, Mode::Normal,
               push_tagset!(VStack::default(), Tag::Web)),
-        bind!(11, 12, Mode::Normal,
+        bind!(11, modkey, Mode::Normal,
               push_tagset!(VStack::default(), Tag::Work2)),
-        bind!(12, 12, Mode::Normal,
+        bind!(12, modkey, Mode::Normal,
               push_tagset!(VStack::default(), Tag::Work3)),
-        bind!(13, 12, Mode::Normal,
+        bind!(13, modkey, Mode::Normal,
               push_tagset!(VStack::default(), Tag::Work4)),
-        bind!(14, 12, Mode::Normal,
+        bind!(14, modkey, Mode::Normal,
               push_tagset!(VStack::default(), Tag::Work5)),
-        bind!(15, 12, Mode::Normal,
+        bind!(15, modkey, Mode::Normal,
               push_tagset!(DStack::default(), Tag::Media)),
-        bind!(16, 12, Mode::Normal,
+        bind!(16, modkey, Mode::Normal,
               push_tagset!(HStack::default(), Tag::Chat)),
-        bind!(17, 12, Mode::Normal,
+        bind!(17, modkey, Mode::Normal,
               push_tagset!(HStack::default(), Tag::Logs)),
-        bind!(18, 12, Mode::Normal,
+        bind!(18, modkey, Mode::Normal,
               push_tagset!(HStack::default(), Tag::Monitoring)),
         // toggle tags on current client
-        bind!(10, 13, Mode::Normal, toggle_tag!(Tag::Web)),
-        bind!(11, 13, Mode::Normal, toggle_tag!(Tag::Work2)),
-        bind!(12, 13, Mode::Normal, toggle_tag!(Tag::Work3)),
-        bind!(13, 13, Mode::Normal, toggle_tag!(Tag::Work4)),
-        bind!(14, 13, Mode::Normal, toggle_tag!(Tag::Work5)),
-        bind!(15, 13, Mode::Normal, toggle_tag!(Tag::Media)),
-        bind!(16, 13, Mode::Normal, toggle_tag!(Tag::Chat)),
-        bind!(17, 13, Mode::Normal, toggle_tag!(Tag::Logs)),
-        bind!(18, 13, Mode::Normal, toggle_tag!(Tag::Monitoring)),
+        bind!(10, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Web)),
+        bind!(11, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work2)),
+        bind!(12, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work3)),
+        bind!(13, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work4)),
+        bind!(14, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work5)),
+        bind!(15, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Media)),
+        bind!(16, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Chat)),
+        bind!(17, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Logs)),
+        bind!(18, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Monitoring)),
         // move client to tags
-        bind!(10, 14, Mode::Normal, move_to_tag!(Tag::Web)),
-        bind!(11, 14, Mode::Normal, move_to_tag!(Tag::Work2)),
-        bind!(12, 14, Mode::Normal, move_to_tag!(Tag::Work3)),
-        bind!(13, 14, Mode::Normal, move_to_tag!(Tag::Work4)),
-        bind!(14, 14, Mode::Normal, move_to_tag!(Tag::Work5)),
-        bind!(15, 14, Mode::Normal, move_to_tag!(Tag::Media)),
-        bind!(16, 14, Mode::Normal, move_to_tag!(Tag::Chat)),
-        bind!(17, 14, Mode::Normal, move_to_tag!(Tag::Logs)),
-        bind!(18, 14, Mode::Normal, move_to_tag!(Tag::Monitoring)),
+        bind!(10, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Web)),
+        bind!(11, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work2)),
+        bind!(12, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work3)),
+        bind!(13, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work4)),
+        bind!(14, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work5)),
+        bind!(15, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Media)),
+        bind!(16, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Chat)),
+        bind!(17, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Logs)),
+        bind!(18, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Monitoring)),
         // focus windows
-        bind!(43, 12, Mode::Normal, focus!(ClientSet::focus_left)),
-        bind!(44, 12, Mode::Normal, focus!(ClientSet::focus_bottom)),
-        bind!(45, 12, Mode::Normal, focus!(ClientSet::focus_top)),
-        bind!(46, 12, Mode::Normal, focus!(ClientSet::focus_right)),
-        bind!(35, 12, Mode::Normal, focus!(ClientSet::focus_next)),
-        bind!(61, 12, Mode::Normal, focus!(ClientSet::focus_prev)),
+        bind!(43, modkey, Mode::Normal, focus!(ClientSet::focus_left)),
+        bind!(44, modkey, Mode::Normal, focus!(ClientSet::focus_bottom)),
+        bind!(45, modkey, Mode::Normal, focus!(ClientSet::focus_top)),
+        bind!(46, modkey, Mode::Normal, focus!(ClientSet::focus_right)),
+        bind!(35, modkey, Mode::Normal, focus!(ClientSet::focus_next)),
+        bind!(61, modkey, Mode::Normal, focus!(ClientSet::focus_prev)),
         // swap windows
-        bind!(43, 13, Mode::Normal, swap!(ClientSet::swap_left)),
-        bind!(44, 13, Mode::Normal, swap!(ClientSet::swap_bottom)),
-        bind!(45, 13, Mode::Normal, swap!(ClientSet::swap_top)),
-        bind!(46, 13, Mode::Normal, swap!(ClientSet::swap_right)),
-        bind!(35, 13, Mode::Normal, swap!(ClientSet::swap_next)),
-        bind!(61, 13, Mode::Normal, swap!(ClientSet::swap_prev)),
+        bind!(43, modkey+CTRL+SHIFT, Mode::Normal,
+              swap!(ClientSet::swap_left)),
+        bind!(44, modkey+CTRL+SHIFT, Mode::Normal,
+              swap!(ClientSet::swap_bottom)),
+        bind!(45, modkey+CTRL+SHIFT, Mode::Normal,
+              swap!(ClientSet::swap_top)),
+        bind!(46, modkey+CTRL+SHIFT, Mode::Normal,
+              swap!(ClientSet::swap_right)),
+        bind!(35, modkey+CTRL+SHIFT, Mode::Normal,
+              swap!(ClientSet::swap_next)),
+        bind!(61, modkey+CTRL+SHIFT, Mode::Normal,
+              swap!(ClientSet::swap_prev)),
         // set to "fullscreen" - use monocle mode on current tagset
-        bind!(65, 12, Mode::Normal, |_, s|
+        bind!(65, modkey, Mode::Normal, |_, s|
             s.current_mut()
             .map(|t| {
                 t.set_layout(Monocle::default());
@@ -125,26 +133,35 @@ pub fn setup_wm(wm: &mut Wm) {
             .unwrap_or(WmCommand::NoCommand)
         ),
         // go back in tagset history
-        bind!(42, 12, Mode::Normal, |_, s| {
+        bind!(42, modkey, Mode::Normal, |_, s| {
             s.swap_top();
             WmCommand::Redraw
         }),
         // spawn a terminal
-        bind!(31, 12, Mode::Normal, |_, _| {
+        bind!(31, modkey, Mode::Normal, |_, _| {
             let _ = Command::new("termite").spawn();
             WmCommand::NoCommand
         }),
         // kill current client
-        bind!(54, 12, Mode::Normal, |c, s|
+        bind!(54, modkey, Mode::Normal, |c, s|
             s.current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .map(|w| WmCommand::Kill(w))
             .unwrap_or(WmCommand::NoCommand)
         ),
     ]);
+    // default tag stack
     wm.setup_tags(
         TagStack::from_vec(
             vec![TagSet::new(vec![Tag::Work2], VStack::default())]
         )
     );
+    // matching function deciding upon client placement
+    wm.setup_matching(Box::new(
+        |props| if props.name == "firefox" {
+            Some(vec![Tag::Web])
+        } else {
+            None
+        }
+    ));
 }

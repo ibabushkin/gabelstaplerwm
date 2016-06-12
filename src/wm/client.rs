@@ -21,10 +21,6 @@ pub struct ClientProps {
 // structures, that change the behaviour of the window manager.
 #[derive(Debug, Clone)]
 pub struct Client {
-    // TODO: enhance structure to hold all protocol atoms
-    // this would allow to kill clients gracefully by sending them the message
-    // see https://github.com/awesomeWM/awesome/blob/master/objects/client.c
-    // to compare to awesomeWM's implementation
     pub window: xproto::Window, // the window (a direct child of root)
     props: ClientProps,         // client properties
     urgent: bool,               // is the urgency hint set?
@@ -437,8 +433,7 @@ impl TagSet {
 // a history stack of tag sets, allowing for easy switching
 pub struct TagStack {
     tags: Vec<TagSet>, // tag sets on stack, last is current
-    pub mode: Mode,    // current input mode
-    // TODO: why is mode here?!
+    pub mode: Mode,    // current keyboard mode
 }
 
 impl TagStack {
