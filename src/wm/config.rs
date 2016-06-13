@@ -22,7 +22,7 @@ pub enum Tag {
     Media,
     Chat,
     Logs,
-    Monitoring,
+    Mon,
 }
 
 impl Default for Tag {
@@ -82,7 +82,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(17, modkey, Mode::Normal,
               push_tagset!(HStack::default(), Tag::Logs)),
         bind!(18, modkey, Mode::Normal,
-              push_tagset!(HStack::default(), Tag::Monitoring)),
+              push_tagset!(HStack::default(), Tag::Mon)),
         // toggle tags on current client
         bind!(10, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Web)),
         bind!(11, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work2)),
@@ -92,7 +92,17 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(15, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Media)),
         bind!(16, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Chat)),
         bind!(17, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Logs)),
-        bind!(18, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Monitoring)),
+        bind!(18, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Mon)),
+        // toggle tags on current tagset
+        bind!(10, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Web)),
+        bind!(11, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Work2)),
+        bind!(12, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Work3)),
+        bind!(13, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Work4)),
+        bind!(14, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Work5)),
+        bind!(15, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Media)),
+        bind!(16, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Chat)),
+        bind!(17, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Logs)),
+        bind!(18, modkey+SHIFT, Mode::Normal, toggle_show_tag!(Tag::Mon)),
         // move client to tags
         bind!(10, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Web)),
         bind!(11, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work2)),
@@ -102,7 +112,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(15, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Media)),
         bind!(16, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Chat)),
         bind!(17, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Logs)),
-        bind!(18, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Monitoring)),
+        bind!(18, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Mon)),
         // focus windows
         bind!(43, modkey, Mode::Normal, focus!(ClientSet::focus_left)),
         bind!(44, modkey, Mode::Normal, focus!(ClientSet::focus_bottom)),

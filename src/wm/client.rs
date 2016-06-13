@@ -415,7 +415,6 @@ impl TagSet {
     }
 
     // toggle a tag on the tagset
-    #[allow(dead_code)]
     pub fn toggle_tag(&mut self, tag: Tag) {
         if let Some(index) = self.tags.iter().position(|t| *t == tag) {
             self.tags.remove(index);

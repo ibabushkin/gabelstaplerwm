@@ -25,6 +25,17 @@ macro_rules! toggle_tag {
     }
 }
 
+macro_rules! toggle_show_tag {
+    ($tag:expr) => {
+        |_, s| s.current_mut()
+            .map(|tagset| {
+                tagset.toggle_tag($tag);
+                WmCommand::Redraw
+            })
+            .unwrap_or(WmCommand::NoCommand)
+    }
+}
+
 macro_rules! move_to_tag {
     ($($tag:expr),*) => {
         |c, s| s.current()
