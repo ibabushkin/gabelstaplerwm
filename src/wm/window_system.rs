@@ -17,10 +17,10 @@ use wm::kbd::*;
 use wm::layout::*;
 
 // atoms we will register
-static ATOM_VEC: [&'static str; 8] =
+static ATOM_VEC: [&'static str; 9] =
     ["WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_STATE",
-     "WM_TAKE_FOCUS", "_NET_WM_WINDOW_TYPE", "_NET_WM_TAKE_FOCUS",
-     "_NET_WM_NAME", "_NET_WM_CLASS"];
+     "WM_TAKE_FOCUS", "_NET_WM_TAKE_FOCUS", "_NET_WM_NAME", "_NET_WM_CLASS",
+     "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DOCK"];
 
 // association vector type for atoms and their names
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
@@ -62,6 +62,8 @@ pub struct Wm<'a> {
     atoms: AtomList<'a>,        // registered atoms
     visible_windows: Vec<xproto::Window>,   // all windows currently visible
     focused_window: Option<xproto::Window>, // currently focused window
+    unmanaged_windows: Vec<xproto::Window>, // windows we know about,
+                                            // but do not manage
 }
 
 impl<'a> Wm<'a> {
@@ -92,6 +94,7 @@ impl<'a> Wm<'a> {
                         atoms: atoms,
                         visible_windows: Vec::new(),
                         focused_window: None,
+                        unmanaged_windows: Vec::new(),
                     })
                 }
                 Err(e) => Err(e),
@@ -367,8 +370,18 @@ impl<'a> Wm<'a> {
 
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
-        self.clients.remove(ev.window());
-        self.reset_focus();
+        if self.clients.remove(ev.window()) {
+            self.reset_focus();
+        } else {
+            let pos = self
+                .unmanaged_windows
+                .iter()
+                .position(|win| *win == ev.window());
+            if let Some(index) = pos {
+                println!("unregistered unmanaged window.");
+                self.unmanaged_windows.swap_remove(index);
+            }
+        }
         self.arrange_windows();
     }
 
@@ -384,7 +397,15 @@ impl<'a> Wm<'a> {
         // no client corresponding to the window, add it
         if self.clients.get_client_by_window(window).is_none() {
             // lookup properties of window
-            if let Some(props) = self.get_properties(window) {
+            let props = match self.get_properties(window) {
+                Some(props) => props,
+                None => {
+                    println!("could not lookup properties.");
+                    return;
+                }
+            };
+            if props.window_type !=
+                self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
                 // compute tags of the new client
                 let tags = if let Some(res) = self.matching
                     .as_ref()
@@ -418,7 +439,13 @@ impl<'a> Wm<'a> {
                     println!("could not set border width.");
                 }
             } else {
-                println!("could not lookup properties.");
+                // it's a dock window - we don't care
+                self.unmanaged_windows.push(ev.window());
+                println!("registered unmanaged window.");
+                if xproto::map_window(self.con, window)
+                    .request_check().is_err() {
+                    println!("could not map window.");
+                }
             }
         }
     }
