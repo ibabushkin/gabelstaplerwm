@@ -370,19 +370,17 @@ impl<'a> Wm<'a> {
 
     // a window has been destroyed, remove the corresponding client
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
-        if self.clients.remove(ev.window()) {
-            self.reset_focus();
-        } else {
-            let pos = self
-                .unmanaged_windows
-                .iter()
-                .position(|win| *win == ev.window());
-            if let Some(index) = pos {
-                println!("unregistered unmanaged window.");
-                self.unmanaged_windows.swap_remove(index);
-            }
-        }
+        self.clients.remove(ev.window());
+        self.reset_focus();
         self.arrange_windows();
+        let pos = self
+            .unmanaged_windows
+            .iter()
+            .position(|win| *win == ev.window());
+        if let Some(index) = pos {
+            println!("unregistered unmanaged window.");
+            self.unmanaged_windows.swap_remove(index);
+        }
     }
 
     // TODO: implement
