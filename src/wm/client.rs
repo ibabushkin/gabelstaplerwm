@@ -11,8 +11,8 @@ use wm::window_system::WmCommand;
 #[derive(Debug, Clone)]
 pub struct ClientProps {
     pub window_type: xproto::Atom, // client/window type
-    pub name: String,
-    pub class: Vec<String>,
+    pub name: String,              // the client's title
+    pub class: Vec<String>,        // the client's class(es)
 }
 
 // a client wrapping a window: a container object that holds the associated
