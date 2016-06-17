@@ -373,11 +373,10 @@ impl<'a> Wm<'a> {
         self.clients.remove(ev.window());
         self.reset_focus();
         self.arrange_windows();
-        let pos = self
+        if let Some(index) = self
             .unmanaged_windows
             .iter()
-            .position(|win| *win == ev.window());
-        if let Some(index) = pos {
+            .position(|win| *win == ev.window()) {
             println!("unregistered unmanaged window.");
             self.unmanaged_windows.swap_remove(index);
         }
