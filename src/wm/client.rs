@@ -1,4 +1,4 @@
-use std::cell::{RefCell,RefMut};
+use std::cell::{RefCell,RefMut,Ref};
 use std::collections::HashMap;
 use std::rc::{Rc,Weak};
 
@@ -426,6 +426,67 @@ impl TagSet {
     // set a layout on the tagset
     pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
         self.layout = Box::new(layout);
+    }
+}
+
+// a set of known tagsets, allowing for simple addressing of tagstes (and
+// layouts)
+pub struct TagManager {
+    tagsets: HashMap<usize, Rc<RefCell<TagSet>>>,
+    current: Option<Weak<RefCell<TagSet>>>,
+}
+
+impl TagManager {
+    // setup an empty tag stack
+    pub fn new() -> TagManager {
+        TagManager {
+            tagsets: HashMap::new(),
+            current: None,
+        }
+    }
+
+    // setup a tag stack from a vector of tag sets and the index of the
+    // initially focused tagset in the vector
+    pub fn from_presets(mut vec: Vec<TagSet>, focused: usize) -> TagManager {
+        let tagsets: HashMap<_, _> = vec
+            .drain(..)
+            .enumerate()
+            .map(|(i, val)| (i, Rc::new(RefCell::new(val))))
+            .collect();
+        let current = tagsets.get(&focused).map(Rc::downgrade);
+        TagManager {
+            tagsets: tagsets,
+            current: current,
+        }
+    }
+
+    // set the current tagset by index
+    pub fn set_current(&mut self, new_index: usize) -> bool {
+        if let Some(tagset) = self.tagsets.get(&new_index) {
+            self.current = Some(Rc::downgrade(tagset));
+            true
+        } else {
+            false
+        }
+    }
+
+    // map a function over the current tagset and return the results, if any
+    pub fn map_current<F, T>(&self, func: F) -> Option<T>
+        where F: Fn(Ref<TagSet>) -> T {
+        self.current
+            .as_ref()
+            .and_then(|r| r.upgrade())
+            .map(|t| func(t.borrow()))
+    }
+
+    // map a function over the current tagset, modify it as needed and return
+    // the results, if any
+    pub fn map_current_mut<F, T>(&mut self, func: F) -> Option<T>
+        where F: Fn(RefMut<TagSet>) -> T {
+        self.current
+            .as_ref()
+            .and_then(|r| r.upgrade())
+            .map(|t| func(t.borrow_mut()))
     }
 }
 
