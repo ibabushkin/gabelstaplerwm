@@ -11,7 +11,7 @@ use xcb::xproto;
 use xcb::ffi::xcb_client_message_data_t;
 
 use wm::client::*;
-use wm::config::Tag;
+use wm::config::{Tag,Mode};
 use wm::err::*;
 use wm::kbd::*;
 use wm::layout::*;
@@ -34,6 +34,7 @@ pub enum WmCommand {
     Redraw,               // redraw everything
     Focus,                // refocus window
     Kill(xproto::Window), // kill the window's process
+    ModeSwitch(Mode),     // switch to a different mode
     NoCommand,            // don't do anything
 }
 
@@ -57,6 +58,7 @@ pub struct Wm<'a> {
     border_colors: (u32, u32),  // colors available for borders
     bindings: Keybindings,      // keybindings
     matching: Option<Matching>, // matching function for client placement
+    mode: Mode,                 // current keyboard mode
     clients: ClientSet,         // client set
     tag_stack: TagStack,        // tagset history
     atoms: AtomList<'a>,        // registered atoms
@@ -89,6 +91,7 @@ impl<'a> Wm<'a> {
                                                         config.u_color),
                         bindings: HashMap::new(),
                         matching: None,
+                        mode: Mode::default(),
                         clients: ClientSet::new(),
                         tag_stack: TagStack::new(),
                         atoms: atoms,
@@ -341,7 +344,7 @@ impl<'a> Wm<'a> {
     // accordingly: call a callback closure if necessary and optionally redraw
     // the screen,
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
-        let key = from_key(ev, self.tag_stack.mode);
+        let key = from_key(ev, self.mode);
         println!("Key pressed: {:?}", key);
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
@@ -354,6 +357,7 @@ impl<'a> Wm<'a> {
             },
             WmCommand::Focus => self.reset_focus(),
             WmCommand::Kill(win) => self.destroy_window(win),
+            WmCommand::ModeSwitch(mode) => self.mode = mode,
             WmCommand::NoCommand => (),
         };
     }

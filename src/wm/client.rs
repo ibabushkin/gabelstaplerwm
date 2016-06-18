@@ -4,7 +4,7 @@ use std::rc::{Rc,Weak};
 
 use xcb::xproto;
 
-use wm::config::{Tag, Mode};
+use wm::config::Tag;
 use wm::layout::Layout;
 use wm::window_system::WmCommand;
 
@@ -493,7 +493,6 @@ impl TagManager {
 // a history stack of tag sets, allowing for easy switching
 pub struct TagStack {
     tags: Vec<TagSet>, // tag sets on stack, last is current
-    pub mode: Mode,    // current keyboard mode
 }
 
 impl TagStack {
@@ -501,7 +500,6 @@ impl TagStack {
     pub fn new() -> TagStack {
         TagStack {
             tags: Vec::new(),
-            mode: Mode::default(),
         }
     }
 
@@ -509,7 +507,6 @@ impl TagStack {
     pub fn from_vec(vec: Vec<TagSet>) -> TagStack {
         TagStack {
             tags: vec,
-            mode: Mode::default(),
         }
     }
 
