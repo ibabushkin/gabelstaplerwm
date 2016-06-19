@@ -7,7 +7,7 @@ use wm::layout::ScreenSize;
 use wm::layout::monocle::Monocle;
 use wm::layout::vstack::VStack;
 use wm::layout::hstack::HStack;
-use wm::layout::dstack::DStack;
+// use wm::layout::dstack::DStack;
 
 use wm::window_system::{Wm, WmConfig, WmCommand};
 
@@ -36,6 +36,7 @@ impl Default for Tag {
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum Mode {
     Normal,
+    Setup,
 }
 
 impl Default for Mode {
@@ -65,24 +66,15 @@ pub fn setup_wm(wm: &mut Wm) {
     let modkey = ALTGR;
     wm.setup_bindings(vec![
         // push single-tag tagsets with default layouts
-        bind!(10, modkey, Mode::Normal,
-              push_tagset!(VStack::default(), Tag::Web)),
-        bind!(11, modkey, Mode::Normal,
-              push_tagset!(VStack::default(), Tag::Work2)),
-        bind!(12, modkey, Mode::Normal,
-              push_tagset!(VStack::default(), Tag::Work3)),
-        bind!(13, modkey, Mode::Normal,
-              push_tagset!(VStack::default(), Tag::Work4)),
-        bind!(14, modkey, Mode::Normal,
-              push_tagset!(VStack::default(), Tag::Work5)),
-        bind!(15, modkey, Mode::Normal,
-              push_tagset!(DStack::default(), Tag::Media)),
-        bind!(16, modkey, Mode::Normal,
-              push_tagset!(HStack::default(), Tag::Chat)),
-        bind!(17, modkey, Mode::Normal,
-              push_tagset!(HStack::default(), Tag::Logs)),
-        bind!(18, modkey, Mode::Normal,
-              push_tagset!(HStack::default(), Tag::Mon)),
+        bind!(10, modkey, Mode::Normal, push_tagset!(0)),
+        bind!(11, modkey, Mode::Normal, push_tagset!(1)),
+        bind!(12, modkey, Mode::Normal, push_tagset!(2)),
+        bind!(13, modkey, Mode::Normal, push_tagset!(3)),
+        bind!(14, modkey, Mode::Normal, push_tagset!(4)),
+        bind!(15, modkey, Mode::Normal, push_tagset!(5)),
+        bind!(16, modkey, Mode::Normal, push_tagset!(6)),
+        bind!(17, modkey, Mode::Normal, push_tagset!(7)),
+        bind!(18, modkey, Mode::Normal, push_tagset!(8)),
         // toggle tags on current client
         bind!(10, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Web)),
         bind!(11, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work2)),
@@ -93,16 +85,6 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(16, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Chat)),
         bind!(17, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Logs)),
         bind!(18, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Mon)),
-        // toggle tags on current tagset
-        bind!(10, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Web)),
-        bind!(11, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Work2)),
-        bind!(12, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Work3)),
-        bind!(13, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Work4)),
-        bind!(14, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Work5)),
-        bind!(15, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Media)),
-        bind!(16, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Chat)),
-        bind!(17, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Logs)),
-        bind!(18, modkey+CTRL, Mode::Normal, toggle_show_tag!(Tag::Mon)),
         // move client to tags
         bind!(10, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Web)),
         bind!(11, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work2)),
@@ -144,7 +126,7 @@ pub fn setup_wm(wm: &mut Wm) {
         ),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |_, s| {
-            s.swap_top();
+            s.view_prev();
             WmCommand::Redraw
         }),
         // spawn a terminal
@@ -159,11 +141,37 @@ pub fn setup_wm(wm: &mut Wm) {
             .map(|w| WmCommand::Kill(w))
             .unwrap_or(WmCommand::NoCommand)
         ),
+        // switch to setup mode
+        bind!(36, modkey, Mode::Normal, |_, _|
+              WmCommand::ModeSwitch(Mode::Setup)),
+        // switch back to normal mode
+        bind!(36, modkey, Mode::Setup, |_, _|
+              WmCommand::ModeSwitch(Mode::Normal)),
+        // toggle tags on current tagset
+        bind!(10, modkey, Mode::Setup, toggle_show_tag!(Tag::Web)),
+        bind!(11, modkey, Mode::Setup, toggle_show_tag!(Tag::Work2)),
+        bind!(12, modkey, Mode::Setup, toggle_show_tag!(Tag::Work3)),
+        bind!(13, modkey, Mode::Setup, toggle_show_tag!(Tag::Work4)),
+        bind!(14, modkey, Mode::Setup, toggle_show_tag!(Tag::Work5)),
+        bind!(15, modkey, Mode::Setup, toggle_show_tag!(Tag::Media)),
+        bind!(16, modkey, Mode::Setup, toggle_show_tag!(Tag::Chat)),
+        bind!(17, modkey, Mode::Setup, toggle_show_tag!(Tag::Logs)),
+        bind!(18, modkey, Mode::Setup, toggle_show_tag!(Tag::Mon)),
     ]);
     // default tag stack
     wm.setup_tags(
-        TagStack::from_vec(
-            vec![TagSet::new(vec![Tag::Work2], VStack::default())]
+        TagStack::from_presets(
+            vec![
+                TagSet::new(vec![Tag::Web], VStack::default()),
+                TagSet::new(vec![Tag::Work2], VStack::default()),
+                TagSet::new(vec![Tag::Work3], VStack::default()),
+                TagSet::new(vec![Tag::Work4], VStack::default()),
+                TagSet::new(vec![Tag::Work5], VStack::default()),
+                TagSet::new(vec![Tag::Media], Monocle::default()),
+                TagSet::new(vec![Tag::Chat], HStack::default()),
+                TagSet::new(vec![Tag::Logs], HStack::default()),
+                TagSet::new(vec![Tag::Mon], HStack::default()),
+            ], 1
         )
     );
     // matching function deciding upon client placement

@@ -5,9 +5,9 @@ macro_rules! bind {
 }
 
 macro_rules! push_tagset {
-    ($layout:expr, $($tag:expr),+) => {
+    ($index:expr) => {
         |_, s| {
-            s.push(TagSet::new(vec![$($tag),+], $layout));
+            s.push($index);
             WmCommand::Redraw
         }
     }

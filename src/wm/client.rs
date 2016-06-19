@@ -1,4 +1,4 @@
-use std::cell::{RefCell,RefMut,Ref};
+use std::cell::{RefCell,RefMut};
 use std::collections::HashMap;
 use std::rc::{Rc,Weak};
 
@@ -431,120 +431,80 @@ impl TagSet {
 
 // a set of known tagsets, allowing for simple addressing of tagstes (and
 // layouts)
-pub struct TagManager {
-    tagsets: HashMap<usize, Rc<RefCell<TagSet>>>,
-    current: Option<Weak<RefCell<TagSet>>>,
-}
-
-impl TagManager {
-    // setup an empty tag stack
-    pub fn new() -> TagManager {
-        TagManager {
-            tagsets: HashMap::new(),
-            current: None,
-        }
-    }
-
-    // setup a tag stack from a vector of tag sets and the index of the
-    // initially focused tagset in the vector
-    pub fn from_presets(mut vec: Vec<TagSet>, focused: usize) -> TagManager {
-        let tagsets: HashMap<_, _> = vec
-            .drain(..)
-            .enumerate()
-            .map(|(i, val)| (i, Rc::new(RefCell::new(val))))
-            .collect();
-        let current = tagsets.get(&focused).map(Rc::downgrade);
-        TagManager {
-            tagsets: tagsets,
-            current: current,
-        }
-    }
-
-    // set the current tagset by index
-    pub fn set_current(&mut self, new_index: usize) -> bool {
-        if let Some(tagset) = self.tagsets.get(&new_index) {
-            self.current = Some(Rc::downgrade(tagset));
-            true
-        } else {
-            false
-        }
-    }
-
-    // map a function over the current tagset and return the results, if any
-    pub fn map_current<F, T>(&self, func: F) -> Option<T>
-        where F: Fn(Ref<TagSet>) -> T {
-        self.current
-            .as_ref()
-            .and_then(|r| r.upgrade())
-            .map(|t| func(t.borrow()))
-    }
-
-    // map a function over the current tagset, modify it as needed and return
-    // the results, if any
-    pub fn map_current_mut<F, T>(&mut self, func: F) -> Option<T>
-        where F: Fn(RefMut<TagSet>) -> T {
-        self.current
-            .as_ref()
-            .and_then(|r| r.upgrade())
-            .map(|t| func(t.borrow_mut()))
-    }
-}
-
-// a history stack of tag sets, allowing for easy switching
 pub struct TagStack {
-    tags: Vec<TagSet>, // tag sets on stack, last is current
+    tagsets: HashMap<u8, TagSet>,
+    history: Vec<u8>,
 }
 
 impl TagStack {
     // setup an empty tag stack
     pub fn new() -> TagStack {
         TagStack {
-            tags: Vec::new(),
+            tagsets: HashMap::new(),
+            history: Vec::new(),
         }
     }
 
-    // setup a tag stack from a vector of tag sets
-    pub fn from_vec(vec: Vec<TagSet>) -> TagStack {
+    // setup a tag stack from a vector of tag sets and the index of the
+    // initially viewed tagset in the vector
+    pub fn from_presets(mut vec: Vec<TagSet>, viewed: u8) -> TagStack {
+        let tagsets: HashMap<_, _> = vec
+            .drain(..)
+            .enumerate()
+            .map(|(i, val)| (i as u8, val))
+            .collect();
+        let history = if tagsets.contains_key(&viewed) {
+            vec![viewed]
+        } else {
+            Vec::new()
+        };
         TagStack {
-            tags: vec,
+            tagsets: tagsets,
+            history: history,
         }
     }
 
     // get the current tag set
     pub fn current(&self) -> Option<&TagSet> {
-        self.tags.last()
+        self.history
+            .last()
+            .and_then(|i| self.tagsets.get(i))
     }
 
     // get the current tag set, mutable
     pub fn current_mut(&mut self) -> Option<&mut TagSet> {
-        self.tags.last_mut()
-    }
-
-    // push a new tag to the stack
-    pub fn push(&mut self, tag: TagSet) {
-        let len = self.tags.len();
-        if len >= 4 {
-            self.tags.drain(..len - 3);
-        }
-        self.tags.push(tag);
-    }
-
-    // switch to previously shown tag set
-    pub fn swap_top(&mut self) {
-        if self.tags.len() >= 2 {
-            let last = self.tags.pop().unwrap();
-            let new_last = self.tags.pop().unwrap();
-            self.tags.push(last);
-            self.tags.push(new_last);
+        let index = self.history.last();
+        if let Some(i) = index {
+            self.tagsets.get_mut(i)
+        } else {
+            None
         }
     }
 
-    // switch to a different tag by index
+    // set the currently viewed tagset by index
+    pub fn push(&mut self, new_index: u8) {
+        if self.tagsets.contains_key(&new_index) {
+            let len = self.history.len();
+            if len >= 4 {
+                self.history.drain(..len - 3);
+            }
+            self.history.push(new_index);
+        }
+    }
+
+    // add a new tagset to the map
     #[allow(dead_code)]
-    pub fn swap_nth(&mut self, index: usize) {
-        if self.tags.len() > index {
-            let new_last = self.tags.remove(index);
-            self.tags.push(new_last);
+    pub fn add(&mut self, index: u8, value: TagSet) -> bool {
+        if !self.tagsets.contains_key(&index) {
+            self.tagsets.insert(index, value);
+            true
+        } else {
+            false
         }
+    }
+
+    // switch to previously shown tagset
+    pub fn view_prev(&mut self) {
+        self.history.pop();
     }
 }
