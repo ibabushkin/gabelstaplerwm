@@ -116,8 +116,8 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(61, modkey+CTRL+SHIFT, Mode::Normal,
               swap!(ClientSet::swap_prev)),
         // set to "fullscreen" - use monocle mode on current tagset
-        bind!(65, modkey, Mode::Normal, |_, s|
-            s.current_mut()
+        bind!(65, modkey, Mode::Normal, |_, s| s
+            .current_mut()
             .map(|t| {
                 t.set_layout(Monocle::default());
                 WmCommand::Redraw
@@ -126,8 +126,11 @@ pub fn setup_wm(wm: &mut Wm) {
         ),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |_, s| {
-            s.view_prev();
-            WmCommand::Redraw
+            if s.view_prev() {
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            }
         }),
         // spawn a terminal
         bind!(31, modkey, Mode::Normal, |_, _| {
@@ -135,8 +138,8 @@ pub fn setup_wm(wm: &mut Wm) {
             WmCommand::NoCommand
         }),
         // kill current client
-        bind!(54, modkey, Mode::Normal, |c, s|
-            s.current()
+        bind!(54, modkey, Mode::Normal, |c, s| s
+            .current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .map(|w| WmCommand::Kill(w))
             .unwrap_or(WmCommand::NoCommand)
