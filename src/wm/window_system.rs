@@ -253,15 +253,7 @@ impl<'a> Wm<'a> {
     // destroy a window by sending a client message and killing the client the
     // hard and merciless way if that fails.
     fn destroy_window(&self, window: xproto::Window) {
-        let data = [self.lookup_atom("WM_DELETE_WINDOW"), 0, 0, 0, 0].as_ptr()
-            as *const xcb_client_message_data_t;
-        let event: &str = unsafe {
-            transmute(xproto::ClientMessageEvent::new(
-                32, window, self.lookup_atom("WM_PROTOCOLS"), *data))
-        };
-        if xproto::send_event(self.con, false, window,
-                              xproto::EVENT_MASK_NO_EVENT, event)
-            .request_check().is_err() {
+        if self.send_event(window, "WM_DELETE_WINDOW") {
             if xproto::kill_client(self.con, window).request_check().is_err() {
                 println!("could not kill client.");
             }
@@ -282,15 +274,7 @@ impl<'a> Wm<'a> {
             if let Some(old_win) = self.focused_window {
                 self.set_border_color(old_win, self.border_colors.1);
             }
-            let data = [self.lookup_atom("WM_TAKE_FOCUS"), 0, 0, 0, 0].as_ptr()
-                as *const xcb_client_message_data_t;
-            let event: &str = unsafe {
-                transmute(xproto::ClientMessageEvent::new(
-                    32, new, self.lookup_atom("WM_PROTOCOLS"), *data))
-            };
-            if xproto::send_event(self.con, false, new,
-                                  xproto::EVENT_MASK_NO_EVENT, event)
-                .request_check().is_err() {
+            if self.send_event(new, "WM_TAKE_FOCUS") {
                 println!("could not send focus message to window");
             }
             let cookie =
@@ -554,5 +538,18 @@ impl<'a> Wm<'a> {
         } else {
             None
         }
+    }
+
+    fn send_event(&self, window: xproto::Window, atom: &'static str) -> bool {
+        let data = [self.lookup_atom(atom), 0, 0, 0, 0].as_ptr()
+            as *const xcb_client_message_data_t;
+        let event: &str = unsafe {
+            transmute(xproto::ClientMessageEvent::new(
+                32, window, self.lookup_atom("WM_PROTOCOLS"), *data))
+        };
+        xproto::send_event(self.con, false, window,
+                           xproto::EVENT_MASK_NO_EVENT, event)
+            .request_check()
+            .is_err()
     }
 }
