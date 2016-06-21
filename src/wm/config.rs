@@ -48,8 +48,8 @@ impl Default for Mode {
 // generate a window manager config - colors, border width...
 pub fn generate_config() -> WmConfig {
     WmConfig {
-        f_color: (0xffff, 0x0, 0x0),
-        u_color: (0x00, 0x00, 0x00),
+        f_color: (0x5353, 0x5d5d, 0x6c6c),
+        u_color: (0x0000, 0x0000, 0x0000),
         border_width: 1,
         screen: ScreenSize {
             offset_x: 0,
