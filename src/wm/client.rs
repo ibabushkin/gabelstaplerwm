@@ -503,8 +503,24 @@ impl TagStack {
         }
     }
 
+    // remove a tagset from the map
+    #[allow(dead_code)]
+    pub fn remove(&mut self, index: u8) -> bool {
+        if self.tagsets.remove(&index).is_some() {
+            self.history = self
+                .history
+                .iter_mut()
+                .filter(|i| **i != index)
+                .map(|r| r.clone())
+                .collect();
+            true
+        } else {
+            false
+        }
+    }
+
     // switch to previously shown tagset
-    pub fn view_prev(&mut self) {
-        self.history.pop();
+    pub fn view_prev(&mut self) -> bool {
+        self.history.pop().is_some()
     }
 }
