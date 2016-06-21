@@ -282,16 +282,29 @@ impl<'a> Wm<'a> {
             if let Some(old_win) = self.focused_window {
                 self.set_border_color(old_win, self.border_colors.1);
             }
+            let data = [self.lookup_atom("WM_TAKE_FOCUS"), 0, 0, 0, 0].as_ptr()
+                as *const xcb_client_message_data_t;
+            let event: &str = unsafe {
+                transmute(xproto::ClientMessageEvent::new(
+                    32, new, self.lookup_atom("WM_PROTOCOLS"), *data))
+            };
+            if xproto::send_event(self.con, false, new,
+                                  xproto::EVENT_MASK_NO_EVENT, event)
+                .request_check().is_err() {
+                println!("could not send focus message to window");
+            }
             let cookie =
                 xproto::set_input_focus(self.con,
                                         xproto::INPUT_FOCUS_POINTER_ROOT as u8,
                                         new,
                                         xproto::TIME_CURRENT_TIME);
-            self.focused_window = Some(new);
             self.set_border_color(new, self.border_colors.0);
             if cookie.request_check().is_err() {
                 println!("could not focus window");
+            } else {
+                self.focused_window = Some(new);
             }
+
         }
     }
 
@@ -345,7 +358,6 @@ impl<'a> Wm<'a> {
     // the screen,
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev, self.mode);
-        println!("Key pressed: {:?}", key);
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
             command = func(&mut self.clients, &mut self.tag_stack);
