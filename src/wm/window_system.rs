@@ -113,16 +113,13 @@ impl<'a> Wm<'a> {
                     f_color: (u16, u16, u16),
                     u_color: (u16, u16, u16))
         -> (u32, u32) {
-        let f_cookie = xproto::alloc_color(con,
-                                           colormap,
-                                           f_color.0,
-                                           f_color.1,
-                                           f_color.2);
-        let u_cookie = xproto::alloc_color(con,
-                                           colormap,
-                                           u_color.0,
-                                           u_color.1,
-                                           u_color.2);
+        // request color pixels
+        let f_cookie = xproto::alloc_color(
+            con, colormap, f_color.0, f_color.1, f_color.2);
+        let u_cookie = xproto::alloc_color(
+            con, colormap, u_color.0, u_color.1, u_color.2);
+
+        // get the replies
         let f_pixel = match f_cookie.get_reply() {
             Ok(reply) => reply.pixel(),
             Err(_) => panic!("Could not allocate your colors!"),
@@ -140,10 +137,8 @@ impl<'a> Wm<'a> {
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
             | xproto::EVENT_MASK_PROPERTY_CHANGE;
-        match xproto::change_window_attributes(self.con,
-                                               self.root,
-                                               &[(xproto::CW_EVENT_MASK,
-                                                  values)])
+        match xproto::change_window_attributes(
+            self.con, self.root, &[(xproto::CW_EVENT_MASK, values)])
             .request_check() {
             Ok(()) => Ok(()),
             Err(_) => Err(WmError::OtherWmRunning),
@@ -153,10 +148,11 @@ impl<'a> Wm<'a> {
     // set up keybindings
     pub fn setup_bindings(&mut self, mut keys: Vec<(KeyPress, KeyCallback)>) {
         // don't grab anything for now
-        xproto::ungrab_key(self.con,
-                           xproto::GRAB_ANY as u8,
-                           self.root,
-                           xproto::MOD_MASK_ANY as u16);
+        xproto::ungrab_key(
+            self.con, xproto::GRAB_ANY as u8,
+            self.root, xproto::MOD_MASK_ANY as u16
+        );
+
         // compile keyboard bindings
         self.bindings = HashMap::with_capacity(keys.len());
         let cookies: Vec<_> = keys
@@ -172,6 +168,8 @@ impl<'a> Wm<'a> {
                                  xproto::GRAB_MODE_ASYNC as u8)
             })
             .collect();
+
+        // check for errors
         for cookie in cookies {
             if cookie.request_check().is_err() {
                 println!("could not grab key!");
@@ -211,7 +209,7 @@ impl<'a> Wm<'a> {
                 self.clients.get_order_or_insert(&tagset.tags),
                 &tagset.layout
             ),
-            None => return, // nothing to do here - no tagset on stack
+            None => return, // nothing to do here - no current tagset
         };
         // get geometries ...
         let geometries = layout.arrange(clients.1.len(), &self.screen);
@@ -219,7 +217,7 @@ impl<'a> Wm<'a> {
         // rendered lazily, at least with xephyr. to avoid this condition,
         // we accept some additional waiting time, which doesn't matter much
         // anyway - redraw times aren't subject to visible latency anyway.
-        // until this is fixed, the code below has to stay serial in nature
+        // until this is fixed, the code below has to stay serial in nature.
         for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
             // ... and apply them if a window is to be displayed
             if let (Some(ref cl), &Some(ref geom))
@@ -294,11 +292,8 @@ impl<'a> Wm<'a> {
 
     // color the borders of a window
     fn set_border_color(&self, window: xproto::Window, color: u32) {
-        let cookie =
-            xproto::change_window_attributes(self.con,
-                                             window,
-                                             &[(xproto::CW_BORDER_PIXEL,
-                                                color)]);
+        let cookie = xproto::change_window_attributes(
+            self.con, window, &[(xproto::CW_BORDER_PIXEL, color)]);
         if cookie.request_check().is_err() {
             println!("could not set window border color");
         }
@@ -338,8 +333,8 @@ impl<'a> Wm<'a> {
     }
 
     // look for a matching key binding upon event receival and react
-    // accordingly: call a callback closure if necessary and optionally redraw
-    // the screen,
+    // accordingly: call a callback closure if necessary and determine what
+    // to do next based on the return value received
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev, self.mode);
         let mut command = WmCommand::NoCommand;
@@ -469,52 +464,47 @@ impl<'a> Wm<'a> {
 
     // get an atom by name
     fn lookup_atom(&self, name: &str) -> xproto::Atom {
-        let tuples = self.atoms.iter();
-        for &(atom, n) in tuples {
-            if n == name {
-                return atom;
-            }
-        }
-        // we need to put the atom in question into the static array first
-        panic!("Unregistered atom used: {}!", name)
+        self.atoms[
+            self.atoms
+                .iter()
+                .position(|&(_, n)| n == name)
+                .expect("unregistered atom used!")
+        ].0
     }
 
     // get a window's properties (like window type and such)
     pub fn get_properties(&self, window: xproto::Window)
         -> Option<ClientProps> {
-        let cookie1 =
-            xproto::get_property(self.con,
-                                 false,
-                                 window,
-                                 self.lookup_atom("_NET_WM_WINDOW_TYPE"),
-                                 xproto::ATOM_ATOM,
-                                 0,
-                                 0xffffffff);
-        let cookie2 = xproto::get_property(self.con,
-                                           false,
-                                           window,
-                                           xproto::ATOM_WM_NAME,
-                                           xproto::ATOM_STRING,
-                                           0,
-                                           0xffffffff);
-        let cookie3 = xproto::get_property(self.con,
-                                           false,
-                                           window,
-                                           xproto::ATOM_WM_CLASS,
-                                           xproto::ATOM_STRING,
-                                           0,
-                                           0xffffffff);
+        // request window type
+        let cookie1 = xproto::get_property(
+            self.con, false, window,
+            self.lookup_atom("_NET_WM_WINDOW_TYPE"),
+            xproto::ATOM_ATOM, 0, 0xffffffff
+        );
+        // request window name
+        let cookie2 = xproto::get_property(
+            self.con, false, window,
+            xproto::ATOM_WM_NAME, xproto::ATOM_STRING,
+            0, 0xffffffff
+        );
+        // request window class(es)
+        let cookie3 = xproto::get_property(
+            self.con, false, window,
+            xproto::ATOM_WM_CLASS, xproto::ATOM_STRING,
+            0, 0xffffffff
+        );
+        // check for replies
         if let (Ok(r1), Ok(r2), Ok(r3)) = (cookie1.get_reply(),
                                            cookie2.get_reply(),
                                            cookie3.get_reply()) {
             unsafe {
-                // we get exactly one atom
+                // we get exactly one atom for the type
                 let type_atoms: &[xproto::Atom] = transmute(r1.value());
                 // the name is a single (variable-sized) string
                 let name_slice: &[c_char] = transmute(r2.value());
                 let name = CStr::from_ptr(name_slice.as_ptr())
                     .to_string_lossy();
-                // the classes are a list of strings
+                // the class(es) are a list of strings
                 let class_slice: &[c_char] = transmute(r3.value());
                 // iterate over them
                 let mut class = Vec::new();
@@ -529,6 +519,7 @@ impl<'a> Wm<'a> {
                         }
                     }
                 }
+                // return the properties obtained
                 Some(ClientProps {
                     window_type: type_atoms[0].clone(),
                     name: name.into_owned(),
@@ -540,6 +531,7 @@ impl<'a> Wm<'a> {
         }
     }
 
+    // send an atomic event to a client specified by a window
     fn send_event(&self, window: xproto::Window, atom: &'static str) -> bool {
         let data = [self.lookup_atom(atom), 0, 0, 0, 0].as_ptr()
             as *const xcb_client_message_data_t;
