@@ -8,28 +8,42 @@ use wm::config::Tag;
 use wm::layout::Layout;
 use wm::window_system::WmCommand;
 
+/// Client properties, as obtained from the X server.
 #[derive(Debug, Clone)]
 pub struct ClientProps {
-    pub window_type: xproto::Atom, // client/window type
-    pub name: String,              // the client's title
-    pub class: Vec<String>,        // the client's class(es)
+    /// client/window type
+    pub window_type: xproto::Atom,
+    /// the client's title
+    pub name: String,
+    /// the client's class(es)
+    pub class: Vec<String>,
 }
 
-// a client wrapping a window: a container object that holds the associated
-// information, but doesn't directly influence the workings of the window
-// manager. that is, the window's properties are used to alter associated
-// structures, that change the behaviour of the window manager.
+/// A client wrapping a window.
+///
+/// A client is a container object that holds the information associated with,
+/// a window, but doesn't directly influence the workings of the window
+/// manager. That is, the window's properties are used to alter associated
+/// structures, which in turn influence the behaviour of the window manager.
+/// This is a common pattern in `gabelstaplerwm`: Most code that the user
+/// writes isn't calling any X functions to actually perform the actions it
+/// symbolizes. Instead, it modifies carefully crafted structures that act as
+/// an interpreting layer for the window manager.
 #[derive(Debug, Clone)]
 pub struct Client {
-    pub window: xproto::Window, // the window (a direct child of root)
-    props: ClientProps,         // client properties
-    urgent: bool,               // is the urgency hint set?
-    tags: Vec<Tag>,             // all tags this client is visible on
+    /// the window (a direct child of root)
+    pub window: xproto::Window,
+    /// client properties
+    props: ClientProps,
+    /// indicates whether the client has the urgency flag set
+    urgent: bool,
+    /// all tags this client is visible on, in no particular order
+    tags: Vec<Tag>,
 }
 
 impl Client {
-    // setup a new client for a specific window, on a set of tags and with
-    // given properties.
+    /// Setup a new client for a specific window, on a set of tags
+    /// and with given properties.
     pub fn new(window: xproto::Window, tags: Vec<Tag>, props: ClientProps)
         -> Client {
         Client {
@@ -40,14 +54,19 @@ impl Client {
         }
     }
 
-    // *move* a window to a new location
+    /// *Move* a window to a new set of tags.
+    ///
+    /// Assumes the slice denoted by `tags` doesn't contain duplicate elements.
     pub fn set_tags(&mut self, tags: &[Tag]) {
         if tags.len() > 0 {
             self.tags = tags.to_vec();
         }
     }
 
-    // add or remove a tag from a window, if client remains on at least one tag
+    /// Add or remove a tag from a window.
+    ///
+    /// If `client` would be visible on no tags at all, the operation is not
+    /// performed.
     pub fn toggle_tag(&mut self, tag: Tag) {
         if let Some(index) = self.tags.iter().position(|t| *t == tag) {
             if self.tags.len() > 1 {
@@ -58,7 +77,7 @@ impl Client {
         }
     }
 
-    // check if a client is visible on a set of tags
+    /// Check whether a client is visible on a set of tags.
     pub fn match_tags(&self, tags: &[Tag]) -> bool {
         self.tags
             .iter()
@@ -66,26 +85,42 @@ impl Client {
     }
 }
 
-// weak reference to a client, used to store ordered subsets of the client set
+/// Weak reference to a client.
+///
+/// Used to store references to clients that are placed in secondary
+/// structures, such as `HashMap`s storing the order of clients on specific
+/// tagsets.
 pub type WeakClientRef = Weak<RefCell<Client>>;
-// strong reference to a client, used to store the entire set of clients
+
+/// Strong reference to a client.
+///
+/// Used to store clients themselves. The wrapping is necessary to allow
+/// for weak references to exist.
 pub type ClientRef = Rc<RefCell<Client>>;
 
-// an entry in the `order` HashMap of a ClientSet
+/// An entry in the `order` `HashMap` of a `ClientSet`.
+///
+/// Contains a weak reference to the optionally present focused client on that
+/// tagset, as well as an ordered sequence of weak references of all clients on
+/// the tagset given.
 pub type OrderEntry = (Option<WeakClientRef>, Vec<WeakClientRef>);
 
-// a client set, managing all direct children of the root window, as well as
-// their orderings on different tagsets. the ordering on different tagsets
-// is organized in a delayed fashion: not all tagsets have an associated client
-// list to avoid unnecessary copying of weak references. cleanup is done as
-// soon as clients are removed, i.e. it is non-lazy.
+/// A client set.
+///
+/// Managing all direct children of the root window, as well as
+/// their orderings on different tagsets. the ordering on different tagsets
+/// is organized in a delayed fashion: not all tagsets have an associated
+/// client list to avoid unnecessary copying of weak references. cleanup is
+/// done as soon as clients are removed, i.e. it is non-lazy.
 pub struct ClientSet {
-    clients: HashMap<xproto::Window, ClientRef>, // all clients
-    order: HashMap<Vec<Tag>, OrderEntry>,        // ordered subsets of clients
+    /// all clients
+    clients: HashMap<xproto::Window, ClientRef>,
+    /// ordered subsets of clients associated with tagsets
+    order: HashMap<Vec<Tag>, OrderEntry>,
 }
 
 impl ClientSet {
-    // initialize an empty client list
+    /// Initialize an empty client list.
     pub fn new() -> ClientSet {
         ClientSet {
             clients: HashMap::new(),
@@ -93,14 +128,16 @@ impl ClientSet {
         }
     }
 
-    // get a client that corresponds to a given window
+    /// Get a client that corresponds to a given window.
     pub fn get_client_by_window(&self, window: xproto::Window)
         -> Option<&ClientRef> {
         self.clients.get(&window)
     }
 
 
-    // get the order entry for a set of tags and create it if necessary 
+    /// Get the order entry for a set of tags.
+    ///
+    /// If not present, create it.
     pub fn get_order_or_insert(&mut self, tags: &[Tag]) -> &mut OrderEntry {
         let clients: Vec<WeakClientRef> = self
             .clients
@@ -112,7 +149,10 @@ impl ClientSet {
         self.order.entry(tags.to_vec()).or_insert((focused, clients))
     }
 
-    // clean client store from invalidated weak references
+    /// Clean client store from invalidated weak references.
+    ///
+    /// This need arises from the fact that we store weak references to
+    /// clients. When these objects get deallocated, we clean up.
     fn clean(&mut self) {
         for entry in self.order.values_mut() {
             entry.1 = entry.1
@@ -125,7 +165,7 @@ impl ClientSet {
         }
     }
 
-    // update all reference orderings to account for changes in a given client
+    /// Update all order entries to account for changes in a given client.
     fn fix_references(&mut self, target_client: ClientRef) {
         for (tags, entry) in self.order.iter_mut() {
             if !target_client.borrow().match_tags(&tags) {
@@ -169,13 +209,15 @@ impl ClientSet {
         }
     }
 
-    // check whether a weak reference is pointing to a specific client
+    /// Check whether a weak reference is pointing to a specific client.
     fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
          r.upgrade().map(|r| r.borrow().window) == Some(target.borrow().window)
     }
 
-    // add a new client to client set and add references to tagset-specific
-    // subsets as needed
+    /// Add a new client to the client store.
+    ///
+    /// Adds client object to master `HashMap` and creates references to
+    /// on the tagsets the client is visible on.
     // TODO: add as_master/as_slave distinction
     pub fn add(&mut self, client: Client) {
         let window = client.window;
@@ -192,15 +234,19 @@ impl ClientSet {
         }
     }
 
-    // remove the client corresponding to a window and clean references
+    /// Remove the client corresponding to a window.
+    ///
+    /// Removes the client objects and cleans all weak references to it.
     pub fn remove(&mut self, window: xproto::Window) {
         if self.clients.remove(&window).is_some() {
             self.clean();
         }
     }
 
-    // apply a function to the client corresponding to a window and update
-    // references to it if needed, return an appropriate window manager command
+    /// Apply a function to the client corresponding to a window.
+    ///
+    /// Maps the function and updates references as needed, returning a
+    /// window manager command as returned by the passed closure.
     pub fn update_client<F>(&mut self, window: xproto::Window, func: F)
         -> Option<WmCommand>
         where F: Fn(RefMut<Client>) -> WmCommand {
@@ -215,7 +261,7 @@ impl ClientSet {
         res
     }
 
-    // get the currently focused window on a set of tags
+    /// Get the currently focused window on a set of tags.
     pub fn get_focused_window(&self, tags: &[Tag]) -> Option<xproto::Window> {
         self.order
             .get(tags)
@@ -224,8 +270,8 @@ impl ClientSet {
             .map(|r| r.borrow().window)
     }
 
-    // focus a window on a set of tags relative to the current
-    // by index difference
+    /// Focus a window on a set of tags relative to the current
+    /// by index difference.
     fn focus_offset(&mut self, tags: &[Tag], offset: isize) {
         let &mut (ref mut current, ref clients) =
             self.get_order_or_insert(&tags);
@@ -249,8 +295,8 @@ impl ClientSet {
         }
     }
 
-    // swap with current window on a set of tags relative to the current
-    // by index difference
+    /// Swap with current window on a set of tags relative to the current
+    /// by index difference.
     fn swap_offset(&mut self, tags: &[Tag], offset: isize) {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(&tags);
@@ -272,27 +318,27 @@ impl ClientSet {
         }
     }
 
-    // focus next window
+    /// Focus next window.
     pub fn focus_next(&mut self, tagset: &TagSet) {
         self.focus_offset(&tagset.tags, 1);
     }
 
-    // swap with next window
+    /// Swap with next window.
     pub fn swap_next(&mut self, tagset: &TagSet) {
         self.swap_offset(&tagset.tags, 1);
     }
 
-    // focus previous window
+    /// Focus previous window.
     pub fn focus_prev(&mut self, tagset: &TagSet) {
         self.focus_offset(&tagset.tags, -1);
     }
 
-    // swap with previous window
+    /// Swap with previous window.
     pub fn swap_prev(&mut self, tagset: &TagSet) {
         self.swap_offset(&tagset.tags, -1);
     }
 
-    // focus a window on a set of tags relative to the current by direction
+    /// Focus a window on a set of tags relative to the current by direction.
     fn focus_direction<F>(&mut self, tags: &[Tag], focus_func: F)
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
@@ -318,7 +364,7 @@ impl ClientSet {
         }
     }
 
-    // swap with window on a set of tags relative to the current by direction
+    /// Swap with window on a set of tags relative to the current by direction.
     fn swap_direction<F>(&mut self, tags: &[Tag], focus_func: F)
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref current, ref mut clients) =
@@ -344,69 +390,77 @@ impl ClientSet {
         }
     }
 
-    // focus the window to the right
+    /// Focus the window to the right.
     pub fn focus_right(&mut self, tagset: &TagSet) {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.right_window(i, m))
     }
 
-    // swap with the window to the right
+    /// Swap with the window to the right.
     pub fn swap_right(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags,
                             |i, m| tagset.layout.right_window(i, m));
     }
 
-    // focus the window to the left
+    /// Focus the window to the left.
     pub fn focus_left(&mut self, tagset: &TagSet) {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.left_window(i, m))
     }
 
-    // swap with the window to the left
+    /// Swap with the window to the left.
     pub fn swap_left(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags,
                             |i, m| tagset.layout.left_window(i, m));
     }
 
-    // focus the window to the top
+    /// Focus the window to the top.
     pub fn focus_top(&mut self, tagset: &TagSet) {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.top_window(i, m))
     }
 
-    // swap with the window to the left
+    /// Swap with the window to the left.
     pub fn swap_top(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags,
                             |i, m| tagset.layout.top_window(i, m));
     }
 
-    // focus the window to the bottom
+    /// Focus the window to the bottom.
     pub fn focus_bottom(&mut self, tagset: &TagSet) {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.bottom_window(i, m))
     }
 
-    // swap with the window to the left
+    /// Swap with the window to the left.
     pub fn swap_bottom(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags,
                             |i, m| tagset.layout.bottom_window(i, m));
     }
 
-    // swap with the master window
+    /// Swap with the master window.
     pub fn swap_master(&mut self, tagset: &TagSet) {
         self.swap_direction(&tagset.tags, |_, _| Some(0));
     }
 }
 
-// a set of tags with an associated layout, used to determine windows to be
-// shown at a given point in time
+/// A set of tags with an associated layout.
+///
+/// Used to determine the set of windows to be shown, as well as their
+/// geometries. All clients that match any of the tags in a tagset are shown
+/// to the user when that tagset is displayed by the window manager. In that
+/// sense, tagsets are views into the space of open clients, with additional
+/// parameters attached. Note that layouts are dynamically determined and
+/// specified by a trait object, allowing for easy extending of the defaults.
 pub struct TagSet {
-    pub tags: Vec<Tag>,      // tags shown
-    pub layout: Box<Layout>, // the layout used
+    /// tags belonging to tagset
+    pub tags: Vec<Tag>,
+    /// the layout used to display clients on the tagset
+    pub layout: Box<Layout>,
 }
 
 impl TagSet {
-    // initialize a new tag set with a layout and a set of tags
+    /// Initialize a new tag set with a layout and a set of tags.
     pub fn new<L: Layout + 'static>(tags: Vec<Tag>, layout: L) -> TagSet {
         TagSet {
             tags: tags,
@@ -414,7 +468,7 @@ impl TagSet {
         }
     }
 
-    // toggle a tag on the tagset
+    /// Toggle a tag on the tagset.
     pub fn toggle_tag(&mut self, tag: Tag) {
         if let Some(index) = self.tags.iter().position(|t| *t == tag) {
             self.tags.remove(index);
@@ -423,21 +477,28 @@ impl TagSet {
         }
     }
 
-    // set a layout on the tagset
+    /// Set a layout on the tagset.
     pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
         self.layout = Box::new(layout);
     }
 }
 
-// a set of known tagsets, allowing for simple addressing of tagstes (and
-// layouts)
+/// An organized set of known tagsets.
+///
+/// Allows for simple addressing of tagstes (and their layouts)
+/// Tagsets are added and removed using API calls and are adressed using 8-bit
+/// unsigned integers. Thus, 256 different tagsets can be managed at any point
+/// in time. A small history of capped size is kept, determining the tagset
+/// currently displayed by the window manager.
 pub struct TagStack {
+    /// all tagsets known to man
     tagsets: HashMap<u8, TagSet>,
+    /// the last few tagsets shown
     history: Vec<u8>,
 }
 
 impl TagStack {
-    // setup an empty tag stack
+    /// Setup an empty tag stack.
     pub fn new() -> TagStack {
         TagStack {
             tagsets: HashMap::new(),
@@ -445,8 +506,8 @@ impl TagStack {
         }
     }
 
-    // setup a tag stack from a vector of tag sets and the index of the
-    // initially viewed tagset in the vector
+    /// Setup a tag stack from a vector of tag sets and the index of the
+    /// initially viewed tagset in the vector.
     pub fn from_presets(mut vec: Vec<TagSet>, viewed: u8) -> TagStack {
         let tagsets: HashMap<_, _> = vec
             .drain(..)
@@ -464,14 +525,18 @@ impl TagStack {
         }
     }
 
-    // get the current tag set
+    /// Get the current tag set by reference.
+    ///
+    /// Returns `None` if the history stack is empty
     pub fn current(&self) -> Option<&TagSet> {
         self.history
             .last()
             .and_then(|i| self.tagsets.get(i))
     }
 
-    // get the current tag set, mutable
+    /// Get the current tag set by mutable reference.
+    ///
+    /// Returns `None` if the history stack is empty
     pub fn current_mut(&mut self) -> Option<&mut TagSet> {
         let index = self.history.last();
         if let Some(i) = index {
@@ -481,7 +546,7 @@ impl TagStack {
         }
     }
 
-    // set the currently viewed tagset by index
+    /// Set the currently viewed tagset by index.
     pub fn push(&mut self, new_index: u8) {
         if self.tagsets.contains_key(&new_index) {
             let len = self.history.len();
@@ -492,7 +557,7 @@ impl TagStack {
         }
     }
 
-    // add a new tagset to the map
+    /// Add a new tagset to the set.
     #[allow(dead_code)]
     pub fn add(&mut self, index: u8, value: TagSet) -> bool {
         if !self.tagsets.contains_key(&index) {
@@ -503,7 +568,7 @@ impl TagStack {
         }
     }
 
-    // remove a tagset from the map
+    /// Remove a tagset from the set.
     #[allow(dead_code)]
     pub fn remove(&mut self, index: u8) -> bool {
         if self.tagsets.remove(&index).is_some() {
@@ -519,7 +584,7 @@ impl TagStack {
         }
     }
 
-    // switch to previously shown tagset
+    /// Switch to previously shown tagset, using the history stack.
     pub fn view_prev(&mut self) -> bool {
         self.history.pop().is_some()
     }
