@@ -2,7 +2,7 @@ use std::process::exit;
 
 use xcb::base;
 
-// an error encountered by the WM
+/// An error encountered by the WM.
 pub enum WmError {
     CouldNotConnect(base::ConnError),
     CouldNotAcquireScreen,
@@ -13,7 +13,7 @@ pub enum WmError {
 }
 
 impl WmError {
-    // "handle" an error, ie. print error message and exit
+    /// "Handle" an error, ie. print error message and exit.
     pub fn handle(self) -> ! {
         match self {
             WmError::CouldNotConnect(e) => {
