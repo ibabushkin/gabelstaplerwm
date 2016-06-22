@@ -1,11 +1,21 @@
-// bind a key combination to a callback closure
+/// Bind a key combination to a callback closure.
+///
+/// # Examples
+/// The following snippet binds the key with the number 10, as obtained from
+/// the `gabelstaplergrab` utility, with the modkeys denoted by `modkey`, in
+/// normal mode to a closure returned by the `push_tagset!` macro.
+/// ```
+/// bind!(10, modkey, Mode::Normal, push_tagset!(0)),
+/// ```
 macro_rules! bind {
     ($code:expr, $mods:expr, $mode:expr, $callback:expr) => {
         (KeyPress {code: $code, mods: $mods, mode: $mode}, Box::new($callback))
     }
 }
 
-// view a tagset by pushing it by index on the history stack
+/// View a tagset by pushing it by index on the history stack.
+///
+/// Returns a closure for use with `bind!`.
 macro_rules! push_tagset {
     ($index:expr) => {
         |_, s| {
@@ -15,7 +25,9 @@ macro_rules! push_tagset {
     }
 }
 
-// toggle a tag on a client
+/// Toggle a tag on a client.
+///
+/// Returns a closure for use with `bind!`.
 macro_rules! toggle_tag {
     ($tag:expr) => {
         |c, s| s
@@ -29,7 +41,9 @@ macro_rules! toggle_tag {
     }
 }
 
-// toggle a tag on the current tagset
+/// Toggle a tag on the current tagset.
+///
+/// Returns a closure for use with `bind!`.
 macro_rules! toggle_show_tag {
     ($tag:expr) => {
         |_, s| s
@@ -42,7 +56,9 @@ macro_rules! toggle_show_tag {
     }
 }
 
-// move a client to a tag
+/// Move a client to a tag.
+///
+/// Returns a closure for use with `bind!`.
 macro_rules! move_to_tag {
     ($($tag:expr),*) => {
         |c, s| s
@@ -56,7 +72,9 @@ macro_rules! move_to_tag {
     }
 }
 
-// focus a client using a closure
+/// Focus a client using a closure.
+///
+/// Returns a closure for use with `bind!`.
 macro_rules! focus {
     ($func:expr) => {
         |c, s| s
@@ -68,7 +86,9 @@ macro_rules! focus {
     }
 }
 
-// swap a client using a closure
+/// Swap a client using a closure.
+///
+/// Returns a closure for use with `bind!`.
 macro_rules! swap {
     ($func:expr) => {
         |c, s| s.current()
