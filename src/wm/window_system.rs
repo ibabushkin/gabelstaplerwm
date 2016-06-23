@@ -16,60 +16,90 @@ use wm::err::*;
 use wm::kbd::*;
 use wm::layout::*;
 
-// atoms we will register
+/// Atoms we register with the X server for partial EWMH compliance.
 static ATOM_VEC: [&'static str; 9] =
     ["WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_STATE",
      "WM_TAKE_FOCUS", "_NET_WM_TAKE_FOCUS", "_NET_WM_NAME", "_NET_WM_CLASS",
      "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DOCK"];
 
-// association vector type for atoms and their names
+/// Association vector type for atoms and their names.
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 
-// closure type of a callback function determining client placement on
-// creation, used to implement default tagsets for specific clients
+/// Closure type of a callback function determining client placement on
+/// creation.
+///
+/// Used to implement default tagsets for specific clients.
 pub type Matching = Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
 
-// enumeration type used to fine-tune the behaviour after a callback
+/// Enumeration type of commands executed by the window manager.
+///
+/// Being returned from a callback closure which modified internal structures,
+/// gets interpreted to take necessary actions.
 pub enum WmCommand {
-    Redraw,               // redraw everything
-    Focus,                // refocus window
-    Kill(xproto::Window), // kill the window's process
-    ModeSwitch(Mode),     // switch to a different mode
-    NoCommand,            // don't do anything
+    /// redraw everything
+    Redraw,
+    /// reset focus
+    Focus,
+    /// kill the client associated with the window
+    Kill(xproto::Window),
+    /// switch keyboard mode
+    ModeSwitch(Mode),
+    /// don't do anything, no action is needed
+    NoCommand,
 }
 
-// configuration information used by the window manager
+/// Configuration information used by the window manager.
 #[derive(Clone)]
 pub struct WmConfig {
-    pub f_color: (u16, u16, u16), // color of focused window's border
-    pub u_color: (u16, u16, u16), // color of unfocused window's border
-    pub border_width: u8,         // window border width
-    pub screen: ScreenSize,       // wanted screen parameters, reset by the wm
+    /// color of focused window's border
+    pub f_color: (u16, u16, u16),
+    /// color of unfocused window's border
+    pub u_color: (u16, u16, u16),
+    /// window border width
+    pub border_width: u8,
+    /// screen parameters requested by user
+    pub screen: ScreenSize,
 }
 
-// a window manager is the central instance coordinating the communication
-// with the X server, as well as containing structures to manage tags
-// and clients.
+/// A window manager master-structure.
+///
+/// This is the central instance coordinating the communication
+/// with the X server, as well as containing structures to manage tags
+/// and clients. It also contains callback mechanisms upon key press and
+/// client creation.
 pub struct Wm<'a> {
-    con: &'a base::Connection,  // connection to the X server
-    root: xproto::Window,       // root window
-    config: WmConfig,           // user defined configuration values
-    screen: ScreenSize,         // screen parameters
-    border_colors: (u32, u32),  // colors available for borders
-    bindings: Keybindings,      // keybindings
-    matching: Option<Matching>, // matching function for client placement
-    mode: Mode,                 // current keyboard mode
-    clients: ClientSet,         // client set
-    tag_stack: TagStack,        // tagset history
-    atoms: AtomList<'a>,        // registered atoms
-    visible_windows: Vec<xproto::Window>,   // all windows currently visible
-    focused_window: Option<xproto::Window>, // currently focused window
-    unmanaged_windows: Vec<xproto::Window>, // windows we know about,
-                                            // but do not manage
+    /// connection to the X server
+    con: &'a base::Connection,
+    /// root window
+    root: xproto::Window,
+    /// user-defined configuration parameters
+    config: WmConfig,
+    /// screen parameters as obtained from the X server upon connection
+    screen: ScreenSize,
+    /// colors used for window borders, first denotes focused windows
+    border_colors: (u32, u32),
+    /// keybinding callbacks
+    bindings: Keybindings,
+    /// matching function for client placement
+    matching: Option<Matching>,
+    /// current keyboard mode
+    mode: Mode,
+    /// set of currently present clients
+    clients: ClientSet,
+    /// set of currently present tagsets and their display history
+    tag_stack: TagStack,
+    /// atoms registered at runtime
+    atoms: AtomList<'a>,
+    /// all windows currently visible
+    visible_windows: Vec<xproto::Window>,
+    /// currently focused window
+    focused_window: Option<xproto::Window>,
+    /// windows we know about, but do not manage
+    unmanaged_windows: Vec<xproto::Window>,
 }
 
 impl<'a> Wm<'a> {
-    // wrap a connection to initialize a window manager
+    /// Wrap a connection to initialize a window manager.
     pub fn new(con: &'a base::Connection, screen_num: i32, config: WmConfig)
         -> Result<Wm<'a>, WmError> {
         let setup = con.get_setup();
@@ -107,7 +137,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // allocate colors needed for border drawing
+    /// Allocate colors needed for border drawing.
     fn setup_colors(con: &'a base::Connection,
                     colormap: xproto::Colormap,
                     f_color: (u16, u16, u16),
@@ -131,8 +161,10 @@ impl<'a> Wm<'a> {
         (f_pixel, u_pixel)
     }
 
-    // register window manager by requesting substructure redirects for
-    // the root window and registering all events we are interested in
+    /// Register window manager.
+    ///
+    /// Issues substructure redirects for the root window and registers for
+    /// all events we are interested in.
     pub fn register(&self) -> Result<(), WmError> {
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
@@ -145,7 +177,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // set up keybindings
+    /// Set up keybindings and necessary keygrabs.
     pub fn setup_bindings(&mut self, mut keys: Vec<(KeyPress, KeyCallback)>) {
         // don't grab anything for now
         xproto::ungrab_key(
@@ -177,17 +209,21 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // set up client matching
+    /// Set up client matching.
     pub fn setup_matching(&mut self, matching: Matching) {
         self.matching = Some(matching);
     }
 
-    // set up the stack of tagsets
+    /// Set up the tagset stack.
     pub fn setup_tags(&mut self, stack: TagStack) {
         self.tag_stack = stack;
     }
 
-    // check whether we create new clients as masters or slaves
+    /// Check whether we currently create new clients as masters or slaves.
+    ///
+    /// This depends on the layout of the currently viewed tagset.
+    /// For instance, the `Monocle` layout only shows the master window,
+    /// rendering client creation as a slave useless and unergonomic.
     fn new_window_as_master(&self) -> bool {
         match self.tag_stack.current() {
             Some(ref tagset) => tagset.layout.new_window_as_master(),
@@ -195,7 +231,13 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // using the current layout, arrange all visible windows
+    /// Using the current layout, arrange all visible windows.
+    ///
+    /// This first determines the set of visible windows, and displays them
+    /// accordingly after hiding all windows. This semantic was chosen, because
+    /// redraws are only triggered when the set of visible windows is expected
+    /// to have changed, e.g. when a user-defined callback returned the
+    /// corresponding `WmCommand`.
     fn arrange_windows(&mut self) {
         // first, hide all visible windows ...
         for window in self.visible_windows.iter() {
@@ -237,7 +279,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // hide a window by moving it offscreen
+    /// Hide a window by moving it offscreen.
     fn hide_window(&self, window: xproto::Window) {
         let safe_x = (self.screen.width * 2) as u32;
         let cookie = xproto::configure_window(
@@ -248,8 +290,10 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // destroy a window by sending a client message and killing the client the
-    // hard and merciless way if that fails.
+    /// Destroy a window.
+    ///
+    /// Send a client message and kill the client the hard and merciless way
+    /// if that fails, for instance if the client ignores such messages.
     fn destroy_window(&self, window: xproto::Window) {
         if self.send_event(window, "WM_DELETE_WINDOW") {
             if xproto::kill_client(self.con, window).request_check().is_err() {
@@ -258,8 +302,11 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // reset focus - the datastructures have been altered, we need to focus
-    // the appropriate focus. if an old window is given, uncolor it's border.
+    /// Reset focus.
+    ///
+    /// The datastructures have been altered, we need to focus the appropriate
+    /// window as obtained from tehre. if an old window is given, uncolor it's
+    /// border.
     fn reset_focus(&mut self) {
         if let Some(new) = self
             .tag_stack
@@ -290,7 +337,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // color the borders of a window
+    /// Color the borders of a window.
     fn set_border_color(&self, window: xproto::Window, color: u32) {
         let cookie = xproto::change_window_attributes(
             self.con, window, &[(xproto::CW_BORDER_PIXEL, color)]);
@@ -299,7 +346,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // main loop: wait for events, handle them
+    /// Wait for events, handle them. Repeat.
     pub fn run(&mut self) -> Result<(), WmError> {
         loop {
             self.con.flush();
@@ -313,7 +360,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // handle an event received from the X server
+    /// Handle an event received from the X server.
     fn handle(&mut self, event: base::GenericEvent) {
         match event.response_type() {
             xkb::STATE_NOTIFY =>
@@ -332,9 +379,11 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // look for a matching key binding upon event receival and react
-    // accordingly: call a callback closure if necessary and determine what
-    // to do next based on the return value received
+    /// A key has been pressed, react accordingly.
+    ///
+    /// Look for a matching key binding upon event receival and call a callback
+    /// closure if necessary. Determine what to do next based on the
+    /// return value received.
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev, self.mode);
         let mut command = WmCommand::NoCommand;
@@ -363,7 +412,10 @@ impl<'a> Wm<'a> {
         ()
     }
 
-    // a window has been destroyed, remove the corresponding client
+    /// A window has been destroyed, react accordingly.
+    ///
+    /// If the window is managed (i.e. has a client), destroy it. Otherwise,
+    /// remove it from the vector of unmanaged windows.
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         self.clients.remove(ev.window());
         self.reset_focus();
@@ -382,8 +434,12 @@ impl<'a> Wm<'a> {
         ()
     }
 
-    // a client has sent a map request - add it to the client set if it
-    // hasn't been added yet and take necessary action to display it.
+    /// A client has sent a map request, react accordingly.
+    ///
+    /// Add the window to the necessary structures if it is not yet known.
+    /// If the window has a type different from `_NET_WM_WINDOW_TYPE_DOCK`,
+    /// add it to the client set and display it according to layout.
+    /// Otherwise, add it to the vector of unmanaged windows and display it.
     fn handle_map_request(&mut self, ev: &xproto::MapRequestEvent) {
         let window = ev.window();
         // no client corresponding to the window, add it
@@ -442,7 +498,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // register and get back atoms
+    /// Register and get back atoms, return an error on failure.
     fn get_atoms(con: &base::Connection, names: &[&'a str])
         -> Result<Vec<(xproto::Atom, &'a str)>, WmError> {
         let mut cookies = Vec::with_capacity(names.len());
@@ -462,7 +518,7 @@ impl<'a> Wm<'a> {
         Ok(res)
     }
 
-    // get an atom by name
+    /// Get an atom by name.
     fn lookup_atom(&self, name: &str) -> xproto::Atom {
         self.atoms[
             self.atoms
@@ -472,7 +528,7 @@ impl<'a> Wm<'a> {
         ].0
     }
 
-    // get a window's properties (like window type and such)
+    /// Get a window's properties (like window type and such), if possible.
     pub fn get_properties(&self, window: xproto::Window)
         -> Option<ClientProps> {
         // request window type
@@ -531,7 +587,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    // send an atomic event to a client specified by a window
+    /// Send an atomic event to a client specified by a window.
     fn send_event(&self, window: xproto::Window, atom: &'static str) -> bool {
         let data = [self.lookup_atom(atom), 0, 0, 0, 0].as_ptr()
             as *const xcb_client_message_data_t;
