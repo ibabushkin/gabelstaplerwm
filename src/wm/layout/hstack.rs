@@ -1,15 +1,23 @@
 use wm::layout::*;
 
-// the horizontal stack layout
-// +-------+
-// |   A   | A: master window
-// +-+-+-+-+
-// | |B| | | B: stack, hidden if fixed=false and num_windows <= 1
-// +-+-+-+-+
+/// Horizontal stack layout.
+///
+/// ```plaintext
+/// +-------+
+/// |   A   | A: master window
+/// +-+-+-+-+
+/// | |B| | | B: stack, hidden if fixed=false and num_windows <= 1
+/// +-+-+-+-+
+/// ```
+/// New windows are added as slaves to the stack.
 pub struct HStack {
-    pub master_factor: u8, // percent
-    pub inverted: bool, // invert the layout?
-    pub fixed: bool, // make the master window fixed-size?
+    /// percentage of screen height taken by the master window area,
+    /// saturating semantics
+    pub master_factor: u8,
+    /// place the stack on top?
+    pub inverted: bool,
+    /// keep the height(s) of the areas even if they are empty?
+    pub fixed: bool,
 }
 
 impl Default for HStack {

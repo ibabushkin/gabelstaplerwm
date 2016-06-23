@@ -3,16 +3,27 @@ pub mod vstack;
 pub mod hstack;
 pub mod dstack;
 
-// a screen size to be accounted for when arranging windows
+/// A screen size to be accounted for when arranging windows.
+///
+/// Describes the area used for tiling windows. This allows to leave an open
+/// spot for desktop windows, bars and whatever else you might want.
 #[derive(Clone)]
 pub struct ScreenSize {
+    /// x offset of tiling area
     pub offset_x: u16,
+    /// y offset of tiling area
     pub offset_y: u16,
+    /// width of tiling area
     pub width: u16,
+    /// height of tiling area
     pub height: u16,
 }
 
 impl ScreenSize {
+    /// Create a new `ScreenSize` object.
+    ///
+    /// Uses a `ScreenSize` that represents the user's wishes to get something
+    /// that is actually possible.
     pub fn new(old: &ScreenSize, width: u16, height: u16) -> ScreenSize {
         let new_width = if old.width + old.offset_x < width {
             old.width - old.offset_x
@@ -33,28 +44,36 @@ impl ScreenSize {
     }
 }
 
-// a window's geometry
+/// A window's geometry.
 pub struct Geometry {
+    /// x coordinate of window
     pub x: u16,
+    /// y coordinate of window
     pub y: u16,
+    /// width of window
     pub width: u16,
+    /// height of window
     pub height: u16,
 }
 
-// the layout trait. Types implementing it describe methods to arrange
-// windows parametrized over window number and screen size.
+/// Types that compute geometries for arbitrary amounts of windows.
+///
+/// The only input such objects get are `ScreenSize` and number of windows.
 pub trait Layout {
-    // compute window geometries
+    /// Compute window geometries. 
+    ///
+    /// If a `None` is returned at a particular position, that window is not
+    /// to be made visible.
     fn arrange(&self, num_windows: usize, screen: &ScreenSize)
         -> Vec<Option<Geometry>>;
-    // get the window to the right of the nth window
+    /// Get the window to the right of the nth window.
     fn right_window(&self, index: usize, max: usize) -> Option<usize>;
-    // get the window to the left of the nth window
+    /// Get the window to the left of the nth window.
     fn left_window(&self, index: usize, max: usize) -> Option<usize>;
-    // get the window to the top of the nth window
+    /// Get the window to the top of the nth window.
     fn top_window(&self, index: usize, max: usize) -> Option<usize>;
-    // get the window to the bottom of the nth window
+    /// Get the window to the bottom of the nth window.
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize>;
-    // decide whether to insert new windows as master
+    /// Decide whether to insert new windows as master.
     fn new_window_as_master(&self) -> bool;
 }

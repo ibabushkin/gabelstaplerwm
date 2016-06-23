@@ -1,8 +1,14 @@
 use wm::layout::*;
 
-// the monocle layout with offset
+/// Monocle layout with offset.
+///
+/// Shows one window at a time, keeping offsets to the screen border.
+/// New clients are added as master, otherwise they would be invisible
+/// at first.
 pub struct Monocle {
+    /// x offset of master window (symmetric)
     pub offset_x: u16,
+    /// y offset of master window (symmetric)
     pub offset_y: u16,
 }
 
@@ -16,10 +22,8 @@ impl Default for Monocle {
 }
 
 impl Layout for Monocle {
-    fn arrange(&self,
-               num_windows: usize,
-               screen: &ScreenSize)
-               -> Vec<Option<Geometry>> {
+    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+        -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // master window is shown
         res.push(Some(Geometry {

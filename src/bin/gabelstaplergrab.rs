@@ -6,6 +6,10 @@ use xcb::base::*;
 use xcb::xkb as xkb;
 use xcb::xproto as xproto;
 
+/// Main function.
+///
+/// Establish a connection to the X server and print `KeyPress`es that take
+/// place.
 fn main() {
     // create a new connection, exit on failure
     let (con, screen_num) = match Connection::connect(None) {
@@ -44,6 +48,7 @@ fn main() {
     }
 }
 
+/// Print an event we are interested in (i.e. a key press).
 fn print_event(event: GenericEvent) {
     if event.response_type() == xkb::STATE_NOTIFY {
         let ev: &xkb::StateNotifyEvent = cast_event(&event);

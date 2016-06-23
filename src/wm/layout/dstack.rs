@@ -1,15 +1,22 @@
 use wm::layout::*;
 
-// the dual stack layout
-// +-+---+-+
-// | |   | | A: left stack, hidden if fixed=false and num_windows <= 2
-// |A| B |C| B: master window
-// | |   | | C: right stack, hidden if fixed=false and num_windows <= 1
-// +-+---+-+
-// new slaves get added to the right stack,
-// so num_slaves_left <= num_slaves_right
+/// Dual stack layout.
+///
+/// ```plaintext
+/// +-+---+-+
+/// | |   | | A: left stack, hidden if fixed=false and num_windows <= 2
+/// |A| B |C| B: master window
+/// | |   | | C: right stack, hidden if fixed=false and num_windows <= 1
+/// +-+---+-+
+/// ```
+/// New windows are added as slaves to the right stack, being pushed to the
+/// left one to keep the amount of windows balanced. The following invariant
+/// holds: num_slaves_left <= num_slaves_right.
 pub struct DStack {
-    master_factor: u8, // percent
+    /// percentage of screen width taken by the master window area,
+    /// saturating semantics
+    master_factor: u8,
+    /// keep the width(s) of the areas even if they are empty?
     fixed: bool,
 }
 
@@ -23,10 +30,8 @@ impl Default for DStack {
 }
 
 impl Layout for DStack {
-    fn arrange(&self,
-               num_windows: usize,
-               screen: &ScreenSize)
-               -> Vec<Option<Geometry>> {
+    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+        -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // set master window width, capping factor
         let master_width = if self.master_factor >= 100 {
