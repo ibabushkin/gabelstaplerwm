@@ -7,21 +7,35 @@ use wm::layout::ScreenSize;
 use wm::layout::monocle::Monocle;
 use wm::layout::vstack::VStack;
 use wm::layout::hstack::HStack;
-// use wm::layout::dstack::DStack;
+use wm::layout::dstack::DStack;
 
 use wm::window_system::{Wm, WmConfig, WmCommand};
 
-// a set of (symbolic) tags - to be extended/modified
+/// All tags used by `gabelstaplerwm`
+///
+/// Tags are symbolic identifiers by which you can classify your clients.
+/// Each window has one or more tags, and you can display zero or more tags.
+/// This means that all windows having at least one of the tags of the
+/// *tagset* to be displayed attached get displayed.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Tag {
+    /// the web tag - for browsers and stuff
     Web,
+    /// work tag
     Work2,
+    /// work tag
     Work3,
+    /// work tag
     Work4,
+    /// work tag
     Work5,
+    /// the media tag - movies, music apps etc. go here
     Media,
+    /// the chat tag - for IRC and IM
     Chat,
+    /// the log tag - for log viewing
     Logs,
+    /// the monitoring tag - for htop & co.
     Mon,
 }
 
@@ -31,11 +45,22 @@ impl Default for Tag {
     }
 }
 
-// a mode representing the active set of keybindings and/or their
-// functionality
+/// All keyboard modes used by `gabelstaplerwm`-
+///
+/// A mode represents the active set of keybindings and/or their functionality.
+/// This works like the vim editor: different keybindings get triggered in
+/// different modes, even if the same keys are pressed.
+///
+/// # Limitations
+/// Be aware that currently, `gabelstaplerwm` grabs the key combinations
+/// globally during setup. This allows for overlapping keybindings in different
+/// modes, but passing a key combination once grabbed to apps depending on mode
+/// is currently impossible.
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum Mode {
+    /// normal mode doing normal stuff
     Normal,
+    /// setup mode to edit tagsets
     Setup,
 }
 
@@ -45,7 +70,10 @@ impl Default for Mode {
     }
 }
 
-// generate a window manager config - colors, border width...
+/// Generate a window manager config - colors, border width...
+///
+/// Here you can specify (or compute) the settings you want to have.
+/// See the docs for `ScreenSize` for more information.
 pub fn generate_config() -> WmConfig {
     WmConfig {
         f_color: (0x5353, 0x5d5d, 0x6c6c),
@@ -60,7 +88,9 @@ pub fn generate_config() -> WmConfig {
     }
 }
 
-// setup datastructures for the window manager, ie keybindings and tagstack
+/// Setup datastructures for the window manager.
+///
+/// This includes keybindings, default tag stack and matching.
 pub fn setup_wm(wm: &mut Wm) {
     // keybindings
     let modkey = ALTGR;
@@ -165,7 +195,7 @@ pub fn setup_wm(wm: &mut Wm) {
     wm.setup_tags(
         TagStack::from_presets(
             vec![
-                TagSet::new(vec![Tag::Web], VStack::default()),
+                TagSet::new(vec![Tag::Web], DStack::default()),
                 TagSet::new(vec![Tag::Work2], VStack::default()),
                 TagSet::new(vec![Tag::Work3], VStack::default()),
                 TagSet::new(vec![Tag::Work4], VStack::default()),
