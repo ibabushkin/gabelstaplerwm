@@ -240,9 +240,7 @@ impl<'a> Wm<'a> {
     /// corresponding `WmCommand`.
     fn arrange_windows(&mut self) {
         // first, hide all visible windows ...
-        for window in self.visible_windows.iter() {
-            self.hide_window(*window);
-        }
+        self.hide_windows(&self.visible_windows);
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
         // setup current client list
@@ -279,15 +277,24 @@ impl<'a> Wm<'a> {
         }
     }
 
-    /// Hide a window by moving it offscreen.
-    fn hide_window(&self, window: xproto::Window) {
+    /// Hide some windows by moving them offscreen.
+    fn hide_windows(&self, windows: &[xproto::Window]) {
         let safe_x = (self.screen.width * 2) as u32;
-        let cookie = xproto::configure_window(
-            self.con, window, &[(xproto::CONFIG_WINDOW_X as u16, safe_x),
-                                (xproto::CONFIG_WINDOW_Y as u16, 0)]);
-        if cookie.request_check().is_err() {
-            println!("could not move window offscreen");
+        let cookies: Vec<_> = windows
+            .iter()
+            .map(|window| xproto::configure_window(
+                 self.con, *window,
+                 &[(xproto::CONFIG_WINDOW_X as u16, safe_x),
+                   (xproto::CONFIG_WINDOW_Y as u16, 0)]
+                )
+            )
+            .collect();
+        for cookie in cookies {
+            if cookie.request_check().is_err() {
+                println!("could not move window offscreen");
+            }
         }
+
     }
 
     /// Destroy a window.
