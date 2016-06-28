@@ -103,15 +103,24 @@ impl Layout for DStack {
         res
     }
 
+    // A few notes on which indices are placed where in this layout,
+    // useful for editing the functions below.
+    //
+    // 0: master window in the middle
+    // 1: top left (if both stacks are present, else top right)
+    // (max + 2) / 2 + 1: bottom left (if both stacks are present)
+    // (max + 2) / 2: top right
+    // max: bottom right
+
     fn right_window(&self, index: usize, max: usize) -> Option<usize> {
-        let top_right = (max + 1) / 2;
+        let top_right = (max + 2) / 2;
         if index == 0 {
             if top_right >= 1 {
                 Some(top_right)
             } else {
                 None
             }
-        } else if index > top_right {
+        } else if index < top_right {
             Some(0)
         } else {
             None
@@ -125,7 +134,7 @@ impl Layout for DStack {
             } else {
                 None
             }
-        } else if index >= (max + 1) / 2 + 1 {
+        } else if index >= (max + 2) / 2 {
             Some(0)
         } else {
             None
@@ -133,7 +142,7 @@ impl Layout for DStack {
     }
 
     fn top_window(&self, index: usize, max: usize) -> Option<usize> {
-        if index <= 1 || index == (max + 1) / 2 {
+        if index <= 1 || index == (max + 2) / 2 {
             None
         } else {
             Some(index - 1)
@@ -141,8 +150,10 @@ impl Layout for DStack {
     }
 
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize> {
-        if index == max || index == (max + 1) / 2 + 1 {
+        if index == max || index == (max + 2) / 2 - 1 {
             None
+        } else if index == 0 {
+            Some((max + 2) / 2)
         } else {
             Some(index + 1)
         }
