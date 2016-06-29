@@ -189,16 +189,19 @@ impl<'a> Wm<'a> {
         self.bindings = HashMap::with_capacity(keys.len());
         let cookies: Vec<_> = keys
             .drain(..)
-            .map(|(key, callback)| {
+            .filter_map(|(key, callback)|
                 if self.bindings.insert(key, callback).is_some() {
                     println!("overwriting bindings for a key!");
-                }
-                // register for the corresponding event
-                xproto::grab_key(self.con, true, self.root,
-                                 key.mods as u16, key.code,
-                                 xproto::GRAB_MODE_ASYNC as u8,
-                                 xproto::GRAB_MODE_ASYNC as u8)
-            })
+                    None
+                } else {
+                    // register for the corresponding event
+                    Some(xproto::grab_key(
+                        self.con, true, self.root,
+                        key.mods as u16, key.code,
+                        xproto::GRAB_MODE_ASYNC as u8,
+                        xproto::GRAB_MODE_ASYNC as u8
+                    ))
+                })
             .collect();
 
         // check for errors
@@ -256,8 +259,8 @@ impl<'a> Wm<'a> {
         // we set geometries in serial, because otherwise window redraws are
         // rendered lazily, at least with xephyr. to avoid this condition,
         // we accept some additional waiting time, which doesn't matter much
-        // anyway - redraw times aren't subject to visible latency anyway.
-        // until this is fixed, the code below has to stay serial in nature.
+        // - redraw times aren't subject to visible latency anyway. until this
+        // is fixed, the code below has to stay serial in nature.
         for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
             // ... and apply them if a window is to be displayed
             if let (Some(ref cl), &Some(ref geom))
