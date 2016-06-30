@@ -215,4 +215,6 @@ pub fn setup_wm(wm: &mut Wm) {
             None
         }
     ));
+
+    wm.setup_clients();
 }

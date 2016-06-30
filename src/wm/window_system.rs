@@ -223,6 +223,20 @@ impl<'a> Wm<'a> {
         self.tag_stack = stack;
     }
 
+    // TODO
+    pub fn setup_clients(&mut self) {
+        if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
+            for window in root.children() {
+                if let Some(client) = self.construct_client(*window) {
+                    self.add_client(client);
+                    self.visible_windows.push(*window);
+                }
+            }
+            self.arrange_windows();
+            self.reset_focus();
+        }
+    }
+
     /// Check whether we currently create new clients as masters or slaves.
     ///
     /// This depends on the layout of the currently viewed tagset.
@@ -435,8 +449,8 @@ impl<'a> Wm<'a> {
             .unmanaged_windows
             .iter()
             .position(|win| *win == ev.window()) {
-            println!("unregistered unmanaged window.");
             self.unmanaged_windows.swap_remove(index);
+            println!("unregistered unmanaged window.");
         }
     }
 
@@ -447,47 +461,20 @@ impl<'a> Wm<'a> {
 
     /// A client has sent a map request, react accordingly.
     ///
-    /// Add the window to the necessary structures if it is not yet known.
-    /// If the window has a type different from `_NET_WM_WINDOW_TYPE_DOCK`,
-    /// add it to the client set and display it according to layout.
-    /// Otherwise, add it to the vector of unmanaged windows and display it.
+    /// Add the window to the necessary structures if it is not yet known and
+    /// all prerequisitory conditions are met.
     fn handle_map_request(&mut self, ev: &xproto::MapRequestEvent) {
         let window = ev.window();
         // no client corresponding to the window, add it
         if self.clients.get_client_by_window(window).is_none() {
-            // lookup properties of window
-            let props = match self.get_properties(window) {
-                Some(props) => props,
-                None => {
-                    println!("could not lookup properties.");
-                    return;
-                }
-            };
-            if props.window_type !=
-                self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
-                // compute tags of the new client
-                let tags = if let Some(res) = self.matching
-                    .as_ref()
-                    .and_then(|f| f(&props)) {
-                    res
-                } else if let Some(tagset) = self.tag_stack.current() {
-                    tagset.tags.clone()
-                } else {
-                    vec![Tag::default()]
-                };
+            if let Some(client) = self.construct_client(window) {
                 // map window
                 let cookie = xproto::map_window(self.con, window);
                 // set border width
                 let cookie2 = xproto::configure_window(self.con, window,
                     &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                        self.config.border_width as u32)]);
-                // create client object
-                self.clients.add(Client::new(window, tags.clone(), props));
-                if let Some(tagset) = self.tag_stack.current() {
-                    if self.new_window_as_master() {
-                        self.clients.swap_master(&tagset);
-                    }
-                }
+                self.add_client(client);
                 self.visible_windows.push(window);
                 self.arrange_windows();
                 self.reset_focus();
@@ -499,14 +486,61 @@ impl<'a> Wm<'a> {
                 }
             } else {
                 // it's a dock window - we don't care
-                self.unmanaged_windows.push(ev.window());
-                println!("registered unmanaged window.");
-                if xproto::map_window(self.con, window)
-                    .request_check().is_err() {
+                let cookie = xproto::map_window(self.con, window);
+                self.add_unmanaged(window);
+                if cookie.request_check().is_err() {
                     println!("could not map window.");
                 }
             }
         }
+    }
+
+    /// Construct a client for a window, or don't if we don't want to manage it.
+    ///
+    /// If the window has a type different from `_NET_WM_WINDOW_TYPE_DOCK`,
+    /// generate a client structure for it and return it, otherwise don't.
+    fn construct_client(&self, window: xproto::Window) -> Option<Client> {
+        let props = match self.get_properties(window) {
+            Some(props) => props,
+            None => {
+                println!("could not lookup properties.");
+                return None;
+            }
+        };
+        if props.window_type != self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
+            // compute tags of the new client
+            let tags = if let Some(res) = self.matching
+                .as_ref()
+                .and_then(|f| f(&props)) {
+                res
+            } else if let Some(tagset) = self.tag_stack.current() {
+                tagset.tags.clone()
+            } else {
+                vec![Tag::default()]
+            };
+            Some(Client::new(window, tags, props))
+        } else {
+            None
+        }
+    }
+
+    /// Add a client constructed from the parameters to the client store.
+    ///
+    /// Swaps new client with the master on the current layout if the
+    /// currenlty used layout dictates it.
+    fn add_client(&mut self, client: Client) {
+        self.clients.add(client);
+        if let Some(tagset) = self.tag_stack.current() {
+            if self.new_window_as_master() {
+                self.clients.swap_master(&tagset);
+            }
+        }
+    }
+
+    /// Add a window to the list of unmanaged windows.
+    fn add_unmanaged(&mut self, window: xproto::Window) {
+        self.unmanaged_windows.push(window);
+        println!("registered unmanaged window.");
     }
 
     /// Register and get back atoms, return an error on failure.
