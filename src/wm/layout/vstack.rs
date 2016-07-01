@@ -134,4 +134,20 @@ impl Layout for VStack {
     }
 
     fn new_window_as_master(&self) -> bool { false }
+
+    fn edit_layout(&mut self, msg: LayoutMessage) {
+        match msg {
+            LayoutMessage::MasterFactorAbs(mf) =>
+                self.master_factor = mf % 100,
+            LayoutMessage::MasterFactorRel(mf) =>
+                self.master_factor = if mf < 0 {
+                    self.master_factor.saturating_sub(mf.abs() as u8)
+                } else {
+                    self.master_factor.saturating_add(mf.abs() as u8) % 100
+                },
+            LayoutMessage::FixedAbs(f) => self.fixed = f,
+            LayoutMessage::FixedRel => self.fixed = !self.fixed,
+            _ => (),
+        };
+    }
 }

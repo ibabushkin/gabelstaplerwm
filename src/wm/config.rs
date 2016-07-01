@@ -3,7 +3,7 @@ use std::process::Command;
 use wm::client::{TagSet, TagStack, ClientSet};
 use wm::kbd::*;
 
-use wm::layout::ScreenSize;
+use wm::layout::{ScreenSize,LayoutMessage};
 use wm::layout::monocle::Monocle;
 use wm::layout::vstack::VStack;
 use wm::layout::hstack::HStack;
@@ -133,18 +133,35 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(35, modkey, Mode::Normal, focus!(ClientSet::focus_next)),
         bind!(61, modkey, Mode::Normal, focus!(ClientSet::focus_prev)),
         // swap windows
-        bind!(43, modkey+CTRL+SHIFT, Mode::Normal,
+        bind!(43, modkey+SHIFT, Mode::Normal,
               swap!(ClientSet::swap_left)),
-        bind!(44, modkey+CTRL+SHIFT, Mode::Normal,
+        bind!(44, modkey+SHIFT, Mode::Normal,
               swap!(ClientSet::swap_bottom)),
-        bind!(45, modkey+CTRL+SHIFT, Mode::Normal,
+        bind!(45, modkey+SHIFT, Mode::Normal,
               swap!(ClientSet::swap_top)),
-        bind!(46, modkey+CTRL+SHIFT, Mode::Normal,
+        bind!(46, modkey+SHIFT, Mode::Normal,
               swap!(ClientSet::swap_right)),
-        bind!(35, modkey+CTRL+SHIFT, Mode::Normal,
+        bind!(35, modkey+SHIFT, Mode::Normal,
               swap!(ClientSet::swap_next)),
-        bind!(61, modkey+CTRL+SHIFT, Mode::Normal,
+        bind!(61, modkey+SHIFT, Mode::Normal,
               swap!(ClientSet::swap_prev)),
+        // change layout attributes
+        bind!(42, modkey+CTRL, Mode::Normal, |_, s|
+            if let Some(t) = s.current_mut() {
+                t.layout.edit_layout(LayoutMessage::MasterFactorRel(-5));
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            }
+        ),
+        bind!(45, modkey+CTRL, Mode::Normal, |_, s|
+            if let Some(t) = s.current_mut() {
+                t.layout.edit_layout(LayoutMessage::MasterFactorRel(5));
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            }
+        ),
         // set to "fullscreen" - use monocle mode on current tagset
         bind!(65, modkey, Mode::Normal, |_, s| s
             .current_mut()

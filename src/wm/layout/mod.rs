@@ -76,4 +76,31 @@ pub trait Layout {
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize>;
     /// Decide whether to insert new windows as master.
     fn new_window_as_master(&self) -> bool;
+    /// React to a `LayoutMessage`
+    fn edit_layout(&mut self, msg: LayoutMessage);
+}
+
+/// A message type being sent to layout objects.
+///
+/// Introduced to allow for type- and implementation-independent layout editing
+/// from keybindings and other code. Layout implementations can choose to react
+/// to any subset of the message variants below, or none at all.
+#[allow(dead_code)]
+pub enum LayoutMessage {
+    /// Set absolute value of the master factor.
+    MasterFactorAbs(u8),
+    /// Add an offset to the master factor.
+    MasterFactorRel(i8),
+    /// Set `fixed` attribute of layout.
+    FixedAbs(bool),
+    /// Toggle `fixed` attrbute of layout.
+    FixedRel,
+    /// Set absolute value of the x offset.
+    XOffAbs(u16),
+    /// Add an offset to the x offset.
+    XOffRel(i16),
+    /// Set absolute value of the y offset.
+    YOffAbs(u16),
+    /// Add an offset to the y offset.
+    YOffRel(i16),
 }

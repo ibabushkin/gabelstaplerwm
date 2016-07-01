@@ -56,4 +56,20 @@ impl Layout for Monocle {
     }
 
     fn new_window_as_master(&self) -> bool { true }
+
+    fn edit_layout(&mut self, msg: LayoutMessage) {
+        match msg {
+            LayoutMessage::XOffAbs(x) => self.offset_x = x,
+            LayoutMessage::XOffRel(x) =>
+                self.offset_x = if x < 0 {
+                    self.offset_x.saturating_sub(x.abs() as u16)
+                } else { self.offset_x.saturating_add(x.abs() as u16) },
+            LayoutMessage::YOffAbs(y) => self.offset_y = y,
+            LayoutMessage::YOffRel(y) =>
+                self.offset_y = if y < 0 {
+                    self.offset_y.saturating_sub(y.abs() as u16)
+                } else { self.offset_y.saturating_add(y.abs() as u16) },
+            _ => (),
+        };
+    }
 }
