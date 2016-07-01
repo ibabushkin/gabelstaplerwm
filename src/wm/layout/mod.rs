@@ -1,7 +1,8 @@
+pub mod dstack;
+pub mod grid;
+pub mod hstack;
 pub mod monocle;
 pub mod vstack;
-pub mod hstack;
-pub mod dstack;
 
 /// A screen size to be accounted for when arranging windows.
 ///
