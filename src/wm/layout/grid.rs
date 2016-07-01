@@ -1,6 +1,20 @@
 use wm::layout::*;
 
+/// Grid Layout.
+///
+/// ```plaintext
+/// +-+---+-+
+/// | | | | |
+/// +-+-+-+-+
+/// | | | | |
+/// +-+---+-+
+/// ```
+/// Places windows in a grid with a fixed number of columns, adding new lines
+/// as necessary. Number of columns is configurable.
+/// If the amount of windows present isn't evenly divisible by the number of
+/// columns, the leftover slots are left empty.
 pub struct Grid {
+    /// Maximum number of columns.
     max_col: u8,
 }
 
