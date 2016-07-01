@@ -91,8 +91,25 @@ macro_rules! focus {
 /// Returns a closure for use with `bind!`.
 macro_rules! swap {
     ($func:expr) => {
-        |c, s| s.current()
-            .map_or(WmCommand::NoCommand,
-                    |t| { $func(c, t); WmCommand::Redraw })
+        |c, s| s
+            .current()
+            .map_or(WmCommand::NoCommand, |t| {
+                $func(c, t);
+                WmCommand::Redraw
+            })
+    }
+}
+
+/// Edit the current layout via a `LayoutCommand`.
+///
+/// Returns a closure for use with `bind!`.
+macro_rules! edit_layout {
+    ($cmd:expr) => {
+        |_, s| s
+            .current_mut()
+            .map_or(WmCommand::NoCommand, |t| {
+                t.layout.edit_layout($cmd);
+                WmCommand::Redraw
+            })
     }
 }

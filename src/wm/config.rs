@@ -146,22 +146,10 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(61, modkey+SHIFT, Mode::Normal,
               swap!(ClientSet::swap_prev)),
         // change layout attributes
-        bind!(42, modkey+CTRL, Mode::Normal, |_, s|
-            if let Some(t) = s.current_mut() {
-                t.layout.edit_layout(LayoutMessage::MasterFactorRel(-5));
-                WmCommand::Redraw
-            } else {
-                WmCommand::NoCommand
-            }
-        ),
-        bind!(45, modkey+CTRL, Mode::Normal, |_, s|
-            if let Some(t) = s.current_mut() {
-                t.layout.edit_layout(LayoutMessage::MasterFactorRel(5));
-                WmCommand::Redraw
-            } else {
-                WmCommand::NoCommand
-            }
-        ),
+        bind!(44, modkey+CTRL, Mode::Normal, 
+              edit_layout!(LayoutMessage::MasterFactorRel(-5))),
+        bind!(45, modkey+CTRL, Mode::Normal,
+              edit_layout!(LayoutMessage::MasterFactorRel(5))),
         // set to "fullscreen" - use monocle mode on current tagset
         bind!(65, modkey, Mode::Normal, |_, s| s
             .current_mut()
