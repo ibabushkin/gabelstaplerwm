@@ -76,8 +76,8 @@ impl Layout for Grid {
 
     fn edit_layout(&mut self, msg: LayoutMessage) {
         match msg {
-            LayoutMessage::MasterFactorAbs(ncol) => self.max_col = ncol,
-            LayoutMessage::MasterFactorRel(ncol) =>
+            LayoutMessage::ColumnAbs(ncol) => self.max_col = ncol,
+            LayoutMessage::ColumnRel(ncol) =>
                 self.max_col = if ncol < 0 {
                     self.max_col.saturating_sub(ncol.abs() as u8)
                 } else {

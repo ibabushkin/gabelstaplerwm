@@ -104,4 +104,8 @@ pub enum LayoutMessage {
     YOffAbs(u16),
     /// Add an offset to the y offset.
     YOffRel(i16),
+    /// Set absolute value of the column amount.
+    ColumnAbs(u8),
+    /// Add an offset to the column amount.
+    ColumnRel(i8),
 }
