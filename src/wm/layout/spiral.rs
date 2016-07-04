@@ -70,11 +70,19 @@ impl Layout for Spiral {
     }
 
     fn right_window(&self, index: usize, max: usize) -> Option<usize> {
-        None
+        if index != max {
+            Some(index + 1)
+        } else {
+            None
+        }
     }
 
-    fn left_window(&self, index: usize, max: usize) -> Option<usize> {
-        None
+    fn left_window(&self, index: usize, _: usize) -> Option<usize> {
+        if index != 0 {
+            Some(index - 1)
+        } else {
+            None
+        }
     }
 
     fn top_window(&self, index: usize, _: usize) -> Option<usize> {
