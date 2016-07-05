@@ -10,7 +10,7 @@ That way, users can choose components and replace/extend at will.
   * [ ] mouse replacement
   * [ ] bar (probably not)
   * [ ] notification support (look how naughty does it)
-* communication protocol with the outside world and logging
+* communication protocol with the outside world
 
 ## Short term stuff
 * add proper error handling to `handle_map_request()` et al

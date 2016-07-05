@@ -17,20 +17,25 @@ impl WmError {
     pub fn handle(self) -> ! {
         match self {
             WmError::CouldNotConnect(e) => {
-                println!("Could not connect: {:?}", e)
+                error!("could not connect: {:?}", e)
             }
             WmError::CouldNotAcquireScreen => {
-                println!("Could not acquire screen.")
+                error!("could not acquire screen")
             }
             WmError::CouldNotRegisterAtom(s) => {
-                println!("Could not register atom. {}", s)
+                error!("could not register atom {}", s)
             }
-            WmError::OtherWmRunning => println!("Another WM is running."),
+            WmError::OtherWmRunning => error!("another wm is running"),
             WmError::ConnectionInterrupted => {
-                println!("Connection interrupted.")
+                error!("connection interrupted")
             }
-            WmError::IOError => println!("IO error occured."),
+            WmError::IOError => error!("i/o error occured"),
         };
         exit(1);
     }
+}
+
+pub fn handle_logger_error() {
+    println!("ERROR:main: could not initialize logger");
+    exit(1);
 }

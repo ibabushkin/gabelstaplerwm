@@ -1,5 +1,9 @@
-extern crate xcb;
 extern crate libc;
+extern crate xcb;
+
+extern crate env_logger;
+#[macro_use]
+extern crate log;
 
 use xcb::base::*;
 
@@ -13,6 +17,11 @@ use wm::window_system::Wm;
 /// Sets up connection, and window manager object. Glue code
 /// to include user config.
 fn main() {
+    // logger setup
+    if env_logger::init().is_err() {
+        handle_logger_error();
+    }
+
     // user config
     let config = generate_config();
 

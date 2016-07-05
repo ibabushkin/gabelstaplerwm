@@ -191,7 +191,7 @@ impl<'a> Wm<'a> {
             .drain(..)
             .filter_map(|(key, callback)|
                 if self.bindings.insert(key, callback).is_some() {
-                    println!("overwriting bindings for a key!");
+                    info!("overwriting bindings for a key!");
                     None
                 } else {
                     // register for the corresponding event
@@ -208,7 +208,7 @@ impl<'a> Wm<'a> {
         // check for errors
         for cookie in cookies {
             if cookie.request_check().is_err() {
-                println!("could not grab key!");
+                error!("could not grab key!");
             }
         }
     }
@@ -289,7 +289,7 @@ impl<'a> Wm<'a> {
                       (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height as u32)
                     ]);
                 if cookie.request_check().is_err() {
-                    println!("could not set window geometry");
+                    error!("could not set window geometry");
                 }
             }
         }
@@ -309,7 +309,7 @@ impl<'a> Wm<'a> {
             .collect();
         for cookie in cookies {
             if cookie.request_check().is_err() {
-                println!("could not move window offscreen");
+                error!("could not move window offscreen");
             }
         }
 
@@ -322,7 +322,7 @@ impl<'a> Wm<'a> {
     fn destroy_window(&self, window: xproto::Window) {
         if self.send_event(window, "WM_DELETE_WINDOW") {
             if xproto::kill_client(self.con, window).request_check().is_err() {
-                println!("could not kill client.");
+                error!("could not kill client");
             }
         }
     }
@@ -345,7 +345,7 @@ impl<'a> Wm<'a> {
                 self.set_border_color(old_win, self.border_colors.1);
             }
             if self.send_event(new, "WM_TAKE_FOCUS") {
-                println!("could not send focus message to window");
+                info!("could not send focus message to window");
             }
             let cookie =
                 xproto::set_input_focus(self.con,
@@ -354,7 +354,7 @@ impl<'a> Wm<'a> {
                                         xproto::TIME_CURRENT_TIME);
             self.set_border_color(new, self.border_colors.0);
             if cookie.request_check().is_err() {
-                println!("could not focus window");
+                error!("could not focus window");
             } else {
                 self.focused_window = Some(new);
             }
@@ -367,7 +367,7 @@ impl<'a> Wm<'a> {
         let cookie = xproto::change_window_attributes(
             self.con, window, &[(xproto::CW_BORDER_PIXEL, color)]);
         if cookie.request_check().is_err() {
-            println!("could not set window border color");
+            error!("could not set window border color");
         }
     }
 
@@ -400,7 +400,7 @@ impl<'a> Wm<'a> {
                 self.handle_configure_request(base::cast_event(&event)),
             xproto::MAP_REQUEST =>
                 self.handle_map_request(base::cast_event(&event)),
-            num => println!("Ignoring event: {}.", num),
+            num => debug!("ignoring event: {}", num),
         }
     }
 
@@ -450,7 +450,7 @@ impl<'a> Wm<'a> {
             .iter()
             .position(|win| *win == ev.window()) {
             self.unmanaged_windows.swap_remove(index);
-            println!("unregistered unmanaged window.");
+            info!("unregistered unmanaged window");
         }
     }
 
@@ -479,17 +479,17 @@ impl<'a> Wm<'a> {
                 self.arrange_windows();
                 self.reset_focus();
                 if cookie.request_check().is_err() {
-                    println!("could not map window.");
+                    error!("could not map window");
                 }
                 if cookie2.request_check().is_err() {
-                    println!("could not set border width.");
+                    error!("could not set border width");
                 }
             } else {
                 // it's a dock window - we don't care
                 let cookie = xproto::map_window(self.con, window);
                 self.add_unmanaged(window);
                 if cookie.request_check().is_err() {
-                    println!("could not map window.");
+                    error!("could not map window");
                 }
             }
         }
@@ -503,7 +503,7 @@ impl<'a> Wm<'a> {
         let props = match self.get_properties(window) {
             Some(props) => props,
             None => {
-                println!("could not lookup properties.");
+                error!("could not lookup properties");
                 return None;
             }
         };
@@ -540,7 +540,7 @@ impl<'a> Wm<'a> {
     /// Add a window to the list of unmanaged windows.
     fn add_unmanaged(&mut self, window: xproto::Window) {
         self.unmanaged_windows.push(window);
-        println!("registered unmanaged window.");
+        info!("registered unmanaged window");
     }
 
     /// Register and get back atoms, return an error on failure.
@@ -600,13 +600,13 @@ impl<'a> Wm<'a> {
                                            cookie3.get_reply()) {
             unsafe {
                 // we get exactly one atom for the type
-                let type_atoms: &[xproto::Atom] = transmute(r1.value());
+                let type_atoms: &[xproto::Atom] = r1.value();
                 // the name is a single (variable-sized) string
-                let name_slice: &[c_char] = transmute(r2.value());
+                let name_slice: &[c_char] = r2.value();
                 let name = CStr::from_ptr(name_slice.as_ptr())
                     .to_string_lossy();
                 // the class(es) are a list of strings
-                let class_slice: &[c_char] = transmute(r3.value());
+                let class_slice: &[c_char] = r3.value();
                 // iterate over them
                 let mut class = Vec::new();
                 for c in class_slice.split(|ch| *ch == 0) {
