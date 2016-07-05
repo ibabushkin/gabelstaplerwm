@@ -17,7 +17,7 @@ macro_rules! bind {
 ///
 /// Returns a closure for use with `bind!`.
 macro_rules! push_tagset {
-    ($index:expr $(, $print:expr)*) => {
+    ($index:expr $(; $print:expr)*) => {
         |_, s| {
             s.push($index);
             $( println!("{}", $print); )*
@@ -30,7 +30,7 @@ macro_rules! push_tagset {
 ///
 /// Returns a closure for use with `bind!`.
 macro_rules! toggle_tag {
-    ($tag:expr $(, $print:expr)*) => {
+    ($tag:expr $(; $print:expr)*) => {
         |c, s| s
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
@@ -47,7 +47,7 @@ macro_rules! toggle_tag {
 ///
 /// Returns a closure for use with `bind!`.
 macro_rules! toggle_show_tag {
-    ($tag:expr $(, $print:expr)*) => {
+    ($tag:expr $(; $print:expr)*) => {
         |_, s| s
             .current_mut()
             .map(|tagset| {
@@ -80,7 +80,7 @@ macro_rules! move_to_tag {
 ///
 /// Returns a closure for use with `bind!`.
 macro_rules! focus {
-    ($func:expr $(, $print:expr)*) => {
+    ($func:expr $(; $print:expr)*) => {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
@@ -95,7 +95,7 @@ macro_rules! focus {
 ///
 /// Returns a closure for use with `bind!`.
 macro_rules! swap {
-    ($func:expr $(, $print:expr)*) => {
+    ($func:expr $(; $print:expr)*) => {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
@@ -110,7 +110,7 @@ macro_rules! swap {
 ///
 /// Returns a closure for use with `bind!`.
 macro_rules! edit_layout {
-    ($cmd:expr $(, $print:expr)*) => {
+    ($cmd:expr $(; $print:expr)*) => {
         |_, s| s
             .current_mut()
             .map_or(WmCommand::NoCommand, |t| {
