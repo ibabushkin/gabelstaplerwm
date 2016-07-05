@@ -95,7 +95,7 @@ pub fn setup_wm(wm: &mut Wm) {
     // keybindings
     let modkey = ALTGR;
     wm.setup_bindings(vec![
-        // push single-tag tagsets with default layouts
+        // focus single-digit-tagset
         bind!(10, modkey, Mode::Normal, push_tagset!(0)),
         bind!(11, modkey, Mode::Normal, push_tagset!(1)),
         bind!(12, modkey, Mode::Normal, push_tagset!(2)),

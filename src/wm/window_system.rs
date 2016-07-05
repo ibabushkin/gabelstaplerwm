@@ -191,7 +191,7 @@ impl<'a> Wm<'a> {
             .drain(..)
             .filter_map(|(key, callback)|
                 if self.bindings.insert(key, callback).is_some() {
-                    info!("overwriting bindings for a key!");
+                    error!("overwriting bindings for a key!");
                     None
                 } else {
                     // register for the corresponding event
@@ -358,7 +358,6 @@ impl<'a> Wm<'a> {
             } else {
                 self.focused_window = Some(new);
             }
-
         }
     }
 
