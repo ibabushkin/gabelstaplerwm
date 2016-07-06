@@ -54,23 +54,31 @@ macro_rules! bind {
 /// # Usage
 /// The `push_tagset!` macro expects the index of the tagset to be focused.
 /// The returned closure makes that tagset the current tagset and modifies
-/// the history stack accordingly.
+/// the history stack accordingly, if it isn't on top already.
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
 macro_rules! push_tagset {
     ($index:expr;; $print:expr) => {
         |c, s| {
-            s.push($index);
-            println!("{}", $print(c, s));
-            WmCommand::Redraw
+            if !s.current_index().map_or(false, |i| *i == $index) {
+                s.push($index);
+                println!("{}", $print(c, s));
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            }
         }
     };
     ($index:expr $(; $print:expr)*) => {
         |_, s| {
-            s.push($index);
-            $( println!("{}", $print); )*
-            WmCommand::Redraw
+            if !s.current_index().map_or(false, |i| *i == $index) {
+                s.push($index);
+                $( println!("{}", $print); )*
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            }
         }
     }
 }
@@ -93,6 +101,7 @@ macro_rules! toggle_tag {
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 println!("{}", $print(c, s));
+                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             }))
             .unwrap_or(WmCommand::NoCommand)
@@ -104,7 +113,12 @@ macro_rules! toggle_tag {
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 $( println!("{}", $print); )*
+                // TODO: optimize for cases, where current tags are present
+                // if s.current().unwrap().tags.iter().index($tag).is_some() {
                 WmCommand::Redraw
+                /*} else {
+                    WmCommand::NoCommand
+                }*/
             }))
             .unwrap_or(WmCommand::NoCommand)
     }
@@ -127,6 +141,7 @@ macro_rules! toggle_show_tag {
             .map(|tagset| {
                 tagset.toggle_tag($tag);
                 println!("{}", $print(c, s));
+                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
             .unwrap_or(WmCommand::NoCommand)
@@ -137,6 +152,7 @@ macro_rules! toggle_show_tag {
             .map(|tagset| {
                 tagset.toggle_tag($tag);
                 $( println!("{}", $print); )*
+                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
             .unwrap_or(WmCommand::NoCommand)
@@ -227,6 +243,7 @@ macro_rules! swap {
             .map_or(WmCommand::NoCommand, |t| {
                 $func(c, t);
                 println!("{}", $print(c, s));
+                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
     };
@@ -236,6 +253,7 @@ macro_rules! swap {
             .map_or(WmCommand::NoCommand, |t| {
                 $func(c, t);
                 $( println!("{}", $print); )*
+                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
     }
@@ -263,6 +281,7 @@ macro_rules! edit_layout {
             .map_or(WmCommand::NoCommand, |t| {
                 t.layout.edit_layout($cmd);
                 println!("{}", $print(c, s));
+                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
     };
@@ -272,6 +291,7 @@ macro_rules! edit_layout {
             .map_or(WmCommand::NoCommand, |t| {
                 t.layout.edit_layout($cmd);
                 $( println!("{}", $print); )*
+                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
     }

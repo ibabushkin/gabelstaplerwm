@@ -526,6 +526,13 @@ impl TagStack {
         }
     }
 
+    /// Get the current tag set's index
+    ///
+    /// Returns `None` if the history stack is empty
+    pub fn current_index(&self) -> Option<&u8> {
+        self.history.last()
+    }
+
     /// Get the current tag set by reference.
     ///
     /// Returns `None` if the history stack is empty
