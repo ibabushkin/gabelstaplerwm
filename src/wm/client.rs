@@ -478,6 +478,7 @@ impl TagSet {
     }
 
     /// Set a layout on the tagset.
+    #[allow(dead_code)]
     pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
         self.layout = Box::new(layout);
     }

@@ -133,32 +133,17 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(35, modkey, Mode::Normal, focus!(ClientSet::focus_next)),
         bind!(61, modkey, Mode::Normal, focus!(ClientSet::focus_prev)),
         // swap windows
-        bind!(43, modkey+SHIFT, Mode::Normal,
-              swap!(ClientSet::swap_left)),
-        bind!(44, modkey+SHIFT, Mode::Normal,
-              swap!(ClientSet::swap_bottom)),
-        bind!(45, modkey+SHIFT, Mode::Normal,
-              swap!(ClientSet::swap_top)),
-        bind!(46, modkey+SHIFT, Mode::Normal,
-              swap!(ClientSet::swap_right)),
-        bind!(35, modkey+SHIFT, Mode::Normal,
-              swap!(ClientSet::swap_next)),
-        bind!(61, modkey+SHIFT, Mode::Normal,
-              swap!(ClientSet::swap_prev)),
+        bind!(43, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_left)),
+        bind!(44, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_bottom)),
+        bind!(45, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_top)),
+        bind!(46, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_right)),
+        bind!(35, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_next)),
+        bind!(61, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_prev)),
         // change layout attributes
         bind!(44, modkey+CTRL, Mode::Normal, 
               edit_layout!(LayoutMessage::MasterFactorRel(-5))),
         bind!(45, modkey+CTRL, Mode::Normal,
               edit_layout!(LayoutMessage::MasterFactorRel(5))),
-        // set to "fullscreen" - use monocle mode on current tagset
-        bind!(65, modkey, Mode::Normal, |_, s| s
-            .current_mut()
-            .map(|t| {
-                t.set_layout(Monocle::default());
-                WmCommand::Redraw
-            })
-            .unwrap_or(WmCommand::NoCommand)
-        ),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |_, s| {
             if s.view_prev() {
