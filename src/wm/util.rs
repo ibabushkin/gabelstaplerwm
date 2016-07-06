@@ -101,8 +101,15 @@ macro_rules! toggle_tag {
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 println!("{}", $print(c, s));
-                // TODO: optimize for cases, where current tags are present
-                WmCommand::Redraw
+                if s.current()
+                    .unwrap()
+                    .tags
+                    .iter()
+                    .find(|t| **t == $tag).is_some() {
+                    WmCommand::Redraw
+                } else {
+                    WmCommand::NoCommand
+                }
             }))
             .unwrap_or(WmCommand::NoCommand)
     };
@@ -113,12 +120,15 @@ macro_rules! toggle_tag {
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 $( println!("{}", $print); )*
-                // TODO: optimize for cases, where current tags are present
-                // if s.current().unwrap().tags.iter().index($tag).is_some() {
-                WmCommand::Redraw
-                /*} else {
+                if s.current()
+                    .unwrap()
+                    .tags
+                    .iter()
+                    .find(|t| **t == $tag).is_some() {
+                    WmCommand::Redraw
+                } else {
                     WmCommand::NoCommand
-                }*/
+                }
             }))
             .unwrap_or(WmCommand::NoCommand)
     }
@@ -141,7 +151,6 @@ macro_rules! toggle_show_tag {
             .map(|tagset| {
                 tagset.toggle_tag($tag);
                 println!("{}", $print(c, s));
-                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
             .unwrap_or(WmCommand::NoCommand)
@@ -152,7 +161,6 @@ macro_rules! toggle_show_tag {
             .map(|tagset| {
                 tagset.toggle_tag($tag);
                 $( println!("{}", $print); )*
-                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
             .unwrap_or(WmCommand::NoCommand)
@@ -210,18 +218,18 @@ macro_rules! focus {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
-                $func(c, t);
+                let ret = $func(c, t);
                 println!("{}", $print(c, s));
-                WmCommand::Focus
+                if ret { WmCommand::Focus } else { WmCommand::NoCommand }
             })
     };
     ($func:expr $(; $print:expr)*) => {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
-                $func(c, t);
+                let ret = $func(c, t);
                 $( println!("{}", $print); )*
-                WmCommand::Focus
+                if ret { WmCommand::Focus } else { WmCommand::NoCommand }
             })
     }
 }
@@ -241,20 +249,18 @@ macro_rules! swap {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
-                $func(c, t);
+                let ret = $func(c, t);
                 println!("{}", $print(c, s));
-                // TODO: optimize for cases, where current tags are present
-                WmCommand::Redraw
+                if ret { WmCommand::Redraw } else { WmCommand::NoCommand }
             })
     };
     ($func:expr $(; $print:expr)*) => {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
-                $func(c, t);
+                let ret = $func(c, t);
                 $( println!("{}", $print); )*
-                // TODO: optimize for cases, where current tags are present
-                WmCommand::Redraw
+                if ret { WmCommand::Redraw } else { WmCommand::NoCommand }
             })
     }
 }
@@ -281,7 +287,6 @@ macro_rules! edit_layout {
             .map_or(WmCommand::NoCommand, |t| {
                 t.layout.edit_layout($cmd);
                 println!("{}", $print(c, s));
-                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
     };
@@ -291,7 +296,6 @@ macro_rules! edit_layout {
             .map_or(WmCommand::NoCommand, |t| {
                 t.layout.edit_layout($cmd);
                 $( println!("{}", $print); )*
-                // TODO: optimize for cases, where current tags are present
                 WmCommand::Redraw
             })
     }

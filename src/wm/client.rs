@@ -271,8 +271,8 @@ impl ClientSet {
     }
 
     /// Focus a window on a set of tags relative to the current
-    /// by index difference.
-    fn focus_offset(&mut self, tags: &[Tag], offset: isize) {
+    /// by index difference, returning whether changes have been made.
+    fn focus_offset(&mut self, tags: &[Tag], offset: isize) -> bool {
         let &mut (ref mut current, ref clients) =
             self.get_order_or_insert(&tags);
         if let Some(current_window) = current
@@ -291,13 +291,15 @@ impl ClientSet {
                 (current_index as isize + offset) as usize % clients.len();
             if let Some(new_client) = clients.get(new_index) {
                 *current = Some(new_client.clone());
+                return true;
             }
         }
+        false
     }
 
     /// Swap with current window on a set of tags relative to the current
-    /// by index difference.
-    fn swap_offset(&mut self, tags: &[Tag], offset: isize) {
+    /// by index difference, returning whether changes have been made.
+    fn swap_offset(&mut self, tags: &[Tag], offset: isize) -> bool {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(&tags);
         if let Some(current_window) = current
@@ -315,31 +317,35 @@ impl ClientSet {
             let new_index =
                 (current_index as isize + offset) as usize % clients.len();
             clients.swap(current_index, new_index);
+            true
+        } else {
+            false
         }
     }
 
-    /// Focus next window.
-    pub fn focus_next(&mut self, tagset: &TagSet) {
-        self.focus_offset(&tagset.tags, 1);
+    /// Focus next window, returning whether changes have been made.
+    pub fn focus_next(&mut self, tagset: &TagSet) -> bool {
+        self.focus_offset(&tagset.tags, 1)
     }
 
-    /// Swap with next window.
-    pub fn swap_next(&mut self, tagset: &TagSet) {
-        self.swap_offset(&tagset.tags, 1);
+    /// Swap with next window, returning whether changes have been made.
+    pub fn swap_next(&mut self, tagset: &TagSet) -> bool {
+        self.swap_offset(&tagset.tags, 1)
     }
 
-    /// Focus previous window.
-    pub fn focus_prev(&mut self, tagset: &TagSet) {
-        self.focus_offset(&tagset.tags, -1);
+    /// Focus previous window, returning whether changes have been made.
+    pub fn focus_prev(&mut self, tagset: &TagSet) -> bool {
+        self.focus_offset(&tagset.tags, -1)
     }
 
-    /// Swap with previous window.
-    pub fn swap_prev(&mut self, tagset: &TagSet) {
-        self.swap_offset(&tagset.tags, -1);
+    /// Swap with previous window, returning whether changes have been made.
+    pub fn swap_prev(&mut self, tagset: &TagSet) -> bool {
+        self.swap_offset(&tagset.tags, -1)
     }
 
-    /// Focus a window on a set of tags relative to the current by direction.
-    fn focus_direction<F>(&mut self, tags: &[Tag], focus_func: F)
+    /// Focus a window on a set of tags relative to the current by direction,
+    /// returning whether changes have been made.
+    fn focus_direction<F>(&mut self, tags: &[Tag], focus_func: F) -> bool
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
             self.get_order_or_insert(&tags);
@@ -359,13 +365,16 @@ impl ClientSet {
                 focus_func(current_index, clients.len() - 1) {
                 if let Some(new_client) = clients.get(new_index) {
                     *current = Some(new_client.clone());
+                    return true;
                 }
             }
         }
+        false
     }
 
-    /// Swap with window on a set of tags relative to the current by direction.
-    fn swap_direction<F>(&mut self, tags: &[Tag], focus_func: F)
+    /// Swap with window on a set of tags relative to the current by direction,
+    /// returning whether changes have been made.
+    fn swap_direction<F>(&mut self, tags: &[Tag], focus_func: F) -> bool
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(&tags);
@@ -385,62 +394,70 @@ impl ClientSet {
                 focus_func(current_index, clients.len() - 1) {
                 if new_index < clients.len() {
                     clients.swap(current_index, new_index);
+                    return true;
                 }
             }
         }
+        false
     }
 
-    /// Focus the window to the right.
-    pub fn focus_right(&mut self, tagset: &TagSet) {
+    /// Focus the window to the right, returning whether changes have been
+    /// made.
+    pub fn focus_right(&mut self, tagset: &TagSet) -> bool {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.right_window(i, m))
     }
 
-    /// Swap with the window to the right.
-    pub fn swap_right(&mut self, tagset: &TagSet) {
+    /// Swap with the window to the right, returning whether changes have been
+    /// made.
+    pub fn swap_right(&mut self, tagset: &TagSet) -> bool {
         self.swap_direction(&tagset.tags,
-                            |i, m| tagset.layout.right_window(i, m));
+                            |i, m| tagset.layout.right_window(i, m))
     }
 
-    /// Focus the window to the left.
-    pub fn focus_left(&mut self, tagset: &TagSet) {
+    /// Focus the window to the left, returning whether changes have been made.
+    pub fn focus_left(&mut self, tagset: &TagSet) -> bool {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.left_window(i, m))
     }
 
-    /// Swap with the window to the left.
-    pub fn swap_left(&mut self, tagset: &TagSet) {
+    /// Swap with the window to the left, returning whether changes have been
+    /// made.
+    pub fn swap_left(&mut self, tagset: &TagSet) -> bool {
         self.swap_direction(&tagset.tags,
-                            |i, m| tagset.layout.left_window(i, m));
+                            |i, m| tagset.layout.left_window(i, m))
     }
 
-    /// Focus the window to the top.
-    pub fn focus_top(&mut self, tagset: &TagSet) {
+    /// Focus the window to the top, returning whether changes have been made.
+    pub fn focus_top(&mut self, tagset: &TagSet) -> bool {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.top_window(i, m))
     }
 
-    /// Swap with the window to the left.
-    pub fn swap_top(&mut self, tagset: &TagSet) {
+    /// Swap with the window to the left, returning whether changes have been
+    /// made.
+    pub fn swap_top(&mut self, tagset: &TagSet) -> bool {
         self.swap_direction(&tagset.tags,
-                            |i, m| tagset.layout.top_window(i, m));
+                            |i, m| tagset.layout.top_window(i, m))
     }
 
-    /// Focus the window to the bottom.
-    pub fn focus_bottom(&mut self, tagset: &TagSet) {
+    /// Focus the window to the bottom, returning whether changes have been
+    /// made.
+    pub fn focus_bottom(&mut self, tagset: &TagSet) -> bool {
         self.focus_direction(&tagset.tags,
                              |i, m| tagset.layout.bottom_window(i, m))
     }
 
-    /// Swap with the window to the left.
-    pub fn swap_bottom(&mut self, tagset: &TagSet) {
+    /// Swap with the window to the left, returning whether changes have been
+    /// made.
+    pub fn swap_bottom(&mut self, tagset: &TagSet) -> bool {
         self.swap_direction(&tagset.tags,
-                            |i, m| tagset.layout.bottom_window(i, m));
+                            |i, m| tagset.layout.bottom_window(i, m))
     }
 
-    /// Swap with the master window.
-    pub fn swap_master(&mut self, tagset: &TagSet) {
-        self.swap_direction(&tagset.tags, |_, _| Some(0));
+    /// Swap with the master window, returning whether changes have been made.
+    pub fn swap_master(&mut self, tagset: &TagSet) -> bool {
+        self.swap_direction(&tagset.tags, |_, _| Some(0))
     }
 }
 
@@ -468,12 +485,14 @@ impl TagSet {
         }
     }
 
-    /// Toggle a tag on the tagset.
-    pub fn toggle_tag(&mut self, tag: Tag) {
+    /// Toggle a tag on the tagset and return whether changes have been made.
+    pub fn toggle_tag(&mut self, tag: Tag) -> bool {
         if let Some(index) = self.tags.iter().position(|t| *t == tag) {
             self.tags.remove(index);
+            true
         } else {
             self.tags.push(tag);
+            false
         }
     }
 
