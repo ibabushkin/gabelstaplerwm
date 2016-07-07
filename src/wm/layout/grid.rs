@@ -15,7 +15,7 @@ use wm::layout::*;
 /// columns, the leftover slots are left empty.
 pub struct Grid {
     /// Maximum number of columns.
-    max_col: u8,
+    pub max_col: u8,
 }
 
 impl Default for Grid {

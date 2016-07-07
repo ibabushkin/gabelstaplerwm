@@ -15,9 +15,9 @@ use wm::layout::*;
 pub struct DStack {
     /// percentage of screen width taken by the master window area,
     /// saturating semantics
-    master_factor: u8,
+    pub master_factor: u8,
     /// keep the width(s) of the areas even if they are empty?
-    fixed: bool,
+    pub fixed: bool,
 }
 
 impl Default for DStack {

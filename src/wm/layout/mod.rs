@@ -45,6 +45,7 @@ impl ScreenSize {
 }
 
 /// A window's geometry.
+#[derive(Clone)]
 pub struct Geometry {
     /// x coordinate of window
     pub x: u16,

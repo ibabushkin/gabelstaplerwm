@@ -1,10 +1,14 @@
+use std::cmp;
+
 use wm::layout::*;
 
-pub struct Spiral { }
+pub struct Spiral {
+    pub max_windows: u8
+}
 
 impl Default for Spiral {
     fn default() -> Spiral {
-        Spiral { }
+        Spiral { max_windows: 8 }
     }
 }
 
@@ -18,59 +22,57 @@ impl Layout for Spiral {
         let mut cur_x = screen.offset_x;
         let mut cur_y = screen.offset_y;
 
-        if num_windows == 1 {
-            vec![Some(Geometry {
-                x: cur_x,
-                y: cur_y,
-                width: cur_width,
-                height: cur_height
-            })]
-        } else {
-            (0..num_windows)
-                .map(|i| {
-                    if i == 0 {
-                        cur_width = cur_width / 2 - 2;
-                    } else if north && east {
-                        if i != num_windows - 1 {
-                            cur_height = cur_height / 2 - 2;
-                        }
-                        cur_x += cur_width + 2;
-                        north = false;
-                    } else if !north && east {
-                        if i != num_windows - 1 {
-                            cur_width = cur_width / 2 - 2;
-                            cur_x += cur_width + 2;
-                        }
-                        cur_y += cur_height + 2;
-                        east = false;
-                    } else if !north && !east {
-                        if i != num_windows - 1 {
-                            cur_height = cur_height / 2 - 2;
-                            cur_y += cur_height + 2;
-                        }
-                        cur_x -= cur_width + 2;
-                        north = true;
-                    } else {
-                        if i != num_windows - 1 {
-                            cur_width = cur_width / 2 - 2;
-                            cur_x += cur_width + 2;
-                        }
-                        cur_y -= cur_height + 2;
-                        east = true;
+        let min = if num_windows != 0 {
+            cmp::min(num_windows, self.max_windows as usize) - 1
+        } else { 0 };
+
+        (0..num_windows)
+            .map(|i| {
+                if num_windows == 1 {
+                    // thus, i is 0 as well
+                } else if i == 0 {
+                    cur_width = cur_width / 2 - 1;
+                } else if i > min {
+                    return None;
+                } else if north && east {
+                    if i < min {
+                        cur_height = cur_height / 2 - 1;
                     }
-                    Some(Geometry {
-                        x: cur_x,
-                        y: cur_y,
-                        width: cur_width,
-                        height: cur_height,
-                    })
+                    cur_x += cur_width + 2;
+                    north = false;
+                } else if !north && east {
+                    if i < min {
+                        cur_width = cur_width / 2 - 1;
+                        cur_x += cur_width + 2;
+                    }
+                    cur_y += cur_height + 2;
+                    east = false;
+                } else if !north && !east {
+                    if i < min {
+                        cur_height = cur_height / 2 - 1;
+                        cur_y += cur_height + 2;
+                    }
+                    cur_x -= cur_width + 2;
+                    north = true;
+                } else {
+                    if i < min {
+                        cur_width = cur_width / 2 - 1;
+                    }
+                    cur_y -= cur_height + 2;
+                    east = true;
+                }
+                Some(Geometry {
+                    x: cur_x,
+                    y: cur_y,
+                    width: cur_width,
+                    height: cur_height,
                 })
-                .collect()
-        }
+            })
+            .collect()
     }
 
     fn right_window(&self, index: usize, max: usize) -> Option<usize> {
-        if index != max {
+        if index < cmp::max(max, self.max_windows as usize) - 1 {
             Some(index + 1)
         } else {
             None
@@ -94,7 +96,7 @@ impl Layout for Spiral {
     }
 
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize> {
-        if index != max {
+        if index < cmp::max(max, self.max_windows as usize) - 1 {
             Some(index + 1)
         } else {
             None
