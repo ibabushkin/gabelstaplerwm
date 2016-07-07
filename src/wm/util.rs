@@ -218,18 +218,24 @@ macro_rules! focus {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
-                let ret = $func(c, t);
-                println!("{}", $print(c, s));
-                if ret { WmCommand::Focus } else { WmCommand::NoCommand }
+                if $func(c, t) {
+                    println!("{}", $print(c, s));
+                    WmCommand::Focus
+                } else {
+                    WmCommand::NoCommand
+                }
             })
     };
     ($func:expr $(; $print:expr)*) => {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
-                let ret = $func(c, t);
-                $( println!("{}", $print); )*
-                if ret { WmCommand::Focus } else { WmCommand::NoCommand }
+                if $func(c, t) {
+                    $( println!("{}", $print); )*
+                    WmCommand::Focus
+                } else {
+                    WmCommand::NoCommand
+                }
             })
     }
 }
@@ -249,18 +255,24 @@ macro_rules! swap {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
-                let ret = $func(c, t);
-                println!("{}", $print(c, s));
-                if ret { WmCommand::Redraw } else { WmCommand::NoCommand }
+                if $func(c, t) {
+                    println!("{}", $print(c, s));
+                    WmCommand::Redraw
+                } else {
+                    WmCommand::NoCommand
+                }
             })
     };
     ($func:expr $(; $print:expr)*) => {
         |c, s| s
             .current()
             .map_or(WmCommand::NoCommand, |t| {
-                let ret = $func(c, t);
-                $( println!("{}", $print); )*
-                if ret { WmCommand::Redraw } else { WmCommand::NoCommand }
+                if $func(c, t) {
+                    $( println!("{}", $print); )*
+                    WmCommand::Redraw
+                } else {
+                    WmCommand::NoCommand
+                }
             })
     }
 }
@@ -281,22 +293,28 @@ macro_rules! swap {
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
 macro_rules! edit_layout {
-    ($cmd:expr;; $print:expr) => {
+    ($($cmd:expr),*;; $print:expr) => {
         |_, s| s
             .current_mut()
             .map_or(WmCommand::NoCommand, |t| {
-                t.layout.edit_layout($cmd);
-                println!("{}", $print(c, s));
-                WmCommand::Redraw
+                if t.layout.edit_layout_retry(vec![$($cmd,)*]) {
+                    println!("{}", $print(c, s));
+                    WmCommand::Redraw
+                } else {
+                    WmCommand::NoCommand
+                }
             })
     };
-    ($cmd:expr $(; $print:expr)*) => {
+    ($($cmd:expr),* $(; $print:expr)*) => {
         |_, s| s
             .current_mut()
             .map_or(WmCommand::NoCommand, |t| {
-                t.layout.edit_layout($cmd);
-                $( println!("{}", $print); )*
-                WmCommand::Redraw
+                if t.layout.edit_layout_retry(vec![$($cmd,)*]) {
+                    $( println!("{}", $print); )*
+                    WmCommand::Redraw
+                } else {
+                    WmCommand::NoCommand
+                }
             })
     }
 }

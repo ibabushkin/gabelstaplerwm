@@ -5,7 +5,7 @@ That way, users can choose components and replace/extend at will.
 
 ## General component ideas
 * additional functionality is placed in additional modules, that don't *need*
-  to be compiled in (separate crates)
+  to be compiled in, realized via separate crates
   * [ ] scratchpad or similar concept
   * [ ] mouse replacement
   * [ ] bar (probably not)

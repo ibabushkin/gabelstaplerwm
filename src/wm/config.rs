@@ -140,10 +140,12 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(35, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_next)),
         bind!(61, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_prev)),
         // change layout attributes
-        bind!(44, modkey+CTRL, Mode::Normal, 
-              edit_layout!(LayoutMessage::MasterFactorRel(-5))),
-        bind!(45, modkey+CTRL, Mode::Normal,
-              edit_layout!(LayoutMessage::MasterFactorRel(5))),
+        bind!(44, modkey+CTRL, Mode::Normal, edit_layout!(
+                LayoutMessage::MasterFactorRel(-5),
+                LayoutMessage::ColumnRel(-1))),
+        bind!(45, modkey+CTRL, Mode::Normal, edit_layout!(
+                LayoutMessage::MasterFactorRel(5),
+                LayoutMessage::ColumnRel(1))),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |_, s| {
             if s.view_prev() {

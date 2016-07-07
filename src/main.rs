@@ -22,16 +22,16 @@ fn main() {
         handle_logger_error();
     }
 
-    // user config
+    // include user config
     let config = generate_config();
 
-    // new connection to X server
+    // create new connection to X server
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(e) => WmError::CouldNotConnect(e).handle(),
     };
 
-    // wm init
+    // initialize window manager
     let mut wm = match Wm::new(&con, screen_num, config) {
         Ok(w) => w,
         Err(e) => e.handle(),

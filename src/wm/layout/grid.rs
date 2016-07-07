@@ -88,7 +88,7 @@ impl Layout for Grid {
 
     fn new_window_as_master(&self) -> bool { false }
 
-    fn edit_layout(&mut self, msg: LayoutMessage) {
+    fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::ColumnAbs(ncol) => self.max_col = ncol,
             LayoutMessage::ColumnRel(ncol) =>
@@ -97,7 +97,8 @@ impl Layout for Grid {
                 } else {
                     self.max_col.saturating_add(ncol.abs() as u8)
                 },
-            _ => (),
+            _ => return false,
         };
+        true
     }
 }

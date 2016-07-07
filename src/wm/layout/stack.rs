@@ -161,7 +161,7 @@ impl Layout for DStack {
 
     fn new_window_as_master(&self) -> bool { false }
 
-    fn edit_layout(&mut self, msg: LayoutMessage) {
+    fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
                 self.master_factor = mf % 100,
@@ -173,8 +173,9 @@ impl Layout for DStack {
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
-            _ => (),
+            _ => return false,
         };
+        true
     }
 }
 
@@ -313,7 +314,7 @@ impl Layout for HStack {
 
     fn new_window_as_master(&self) -> bool { false }
 
-    fn edit_layout(&mut self, msg: LayoutMessage) {
+    fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
                 self.master_factor = mf % 100,
@@ -325,8 +326,9 @@ impl Layout for HStack {
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
-            _ => (),
+            _ => return false,
         };
+        true
     }
 }
 
@@ -465,7 +467,7 @@ impl Layout for VStack {
 
     fn new_window_as_master(&self) -> bool { false }
 
-    fn edit_layout(&mut self, msg: LayoutMessage) {
+    fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
                 self.master_factor = mf % 100,
@@ -477,7 +479,8 @@ impl Layout for VStack {
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
-            _ => (),
+            _ => return false,
         };
+        true
     }
 }

@@ -103,5 +103,5 @@ impl Layout for Spiral {
 
     fn new_window_as_master(&self) -> bool { false }
 
-    fn edit_layout(&mut self, _: LayoutMessage) { }
+    fn edit_layout(&mut self, _: LayoutMessage) -> bool { false }
 }

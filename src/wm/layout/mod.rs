@@ -76,8 +76,14 @@ pub trait Layout {
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize>;
     /// Decide whether to insert new windows as master.
     fn new_window_as_master(&self) -> bool;
-    /// React to a `LayoutMessage`
-    fn edit_layout(&mut self, msg: LayoutMessage);
+    /// React to a `LayoutMessage`, returning true on change.
+    fn edit_layout(&mut self, msg: LayoutMessage) -> bool;
+    /// React to the first applicable `LayoutMessage`, returning true on
+    /// change.
+    fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
+        msgs.drain(..).any(|m| self.edit_layout(m))
+    }
+
 }
 
 /// A message type being sent to layout objects.
