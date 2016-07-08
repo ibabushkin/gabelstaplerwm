@@ -2,7 +2,6 @@ use libc::c_char;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::mem::transmute;
 use std::process::exit;
 use std::str;
 
@@ -235,7 +234,6 @@ impl<'a> Wm<'a> {
     pub fn setup_clients(&mut self) {
         if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
             for window in root.children() {
-                println!("client window: {}", window);
                 if let Some(client) = self.construct_client(*window) {
                     self.add_client(client);
                     self.visible_windows.push(*window);
@@ -608,12 +606,17 @@ impl<'a> Wm<'a> {
                                            cookie2.get_reply(),
                                            cookie3.get_reply()) {
             unsafe {
-                // we get exactly one atom for the type
+                // we need to get exactly one atom for the type
                 let type_atoms: &[xproto::Atom] = r1.value();
+                if type_atoms.len() == 0 {
+                    return None;
+                }
+
                 // the name is a single (variable-sized) string
                 let name_slice: &[c_char] = r2.value();
                 let name = CStr::from_ptr(name_slice.as_ptr())
                     .to_string_lossy();
+
                 // the class(es) are a list of strings
                 let class_slice: &[c_char] = r3.value();
                 // iterate over them
@@ -629,6 +632,7 @@ impl<'a> Wm<'a> {
                         }
                     }
                 }
+
                 // return the properties obtained
                 Some(ClientProps {
                     window_type: type_atoms[0].clone(),
@@ -645,12 +649,12 @@ impl<'a> Wm<'a> {
     fn send_event(&self, window: xproto::Window, atom: &'static str) -> bool {
         let data = [self.lookup_atom(atom), 0, 0, 0, 0].as_ptr()
             as *const xcb_client_message_data_t;
-        let event: &str = unsafe {
-            transmute(xproto::ClientMessageEvent::new(
-                32, window, self.lookup_atom("WM_PROTOCOLS"), *data))
+        let event = unsafe {
+            xproto::ClientMessageEvent::new(
+                32, window, self.lookup_atom("WM_PROTOCOLS"), *data)
         };
         xproto::send_event(self.con, false, window,
-                           xproto::EVENT_MASK_NO_EVENT, event)
+                           xproto::EVENT_MASK_NO_EVENT, &event)
             .request_check()
             .is_err()
     }

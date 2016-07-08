@@ -7,4 +7,4 @@ authors = ["Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>"]
 libc = "*"
 env_logger = "0.3.3"
 log = "*"
-xcb = { version = "0.7.3", features = ["xkb"] }
+xcb = { version = "0.7.4", features = ["xkb"] }

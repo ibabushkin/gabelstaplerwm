@@ -45,6 +45,9 @@ fn main() {
     // user-defined setup
     setup_wm(&mut wm);
 
+    // find all clients present 
+    wm.setup_clients();
+
     // main loop
     if let Err(e) = wm.run() {
         e.handle();
