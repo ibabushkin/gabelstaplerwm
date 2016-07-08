@@ -1,3 +1,6 @@
+//! # gabelstaplergrab - a key grabbing tool
+//! Just run it while no window manager is connected to the X server and
+//! press the keys you are interested in. Especially useful with `Xephyr`.
 extern crate xcb;
 
 extern crate env_logger;
