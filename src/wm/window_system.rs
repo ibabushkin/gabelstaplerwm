@@ -3,6 +3,7 @@ use libc::c_char;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::mem::transmute;
+use std::process::exit;
 use std::str;
 
 use xcb::base;
@@ -44,6 +45,8 @@ pub enum WmCommand {
     Kill(xproto::Window),
     /// switch keyboard mode
     ModeSwitch(Mode),
+    /// quit window manager
+    Quit,
     /// don't do anything, no action is needed
     NoCommand,
 }
@@ -232,6 +235,7 @@ impl<'a> Wm<'a> {
     pub fn setup_clients(&mut self) {
         if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
             for window in root.children() {
+                println!("client window: {}", window);
                 if let Some(client) = self.construct_client(*window) {
                     self.add_client(client);
                     self.visible_windows.push(*window);
@@ -427,6 +431,7 @@ impl<'a> Wm<'a> {
             WmCommand::Focus => self.reset_focus(),
             WmCommand::Kill(win) => self.destroy_window(win),
             WmCommand::ModeSwitch(mode) => self.mode = mode,
+            WmCommand::Quit => exit(0),
             WmCommand::NoCommand => (),
         };
     }

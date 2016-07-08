@@ -146,6 +146,8 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(45, modkey+CTRL, Mode::Normal, edit_layout!(
                 LayoutMessage::MasterFactorRel(5),
                 LayoutMessage::ColumnRel(1))),
+        // quit the window manager
+        bind!(24, modkey+CTRL, Mode::Normal, |_, _| WmCommand::Quit),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |_, s| {
             if s.view_prev() {

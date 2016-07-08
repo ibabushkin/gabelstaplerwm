@@ -14,8 +14,8 @@ use wm::window_system::Wm;
 
 /// Main function.
 ///
-/// Sets up connection, and window manager object. Glue code
-/// to include user config.
+/// Sets up connection, and window manager object.
+/// Glue code to include user config.
 fn main() {
     // logger setup
     if env_logger::init().is_err() {
