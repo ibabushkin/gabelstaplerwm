@@ -1,3 +1,16 @@
+//! # Configuration module for gabelstaplerwm
+//! This module is intended to be edited by the user in order to customize
+//! the software and adjust it to his or her needs. You can edit the enums
+//! freely, but you need to keep the functions already declared, as well as
+//! trait instances which are derived or implemented, though you can change
+//! the implementations of the `Default` trait. All other edits are welcome
+//! as well, but chances are you 
+//!
+//! * don't need them to customize your wm.
+//! * should consider contributing your changes back instead, as it seems to be
+//!   a more involved and complex feature.
+//!
+//! But feel free to do otherwise if you wish.
 use std::process::Command;
 
 use wm::client::{TagSet, TagStack, ClientSet};
