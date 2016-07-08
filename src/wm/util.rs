@@ -1,51 +1,55 @@
+//! # General design concepts behind the macros
+//! All macros to be passed to `bind!` share a common property:
+//! they allow for outputting (almost) arbitrary data after successful
+//! execution and before control is returned to the window manager's core.
+//!
+//! This can be achieved in two ways, which are easier to demonstrate than
+//! to explain properly:
+//!
+//! This returns a closure that pushes tagset zero and calls the closure
+//! on the client list and tag stack container to generate some object and
+//! print it to stdout:
+//!
+//! ```
+//! push_tagset!(0;; |c, s| ...)
+//! ```
+//!
+//! This returns a closure that pushes tagset zero and prints some previously
+//! computed value or values to stdout:
+//! ```
+//! push_tagset!(0; some_value)
+//! push_tagset!(0; some_value; some_more_values_here)
+//! ```
+//!
+//! These methods are different because the former allows to compute the output
+//! after the "real work" has been done by the callback closure generated from
+//! the macro, whereas the latter is more readable, but doesn't allow to do
+//! that. Note that in the case of multiple objects passed to the second form,
+//! they are printed on separate lines.
+//!
+//! Another thing to remember: if the closure accepts multiple arguments, they
+//! are comma-separated and come before the semicolon(s), like so:
+//!
+//! ```
+//! some_macro!(param_1, param_2, ... , param_n; optional_output(s)/whatever)
+//! ```
+
 /// Bind a key combination to a callback closure.
 ///
 /// # Examples
 /// The following snippet binds the key with the number 10, as obtained from
 /// the `gabelstaplergrab` utility, with the modkeys denoted by `modkey`, in
 /// normal mode to a closure returned by the `push_tagset!` macro.
+///
 /// ```
 /// bind!(10, modkey, Mode::Normal, push_tagset!(0)),
 /// ```
+#[macro_export]
 macro_rules! bind {
     ($code:expr, $mods:expr, $mode:expr, $callback:expr) => {
         (KeyPress {code: $code, mods: $mods, mode: $mode}, Box::new($callback))
     }
 }
-
-/// # General design concepts behind the macros
-/// All macros to be passed to `bind!` share a common property:
-/// they allow for outputting (almost) arbitrary data after successful
-/// execution and before control is returned to the window manager's core.
-///
-/// This can be achieved in two ways, which are easier to demonstrate than
-/// to explain properly:
-///
-/// This returns a closure that pushes tagset zero and calls the closure
-/// on the client list and tag stack container to generate some object and
-/// print it to stdout:
-/// ```
-/// push_tagset!(0;; |c, s| ...)
-/// ```
-///
-/// This returns a closure that pushes tagset zero and prints some previously
-/// computed value or values to stdout:
-/// ```
-/// push_tagset!(0; some_value)
-/// push_tagset!(0; some_value; some_more_values_here)
-/// ```
-///
-/// These methods are different because the former allows to compute the output
-/// after the "real work" has been done by the callback closure generated from
-/// the macro, whereas the latter is more readable, but doesn't allow to do
-/// that. Note that in the case of multiple objects passed to the second form,
-/// they are printed on separate lines.
-///
-/// Another thing to remember: if the closure accepts multiple arguments, they
-/// are comma-separated and come before the semicolon(s), like so:
-/// ```
-/// some_macro!(param_1, param_2, ... , param_n; optional_output(s)/whatever)
-/// ```
 
 /// View a tagset by pushing it by index on the history stack.
 ///
@@ -58,6 +62,7 @@ macro_rules! bind {
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
+#[macro_export]
 macro_rules! push_tagset {
     ($index:expr;; $print:expr) => {
         |c, s| {
@@ -93,6 +98,7 @@ macro_rules! push_tagset {
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
+#[macro_export]
 macro_rules! toggle_tag {
     ($tag:expr;; $print:expr) => {
         |c, s| s
@@ -144,6 +150,7 @@ macro_rules! toggle_tag {
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
+#[macro_export]
 macro_rules! toggle_show_tag {
     ($tag:expr;; $print:expr) => {
         |c, s| s
@@ -177,6 +184,7 @@ macro_rules! toggle_show_tag {
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
+#[macro_export]
 macro_rules! move_to_tag {
     ($($tag:expr),*;; $print:expr) => {
         |c, s| s
@@ -213,6 +221,7 @@ macro_rules! move_to_tag {
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
+#[macro_export]
 macro_rules! focus {
     ($func:expr;; $print:expr) => {
         |c, s| s
@@ -250,6 +259,7 @@ macro_rules! focus {
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
+#[macro_export]
 macro_rules! swap {
     ($func:expr;; $print:expr) => {
         |c, s| s
@@ -292,6 +302,7 @@ macro_rules! swap {
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
+#[macro_export]
 macro_rules! edit_layout {
     ($($cmd:expr),*;; $print:expr) => {
         |_, s| s

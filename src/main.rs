@@ -1,3 +1,10 @@
+//! # gabelstaplerwm - a semidynamic tiling window manager
+//! It's what the heading says it is. The documentation found here is a very
+//! dense description of what the sources do. It is intended to be read along
+//! with the sources, as the configuration process involves you editing them.
+//! See the documentation for the `config` module for more information on
+//! configuration.
+
 extern crate libc;
 extern crate xcb;
 
@@ -7,7 +14,7 @@ extern crate log;
 
 use xcb::base::*;
 
-mod wm;
+pub mod wm;
 use wm::config::*;
 use wm::err::*;
 use wm::window_system::Wm;

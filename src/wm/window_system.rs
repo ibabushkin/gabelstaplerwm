@@ -226,11 +226,6 @@ impl<'a> Wm<'a> {
     }
 
     /// Add all present clients to the datastructures on startup.
-    ///
-    /// Currently, this code isn't really needed, because the window manager
-    /// doesn't disown it's children, so on a restart (if it involves
-    /// restarting the process itself, as it's the only way to do things right
-    /// now) they get killed anyway.
     pub fn setup_clients(&mut self) {
         if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
             for window in root.children() {
