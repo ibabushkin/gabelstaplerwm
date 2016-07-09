@@ -2,9 +2,32 @@
 name = "gabelstaplerwm"
 version = "0.1.0"
 authors = ["Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>"]
+description = "A semidynamic tiling window manager using XCB"
+documentation = "https://ibabushkin.github.io/rustdoc/gabelstaplerwm/gabelstaplerwm/"
+homepage = "https://ibabushkin.github.io/"
+repository = "https://github.com/ibabushkin/gabelstaplerwm"
+readme = "README.md"
+keywords = ["xcb", "window manager", "X"]
+license = "BSD3"
+
+[features]
+default = []
+with_mousetrap = ["mousetrap"]
 
 [dependencies]
 libc = "*"
 env_logger = "0.3.3"
 log = "*"
 xcb = { version = "0.7.4", features = ["xkb"] }
+mousetrap = { path = "extra/mousetrap", optional = true }
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+
+[workspace]

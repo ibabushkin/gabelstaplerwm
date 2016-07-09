@@ -12,6 +12,9 @@ extern crate env_logger;
 #[macro_use]
 extern crate log;
 
+#[cfg(with_mousetrap)]
+extern crate mousetrap;
+
 use xcb::base::*;
 
 pub mod wm;

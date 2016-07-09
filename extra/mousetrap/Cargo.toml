@@ -1,0 +1,11 @@
+[package]
+name = "mousetrap"
+version = "0.1.0"
+authors = ["Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>"]
+description = "A mouse replacement module for gabelstaplerwm"
+homepage = "https://ibabushkin.github.io/"
+repository = "https://github.com/ibabushkin/gabelstaplerwm"
+keywords = ["xcb", "window manager", "X"]
+license = "BSD3"
+
+[dependencies]
