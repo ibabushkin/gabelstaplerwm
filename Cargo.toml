@@ -12,7 +12,8 @@ license = "BSD3"
 
 [features]
 default = []
-with_mousetrap = ["mousetrap"]
+with_mousetrap = ["mousetrap", "with_plugins"]
+with_plugins = []
 
 [dependencies]
 libc = "*"
