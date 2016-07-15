@@ -417,8 +417,10 @@ impl<'a> Wm<'a> {
         let key = from_key(ev, self.mode);
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
+            // handle normal keybindings
             command = func(&mut self.clients, &mut self.tag_stack);
         } else if let Some(func) = self.plugins.get(&key) {
+            // and keybindings registered to off-site plugins
             func(&self.con);
         }
         match command {
