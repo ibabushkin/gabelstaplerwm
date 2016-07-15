@@ -1,11 +1,7 @@
 [root]
-name = "gabelstaplerwm"
+name = "mousetrap"
 version = "0.1.0"
 dependencies = [
- "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mousetrap 0.1.0",
  "xcb 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -24,6 +20,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.71 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "gabelstaplerwm"
+version = "0.1.0"
+dependencies = [
+ "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mousetrap 0.1.0",
+ "xcb 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -52,10 +59,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "mousetrap"
-version = "0.1.0"
 
 [[package]]
 name = "regex"

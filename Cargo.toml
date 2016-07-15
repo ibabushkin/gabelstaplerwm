@@ -12,11 +12,12 @@ license = "BSD3"
 
 [features]
 default = []
-with_mousetrap = ["mousetrap"]
+with_mousetrap = ["mousetrap", "with_plugins"]
+with_plugins = []
 
 [dependencies]
 libc = "*"
-env_logger = "0.3.3"
+env_logger = "*"
 log = "*"
 xcb = { version = "0.7.4", features = ["xkb"] }
 mousetrap = { path = "extra/mousetrap", optional = true }

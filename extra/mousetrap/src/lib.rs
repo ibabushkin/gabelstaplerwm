@@ -1,3 +1,8 @@
+extern crate xcb;
+
+use xcb::base;
+use xcb::xproto;
+
 pub mod mousetrap {
     //! This module contains utilities to perform systematic mouse warping
     //! based on subsequent reduction of the target area. This allows for a

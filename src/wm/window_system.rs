@@ -84,6 +84,8 @@ pub struct Wm<'a> {
     bindings: Keybindings,
     /// matching function for client placement
     matching: Option<Matching>,
+    /// plugin container
+    plugins: PluginBindings,
     /// current keyboard mode
     mode: Mode,
     /// set of currently present clients
@@ -123,6 +125,7 @@ impl<'a> Wm<'a> {
                                                         config.u_color),
                         bindings: HashMap::new(),
                         matching: None,
+                        plugins: HashMap::new(),
                         mode: Mode::default(),
                         clients: ClientSet::new(),
                         tag_stack: TagStack::new(),
@@ -415,6 +418,8 @@ impl<'a> Wm<'a> {
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
             command = func(&mut self.clients, &mut self.tag_stack);
+        } else if let Some(func) = self.plugins.get(&key) {
+            func(&self.con);
         }
         match command {
             WmCommand::Redraw => {

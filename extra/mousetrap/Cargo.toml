@@ -9,3 +9,4 @@ keywords = ["xcb", "window manager", "X"]
 license = "BSD3"
 
 [dependencies]
+xcb = "0.7.4"

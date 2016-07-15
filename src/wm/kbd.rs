@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use xcb::base::Connection;
 use xcb::xkb;
 
 use wm::client::{ClientSet, TagStack};
@@ -33,6 +34,11 @@ pub const ALTGR: u8 = 136;
 pub type KeyCallback = Box<Fn(&mut ClientSet, &mut TagStack) -> WmCommand>;
 /// Keybinding map.
 pub type Keybindings = HashMap<KeyPress, KeyCallback>;
+
+/// Closure type of a callback function providing plugin functionality.
+pub type PluginCallback = Box<Fn(&Connection) -> ()>;
+/// Plugin keybinding map.
+pub type PluginBindings = HashMap<KeyPress, PluginCallback>;
 
 /// a key has been pressed - keycode and modifier information.
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
