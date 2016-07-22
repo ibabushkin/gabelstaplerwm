@@ -1,4 +1,4 @@
-# gabelstaperwm
+# gabelstaplerwm
 gabelstaplerwm is a semidynamic tiling window manager written in the Rust
 programming language and using the XCB wrappers available. It's main design
 goals are simplicity, correctness in behaviour and configurability, coupled
