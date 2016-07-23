@@ -178,7 +178,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(54, modkey, Mode::Normal, |c, s| s
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
-            .map(|w| WmCommand::Kill(w))
+            .map(WmCommand::Kill)
             .unwrap_or(WmCommand::NoCommand)
         ),
         // switch to setup mode

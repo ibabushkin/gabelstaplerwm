@@ -1,5 +1,6 @@
 use std::cell::{RefCell,RefMut};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::rc::{Rc,Weak};
 
 use xcb::xproto;
@@ -81,7 +82,7 @@ impl Client {
     pub fn match_tags(&self, tags: &[Tag]) -> bool {
         self.tags
             .iter()
-            .any(|t| tags.iter().find(|t2| t == *t2).is_some())
+            .any(|t| tags.iter().any(|t2| t == t2))
     }
 }
 
@@ -112,6 +113,7 @@ pub type OrderEntry = (Option<WeakClientRef>, Vec<WeakClientRef>);
 /// is organized in a delayed fashion: not all tagsets have an associated
 /// client list to avoid unnecessary copying of weak references. cleanup is
 /// done as soon as clients are removed, i.e. it is non-lazy.
+#[derive(Default)]
 pub struct ClientSet {
     /// all clients
     clients: HashMap<xproto::Window, ClientRef>,
@@ -122,10 +124,7 @@ pub struct ClientSet {
 impl ClientSet {
     /// Initialize an empty client list.
     pub fn new() -> ClientSet {
-        ClientSet {
-            clients: HashMap::new(),
-            order: HashMap::new(),
-        }
+        ClientSet::default()
     }
 
     /// Get a client that corresponds to a given window.
@@ -145,7 +144,7 @@ impl ClientSet {
             .filter(|cl| cl.borrow().match_tags(tags))
             .map(|r| Rc::downgrade(r))
             .collect();
-        let focused = clients.first().map(|r| r.clone());
+        let focused = clients.first().cloned();
         self.order.entry(tags.to_vec()).or_insert((focused, clients))
     }
 
@@ -160,15 +159,15 @@ impl ClientSet {
                 .filter_map(|c| c.upgrade().map(|_| c.clone()))
                 .collect();
             if entry.0.clone().and_then(|r| r.upgrade()).is_none() {
-                entry.0 = entry.1.first().map(|r| r.clone());
+                entry.0 = entry.1.first().cloned();
             }
         }
     }
 
     /// Update all order entries to account for changes in a given client.
     fn fix_references(&mut self, target_client: ClientRef) {
-        for (tags, entry) in self.order.iter_mut() {
-            if !target_client.borrow().match_tags(&tags) {
+        for (tags, entry) in &mut self.order {
+            if !target_client.borrow().match_tags(tags) {
                 // filter tagset's client references
                 entry.1 = entry.1
                     .iter()
@@ -192,7 +191,7 @@ impl ClientSet {
                         }
                     )
                     .next()
-                    .or(entry.1.first().map(|c| c.clone()));
+                    .or(entry.1.first().cloned());
             } else if entry.1
                 .iter()
                 .find(|r| Self::is_ref_to_client(*r, &target_client))
@@ -202,9 +201,9 @@ impl ClientSet {
                 // if no client is focused, focus newly added client
                 entry.0 = entry.0
                     .iter()
-                    .map(|r| r.clone())
+                    .cloned()
                     .next()
-                    .or(entry.1.first().map(|c| c.clone()));
+                    .or(entry.1.first().cloned());
             }
         }
     }
@@ -226,7 +225,7 @@ impl ClientSet {
         let weak = Rc::downgrade(&wrapped_client);
         self.clients.insert(window, wrapped_client);
         for (tags, &mut (ref mut current, ref mut clients))
-            in self.order.iter_mut() {
+        in &mut self.order {
             if dummy_client.match_tags(tags) {
                 clients.push(weak.clone());
                 *current = Some(weak.clone());
@@ -274,7 +273,7 @@ impl ClientSet {
     /// by index difference, returning whether changes have been made.
     fn focus_offset(&mut self, tags: &[Tag], offset: isize) -> bool {
         let &mut (ref mut current, ref clients) =
-            self.get_order_or_insert(&tags);
+            self.get_order_or_insert(tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -283,8 +282,7 @@ impl ClientSet {
                 .iter()
                 .position(|client| client
                     .upgrade()
-                    .map(|r| r.borrow().window == current_window)
-                    .unwrap_or(false)
+                    .map_or(false, |r| r.borrow().window == current_window)
                 )
                 .unwrap();
             let new_index =
@@ -301,7 +299,7 @@ impl ClientSet {
     /// by index difference, returning whether changes have been made.
     fn swap_offset(&mut self, tags: &[Tag], offset: isize) -> bool {
         let &mut (ref current, ref mut clients) =
-            self.get_order_or_insert(&tags);
+            self.get_order_or_insert(tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -310,8 +308,7 @@ impl ClientSet {
                 .iter()
                 .position(|client| client
                     .upgrade()
-                    .map(|r| r.borrow().window == current_window)
-                    .unwrap_or(false)
+                    .map_or(false, |r| r.borrow().window == current_window)
                 )
                 .unwrap();
             let new_index =
@@ -348,7 +345,7 @@ impl ClientSet {
     fn focus_direction<F>(&mut self, tags: &[Tag], focus_func: F) -> bool
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
-            self.get_order_or_insert(&tags);
+            self.get_order_or_insert(tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -357,8 +354,7 @@ impl ClientSet {
                 .iter()
                 .position(|client| client
                     .upgrade()
-                    .map(|r| r.borrow().window == current_window)
-                    .unwrap_or(false)
+                    .map_or(false, |r| r.borrow().window == current_window)
                 )
                 .unwrap();
             if let Some(new_index) =
@@ -377,7 +373,7 @@ impl ClientSet {
     fn swap_direction<F>(&mut self, tags: &[Tag], focus_func: F) -> bool
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref current, ref mut clients) =
-            self.get_order_or_insert(&tags);
+            self.get_order_or_insert(tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -386,8 +382,7 @@ impl ClientSet {
                 .iter()
                 .position(|client| client
                     .upgrade()
-                    .map(|r| r.borrow().window == current_window)
-                    .unwrap_or(false)
+                    .map_or(false, |r| r.borrow().window == current_window)
                 )
                 .unwrap();
             if let Some(new_index) =
@@ -510,6 +505,7 @@ impl TagSet {
 /// unsigned integers. Thus, 256 different tagsets can be managed at any point
 /// in time. A small history of capped size is kept, determining the tagset
 /// currently displayed by the window manager.
+#[derive(Default)]
 pub struct TagStack {
     /// all tagsets known to man
     tagsets: HashMap<u8, TagSet>,
@@ -520,10 +516,7 @@ pub struct TagStack {
 impl TagStack {
     /// Setup an empty tag stack.
     pub fn new() -> TagStack {
-        TagStack {
-            tagsets: HashMap::new(),
-            history: Vec::new(),
-        }
+        TagStack::default()
     }
 
     /// Setup a tag stack from a vector of tag sets and the index of the
@@ -587,12 +580,19 @@ impl TagStack {
     /// Add a new tagset to the set.
     #[allow(dead_code)]
     pub fn add(&mut self, index: u8, value: TagSet) -> bool {
-        if !self.tagsets.contains_key(&index) {
-            self.tagsets.insert(index, value);
-            true
-        } else {
-            false
+        match self.tagsets.entry(index) {
+            Entry::Occupied(_) => true,
+            Entry::Vacant(e) => {
+                e.insert(value);
+                false
+            }
         }
+//        if !self.tagsets.contains_key(&index) {
+//            self.tagsets.insert(index, value);
+//            true
+//        } else {
+//            false
+//        }
     }
 
     /// Remove a tagset from the set.
@@ -601,9 +601,9 @@ impl TagStack {
         if self.tagsets.remove(&index).is_some() {
             self.history = self
                 .history
-                .iter_mut()
+                .iter()
                 .filter(|i| **i != index)
-                .map(|r| r.clone())
+                .cloned()
                 .collect();
             true
         } else {

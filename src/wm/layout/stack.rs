@@ -11,7 +11,7 @@ use wm::layout::*;
 /// ```
 /// New windows are added as slaves to the right stack, being pushed to the
 /// left one to keep the amount of windows balanced. The following invariant
-/// holds: num_slaves_left <= num_slaves_right.
+/// holds: `num_slaves_left <= num_slaves_right`.
 pub struct DStack {
     /// percentage of screen width taken by the master window area,
     /// saturating semantics
@@ -287,12 +287,10 @@ impl Layout for HStack {
             } else {
                 None
             }
+        } else if !self.inverted {
+            Some(0)
         } else {
-            if !self.inverted {
-                Some(0)
-            } else {
-                None
-            }
+            None
         }
     }
 
@@ -303,12 +301,10 @@ impl Layout for HStack {
             } else {
                 None
             }
+        } else if self.inverted {
+            Some(0)
         } else {
-            if self.inverted {
-                Some(0)
-            } else {
-                None
-            }
+            None
         }
     }
 
@@ -422,12 +418,10 @@ impl Layout for VStack {
             } else {
                 None
             }
+        } else if self.inverted {
+            Some(0)
         } else {
-            if self.inverted {
-                Some(0)
-            } else {
-                None
-            }
+            None
         }
     }
 
@@ -438,12 +432,10 @@ impl Layout for VStack {
             } else {
                 None
             }
+        } else if self.inverted {
+            None
         } else {
-            if self.inverted {
-                None
-            } else {
-                Some(0)
-            }
+            Some(0)
         }
     }
 
