@@ -326,7 +326,7 @@ impl<'a> Wm<'a> {
     /// if that fails, for instance if the client ignores such messages.
     fn destroy_window(&self, window: xproto::Window) {
         if self.send_event(window, "WM_DELETE_WINDOW") &&
-           xproto::kill_client(self.con, window).request_check().is_err() {
+            xproto::kill_client(self.con, window).request_check().is_err() {
             error!("could not kill client");
         }
     }

@@ -225,7 +225,7 @@ impl ClientSet {
         let weak = Rc::downgrade(&wrapped_client);
         self.clients.insert(window, wrapped_client);
         for (tags, &mut (ref mut current, ref mut clients))
-        in &mut self.order {
+            in &mut self.order {
             if dummy_client.match_tags(tags) {
                 clients.push(weak.clone());
                 *current = Some(weak.clone());
@@ -587,12 +587,6 @@ impl TagStack {
                 false
             }
         }
-//        if !self.tagsets.contains_key(&index) {
-//            self.tagsets.insert(index, value);
-//            true
-//        } else {
-//            false
-//        }
     }
 
     /// Remove a tagset from the set.
