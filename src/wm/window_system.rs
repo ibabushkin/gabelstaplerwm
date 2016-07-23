@@ -325,10 +325,9 @@ impl<'a> Wm<'a> {
     /// Send a client message and kill the client the hard and merciless way
     /// if that fails, for instance if the client ignores such messages.
     fn destroy_window(&self, window: xproto::Window) {
-        if self.send_event(window, "WM_DELETE_WINDOW") {
-            if xproto::kill_client(self.con, window).request_check().is_err() {
-                error!("could not kill client");
-            }
+        if self.send_event(window, "WM_DELETE_WINDOW") &&
+           xproto::kill_client(self.con, window).request_check().is_err() {
+            error!("could not kill client");
         }
     }
 
@@ -419,7 +418,7 @@ impl<'a> Wm<'a> {
         if let Some(func) = self.bindings.get(&key) {
             command = func(&mut self.clients, &mut self.tag_stack);
         } else if let Some(func) = self.plugins.get(&key) {
-            func(&self.con);
+            func(self.con);
         }
         match command {
             WmCommand::Redraw => {
@@ -539,7 +538,7 @@ impl<'a> Wm<'a> {
         self.clients.add(client);
         if let Some(tagset) = self.tag_stack.current() {
             if self.new_window_as_master() {
-                self.clients.swap_master(&tagset);
+                self.clients.swap_master(tagset);
             }
         }
     }
@@ -635,7 +634,7 @@ impl<'a> Wm<'a> {
 
                 // return the properties obtained
                 Some(ClientProps {
-                    window_type: type_atoms[0].clone(),
+                    window_type: type_atoms[0],
                     name: name.into_owned(),
                     class: class,
                 })
