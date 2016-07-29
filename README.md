@@ -3,7 +3,8 @@ gabelstaplerwm is a semidynamic tiling window manager written in the Rust
 programming language and using the XCB wrappers available. It's main design
 goals are simplicity, correctness in behaviour and configurability, coupled
 with compile-time configuration by the user, minimizing overhead at runtime
-and allowing for sophisticated dynamic behaviour.
+and allowing for sophisticated dynamic behaviour. This is achieved by minimizing
+the responsibilities of the window manager.
 
 ## Concepts
 gabelstaplerwm is inspired by dwm and awesomewm, adding a few ideas of it's own
@@ -51,7 +52,8 @@ And never *will* be.
 
 If you need it, implement it, and use it to your liking, or use a different piece
 of software. Extensibility is one of the main goals, compiling in additional crates
-with extended features is planned for the future.
+with extended features is being worked on, so this should be possible (if you deem it
+worth you time).
 
 ## Configuration and Installation
 Simple as the source itself:
@@ -65,7 +67,13 @@ Simple as the source itself:
 ## Documentation
 Currently, the only docs available are the (partly pretty extensive) comments in
 the sources. If there are unclear aspects, feel free to file an issue on GitHub.
-There is also a help document planned.
+There is also a help document planned, but considering the configuration model,
+understanding the source is pretty useful anyway.
+
+## Future Development
+The project isn't stale, but I pause it from time to time when other things happen.
+The things that are planned for the near or less-near future are all listed in the
+[ideas file](https://www.github.com/ibabushkin/gabelstaplerwm/blob/master/IDEAS.md).
 
 ## Contributing
 Contribution is always welcome, be it bug reports, feedback, patches or proposals.
