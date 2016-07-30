@@ -1,6 +1,7 @@
 use std::cell::{RefCell,RefMut};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::fmt;
 use std::rc::{Rc,Weak};
 
 use xcb::xproto;
@@ -498,6 +499,19 @@ impl TagSet {
     }
 }
 
+impl fmt::Display for TagSet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(f, "["));
+        for tag in self.tags.iter().take(self.tags.len() - 1) {
+            try!(write!(f, "{},", tag));
+        }
+        if let Some(last_tag) = self.tags.last() {
+            try!(write!(f, "{}", last_tag));
+        }
+        write!(f, "]")
+    }
+}
+
 /// An organized set of known tagsets.
 ///
 /// Allows for simple addressing of tagstes (and their layouts)
@@ -609,4 +623,11 @@ impl TagStack {
     pub fn view_prev(&mut self) -> bool {
         self.history.pop().is_some()
     }
+}
+
+/// Helper function to get the current tagset from a `TagStack`
+///
+/// Takes two arguments to allow for usage in config macros.
+pub fn current_tagset(_: &ClientSet, s: &TagStack) -> String {
+    s.current().map_or("[]".to_string(), |t| format!("{}", t))
 }

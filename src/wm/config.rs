@@ -8,12 +8,14 @@
 //!
 //! * don't need them to customize your wm.
 //! * should consider contributing your changes back instead, as it seems to be
-//!   a more involved and complex feature.
+//!   a more involved and complex feature that you are working on.
 //!
 //! But feel free to do otherwise if you wish.
+use std::fmt;
+
 use std::process::Command;
 
-use wm::client::{TagSet, TagStack, ClientSet};
+use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
 use wm::kbd::*;
 
 use wm::layout::{ScreenSize,LayoutMessage};
@@ -58,6 +60,22 @@ impl Default for Tag {
     }
 }
 
+impl fmt::Display for Tag {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match *self {
+            Tag::Web => "web",
+            Tag::Work2 => "work2",
+            Tag::Work3 => "work3",
+            Tag::Work4 => "work4",
+            Tag::Work5 => "work5",
+            Tag::Media => "media",
+            Tag::Chat => "chat",
+            Tag::Logs => "logs",
+            Tag::Mon => "mon",
+        })
+    }
+}
+
 /// All keyboard modes used by `gabelstaplerwm`-
 ///
 /// A mode represents the active set of keybindings and/or their functionality.
@@ -68,7 +86,9 @@ impl Default for Tag {
 /// Be aware that currently, `gabelstaplerwm` grabs the key combinations
 /// globally during setup. This allows for overlapping keybindings in different
 /// modes, but passing a key combination once grabbed to apps depending on mode
-/// is currently impossible.
+/// is currently impossible. This can be lifted in the future, if we decide to
+/// regrab on every mode change, but that's a rather expensive operation, given
+/// the currrent, `HashMap`-based design.
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub enum Mode {
     /// normal mode doing normal stuff
@@ -89,14 +109,14 @@ impl Default for Mode {
 /// See the docs for `ScreenSize` for more information.
 pub fn generate_config() -> WmConfig {
     WmConfig {
-        f_color: (0x5353, 0x5d5d, 0x6c6c),
-        u_color: (0x0000, 0x0000, 0x0000),
+        f_color: (0x5353, 0x5d5d, 0x6c6c), // this is #535d6c
+        u_color: (0x0000, 0x0000, 0x0000), // and this is #000000
         border_width: 1,
         screen: ScreenSize {
             offset_x: 0,
             offset_y: 20,
-            width: 800,
-            height: 600,
+            width: 800,  // defaults reasonable for Xephyr,
+            height: 600, // change to adjust to a real screen
         },
     }
 }
@@ -109,15 +129,15 @@ pub fn setup_wm(wm: &mut Wm) {
     let modkey = ALTGR;
     wm.setup_bindings(vec![
         // focus single-digit-tagset
-        bind!(10, modkey, Mode::Normal, push_tagset!(0)),
-        bind!(11, modkey, Mode::Normal, push_tagset!(1)),
-        bind!(12, modkey, Mode::Normal, push_tagset!(2)),
-        bind!(13, modkey, Mode::Normal, push_tagset!(3)),
-        bind!(14, modkey, Mode::Normal, push_tagset!(4)),
-        bind!(15, modkey, Mode::Normal, push_tagset!(5)),
-        bind!(16, modkey, Mode::Normal, push_tagset!(6)),
-        bind!(17, modkey, Mode::Normal, push_tagset!(7)),
-        bind!(18, modkey, Mode::Normal, push_tagset!(8)),
+        bind!(10, modkey, Mode::Normal, push_tagset!(0;; current_tagset)),
+        bind!(11, modkey, Mode::Normal, push_tagset!(1;; current_tagset)),
+        bind!(12, modkey, Mode::Normal, push_tagset!(2;; current_tagset)),
+        bind!(13, modkey, Mode::Normal, push_tagset!(3;; current_tagset)),
+        bind!(14, modkey, Mode::Normal, push_tagset!(4;; current_tagset)),
+        bind!(15, modkey, Mode::Normal, push_tagset!(5;; current_tagset)),
+        bind!(16, modkey, Mode::Normal, push_tagset!(6;; current_tagset)),
+        bind!(17, modkey, Mode::Normal, push_tagset!(7;; current_tagset)),
+        bind!(18, modkey, Mode::Normal, push_tagset!(8;; current_tagset)),
         // toggle tags on current client
         bind!(10, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Web)),
         bind!(11, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work2)),
@@ -162,8 +182,9 @@ pub fn setup_wm(wm: &mut Wm) {
         // quit the window manager
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| WmCommand::Quit),
         // go back in tagset history
-        bind!(42, modkey, Mode::Normal, |_, s| {
+        bind!(42, modkey, Mode::Normal, |c, s| {
             if s.view_prev() {
+                println!("{}", current_tagset(c, s));
                 WmCommand::Redraw
             } else {
                 WmCommand::NoCommand
@@ -188,15 +209,24 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(36, modkey, Mode::Setup, |_, _|
               WmCommand::ModeSwitch(Mode::Normal)),
         // toggle tags on current tagset
-        bind!(10, modkey, Mode::Setup, toggle_show_tag!(Tag::Web)),
-        bind!(11, modkey, Mode::Setup, toggle_show_tag!(Tag::Work2)),
-        bind!(12, modkey, Mode::Setup, toggle_show_tag!(Tag::Work3)),
-        bind!(13, modkey, Mode::Setup, toggle_show_tag!(Tag::Work4)),
-        bind!(14, modkey, Mode::Setup, toggle_show_tag!(Tag::Work5)),
-        bind!(15, modkey, Mode::Setup, toggle_show_tag!(Tag::Media)),
-        bind!(16, modkey, Mode::Setup, toggle_show_tag!(Tag::Chat)),
-        bind!(17, modkey, Mode::Setup, toggle_show_tag!(Tag::Logs)),
-        bind!(18, modkey, Mode::Setup, toggle_show_tag!(Tag::Mon)),
+        bind!(10, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Web;; current_tagset)),
+        bind!(11, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Work2;; current_tagset)),
+        bind!(12, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Work3;; current_tagset)),
+        bind!(13, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Work4;; current_tagset)),
+        bind!(14, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Work5;; current_tagset)),
+        bind!(15, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Media;; current_tagset)),
+        bind!(16, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Chat;; current_tagset)),
+        bind!(17, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Logs;; current_tagset)),
+        bind!(18, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Mon;; current_tagset)),
     ]);
     // default tag stack
     wm.setup_tags(
