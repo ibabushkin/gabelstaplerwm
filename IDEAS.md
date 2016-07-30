@@ -15,3 +15,4 @@ user-generated output.
 ## Short term stuff
 * [ ] add proper error handling to `handle_map_request()` etc.
 * [ ] finish / polish plugin system
+* [ ] add a proper framework for output generation in utils module (or elsewhere)
