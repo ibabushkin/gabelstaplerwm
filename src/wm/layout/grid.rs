@@ -33,13 +33,13 @@ impl Layout for Grid {
             let max_col = if self.max_col > 0 {
                 self.max_col
             } else { self.max_col + 1 } as usize;
-            let width = screen.width / max_col as u16;
+            let width = screen.width / max_col as u32;
             let height =
-                screen.height / (1 + ((num_windows - 1) / max_col)) as u16;
+                screen.height / (1 + ((num_windows - 1) / max_col)) as u32;
             (0..num_windows)
                 .map(|i| {
-                    let x = (width + 2) * (i % max_col) as u16;
-                    let y = (height + 2) * (i / max_col) as u16;
+                    let x = (width + 2) * (i % max_col) as u32;
+                    let y = (height + 2) * (i / max_col) as u32;
                     Some(Geometry { x: x, y: y, width: width, height: height })
                 })
                 .collect()

@@ -111,7 +111,8 @@ impl<'a> Wm<'a> {
             let width = screen.width_in_pixels();
             let height = screen.height_in_pixels();
             let colormap = screen.default_colormap();
-            let new_screen = ScreenSize::new(&config.screen, width, height);
+            let new_screen =
+                ScreenSize::new(&config.screen, width as u32, height as u32);
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => {
                     Ok(Wm {

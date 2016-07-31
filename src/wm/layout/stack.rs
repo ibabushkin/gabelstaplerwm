@@ -37,7 +37,7 @@ impl Layout for DStack {
         let master_width = if self.master_factor >= 100 {
             screen.width
         } else {
-            self.master_factor as u16 * screen.width / 100
+            self.master_factor as u32 * screen.width / 100
         };
         if num_windows == 1 && !self.fixed {
             // one window only - fullscreen
@@ -45,36 +45,36 @@ impl Layout for DStack {
                 x: screen.offset_x,
                 y: screen.offset_y,
                 width: screen.width,
-                height: screen.height - 2,
+                height: screen.height.saturating_sub(2),
             }));
         } else if num_windows > 1 {
             let slave_width = (screen.width - master_width) / 2;
             // setup two slave stacks if needed
-            let (master_x, slave_right_x) = if num_windows == 2 &&
-                                               !self.fixed {
-                (0, master_width) // no left stack - no shift
-            } else {
-                // shift master + right stack
-                (slave_width, slave_width + master_width)
-            };
+            let (master_x, slave_right_x) =
+                if num_windows == 2 && !self.fixed {
+                    (0, master_width) // no left stack - no shift
+                } else {
+                    // shift master + right stack
+                    (slave_width, slave_width + master_width)
+                };
             // master window
             res.push(Some(Geometry {
                 x: master_x + screen.offset_x,
                 y: screen.offset_y,
-                width: master_width - 2,
-                height: screen.height - 2,
+                width: master_width.saturating_sub(2),
+                height: screen.height.saturating_sub(2),
             }));
             // num_left_slaves <= num_right_slaves
             let num_left_slaves = (num_windows - 1) / 2;
             if num_left_slaves > 0 {
-                let slave_height_left = screen.height / num_left_slaves as u16;
+                let slave_height_left = screen.height / num_left_slaves as u32;
                 // slave windows - left stack
                 for i in 0..num_left_slaves {
                     res.push(Some(Geometry {
                         x: screen.offset_x,
-                        y: i as u16 * slave_height_left + screen.offset_y,
-                        height: slave_height_left - 2,
-                        width: slave_width - 2,
+                        y: i as u32 * slave_height_left + screen.offset_y,
+                        height: slave_height_left.saturating_sub(2),
+                        width: slave_width.saturating_sub(2),
                     }));
                 }
             }
@@ -82,8 +82,8 @@ impl Layout for DStack {
             if num_right_slaves > 0 {
                 // if no left stack is present, the right
                 // stack can be made wider to avoid wasting space
-                let slave_height_right = screen.height /
-                                         num_right_slaves as u16;
+                let slave_height_right =
+                    screen.height / num_right_slaves as u32;
                 let width = if num_left_slaves == 0 {
                     screen.width - master_width
                 } else {
@@ -93,9 +93,9 @@ impl Layout for DStack {
                 for i in 0..num_right_slaves {
                     res.push(Some(Geometry {
                         x: slave_right_x + screen.offset_x,
-                        y: i as u16 * slave_height_right + screen.offset_y,
-                        height: slave_height_right - 2,
-                        width: width - 2,
+                        y: i as u32 * slave_height_right + screen.offset_y,
+                        height: slave_height_right.saturating_sub(2),
+                        width: width.saturating_sub(2),
                     }));
                 }
             }
@@ -164,12 +164,13 @@ impl Layout for DStack {
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 100,
+                self.master_factor = mf % 101,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
                     self.master_factor.saturating_sub(mf.abs() as u8)
                 } else {
-                    self.master_factor.saturating_add(mf.abs() as u8) % 100
+                    let m = self.master_factor.saturating_add(mf.abs() as u8);
+                    if m > 100 { 100 } else { m }
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
@@ -219,7 +220,7 @@ impl Layout for HStack {
         let master_height = if self.master_factor >= 100 {
             screen.height
         } else {
-            self.master_factor as u16 * screen.height / 100
+            self.master_factor as u32 * screen.height / 100
         };
         if num_windows == 1 {
             // one window only - fullscreen or fixed size
@@ -232,7 +233,7 @@ impl Layout for HStack {
                 x: screen.offset_x,
                 y: screen.offset_y,
                 width: screen.width,
-                height: h - 2,
+                height: h.saturating_sub(2),
             }));
         } else if num_windows > 1 {
             // optionally swap stack and master area
@@ -245,17 +246,17 @@ impl Layout for HStack {
             res.push(Some(Geometry {
                 x: screen.offset_x,
                 y: master_y + screen.offset_y,
-                width: screen.width - 2,
-                height: master_height - 2,
+                width: screen.width.saturating_sub(2),
+                height: master_height.saturating_sub(2),
             }));
             // slave windows
-            let slave_width = screen.width / (num_windows as u16 - 1);
+            let slave_width = screen.width / (num_windows as u32 - 1);
             for i in 1..num_windows {
                 res.push(Some(Geometry {
-                    x: (i as u16 - 1) * slave_width + screen.offset_x,
+                    x: (i as u32 - 1) * slave_width + screen.offset_x,
                     y: slave_y + screen.offset_y,
-                    width: slave_width - 2,
-                    height: screen.height - master_height - 2,
+                    width: slave_width.saturating_sub(2),
+                    height: screen.height.saturating_sub(2),
                 }));
             }
         }
@@ -313,12 +314,13 @@ impl Layout for HStack {
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 100,
+                self.master_factor = mf % 101,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
                     self.master_factor.saturating_sub(mf.abs() as u8)
                 } else {
-                    self.master_factor.saturating_add(mf.abs() as u8) % 100
+                    let m = self.master_factor.saturating_add(mf.abs() as u8);
+                    if m > 100 { 100 } else { m }
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
@@ -368,7 +370,7 @@ impl Layout for VStack {
         let master_width = if self.master_factor >= 100 {
             screen.width
         } else {
-            self.master_factor as u16 * screen.width / 100
+            self.master_factor as u32 * screen.width / 100
         };
         if num_windows == 1 {
             // one window only - fullscreen or fixed size
@@ -380,8 +382,8 @@ impl Layout for VStack {
             res.push(Some(Geometry {
                 x: screen.offset_x,
                 y: screen.offset_y,
-                width: w - 2,
-                height: screen.height - 2,
+                width: w.saturating_sub(2),
+                height: screen.height.saturating_sub(2),
             }));
         } else if num_windows > 1 {
             // optionally swap stack and master area
@@ -394,17 +396,17 @@ impl Layout for VStack {
             res.push(Some(Geometry {
                 x: master_x + screen.offset_x,
                 y: screen.offset_y,
-                width: master_width - 2,
-                height: screen.height - 2,
+                width: master_width.saturating_sub(2),
+                height: screen.height.saturating_sub(2),
             }));
             // slave windows
-            let slave_height = screen.height / (num_windows as u16 - 1);
+            let slave_height = screen.height / (num_windows as u32 - 1);
             for i in 1..num_windows {
                 res.push(Some(Geometry {
                     x: slave_x + screen.offset_x,
-                    y: (i as u16 - 1) * slave_height + screen.offset_y,
-                    width: screen.width - master_width - 2,
-                    height: slave_height - 2,
+                    y: (i as u32 - 1) * slave_height + screen.offset_y,
+                    width: (screen.width - master_width).saturating_sub(2),
+                    height: slave_height.saturating_sub(2),
                 }));
             }
         }
@@ -462,12 +464,13 @@ impl Layout for VStack {
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 100,
+                self.master_factor = mf % 101,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
                     self.master_factor.saturating_sub(mf.abs() as u8)
                 } else {
-                    self.master_factor.saturating_add(mf.abs() as u8) % 100
+                    let m = self.master_factor.saturating_add(mf.abs() as u8);
+                    if m > 100 { 100 } else { m }
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,

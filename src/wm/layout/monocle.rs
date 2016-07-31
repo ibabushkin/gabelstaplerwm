@@ -7,9 +7,9 @@ use wm::layout::*;
 /// at first.
 pub struct Monocle {
     /// x offset of master window (symmetric)
-    pub offset_x: u16,
+    pub offset_x: u32,
     /// y offset of master window (symmetric)
-    pub offset_y: u16,
+    pub offset_y: u32,
 }
 
 impl Default for Monocle {
@@ -62,13 +62,13 @@ impl Layout for Monocle {
             LayoutMessage::XOffAbs(x) => self.offset_x = x,
             LayoutMessage::XOffRel(x) =>
                 self.offset_x = if x < 0 {
-                    self.offset_x.saturating_sub(x.abs() as u16)
-                } else { self.offset_x.saturating_add(x.abs() as u16) },
+                    self.offset_x.saturating_sub(x.abs() as u32)
+                } else { self.offset_x.saturating_add(x.abs() as u32) },
             LayoutMessage::YOffAbs(y) => self.offset_y = y,
             LayoutMessage::YOffRel(y) =>
                 self.offset_y = if y < 0 {
-                    self.offset_y.saturating_sub(y.abs() as u16)
-                } else { self.offset_y.saturating_add(y.abs() as u16) },
+                    self.offset_y.saturating_sub(y.abs() as u32)
+                } else { self.offset_y.saturating_add(y.abs() as u32) },
             _ => return false,
         };
         true

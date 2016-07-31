@@ -1,7 +1,7 @@
 #!/bin/sh
 Xephyr -ac -br -noreset -screen 800x600 :1.0 &
 sleep 1
-# TODO: run with proper path 
+# TODO: run with proper path
 if [ "$1" == "-k" ]; then
   RUST_LOG=debug DISPLAY=:1.0 "./target/debug/gabelstaplergrab"
 else

@@ -10,13 +10,13 @@ pub mod stack;
 #[derive(Clone)]
 pub struct ScreenSize {
     /// x offset of tiling area
-    pub offset_x: u16,
+    pub offset_x: u32,
     /// y offset of tiling area
-    pub offset_y: u16,
+    pub offset_y: u32,
     /// width of tiling area
-    pub width: u16,
+    pub width: u32,
     /// height of tiling area
-    pub height: u16,
+    pub height: u32,
 }
 
 impl ScreenSize {
@@ -24,7 +24,7 @@ impl ScreenSize {
     ///
     /// Uses a `ScreenSize` that represents the user's wishes to get something
     /// that is actually possible.
-    pub fn new(old: &ScreenSize, width: u16, height: u16) -> ScreenSize {
+    pub fn new(old: &ScreenSize, width: u32, height: u32) -> ScreenSize {
         let new_width = if old.width + old.offset_x < width {
             old.width - old.offset_x
         } else {
@@ -48,13 +48,13 @@ impl ScreenSize {
 #[derive(Clone)]
 pub struct Geometry {
     /// x coordinate of window
-    pub x: u16,
+    pub x: u32,
     /// y coordinate of window
-    pub y: u16,
+    pub y: u32,
     /// width of window
-    pub width: u16,
+    pub width: u32,
     /// height of window
-    pub height: u16,
+    pub height: u32,
 }
 
 /// Types that compute geometries for arbitrary amounts of windows.
@@ -103,13 +103,13 @@ pub enum LayoutMessage {
     /// Toggle `fixed` attrbute of layout.
     FixedRel,
     /// Set absolute value of the x offset.
-    XOffAbs(u16),
+    XOffAbs(u32),
     /// Add an offset to the x offset.
-    XOffRel(i16),
+    XOffRel(i32),
     /// Set absolute value of the y offset.
-    YOffAbs(u16),
+    YOffAbs(u32),
     /// Add an offset to the y offset.
-    YOffRel(i16),
+    YOffRel(i32),
     /// Set absolute value of the column amount.
     ColumnAbs(u8),
     /// Add an offset to the column amount.
