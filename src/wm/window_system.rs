@@ -73,7 +73,7 @@ pub struct Wm<'a> {
     /// connection to the X server
     con: &'a base::Connection,
     /// root window
-    root: xproto::Window,
+    root: (xproto::Window, xproto::Window),
     /// user-defined configuration parameters
     config: WmConfig,
     /// screen parameters as obtained from the X server upon connection
@@ -108,16 +108,25 @@ impl<'a> Wm<'a> {
         -> Result<Wm<'a>, WmError> {
         let setup = con.get_setup();
         if let Some(screen) = setup.roots().nth(screen_num as usize) {
+            let new_root = con.generate_id();
+            xproto::create_window(con, base::COPY_FROM_PARENT as u8,
+                                  new_root, screen.root(), 0, 0,
+                                  screen.width_in_pixels(),
+                                  screen.height_in_pixels(),
+                                  0, base::COPY_FROM_PARENT as u16,
+                                  base::COPY_FROM_PARENT, &[]).request_check();
+            let cookie = xproto::map_window(con, new_root);
             let width = screen.width_in_pixels();
             let height = screen.height_in_pixels();
             let colormap = screen.default_colormap();
             let new_screen =
                 ScreenSize::new(&config.screen, width as u32, height as u32);
+            cookie.request_check();
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => {
                     Ok(Wm {
                         con: con,
-                        root: screen.root(),
+                        root: (screen.root(), new_root),
                         config: config.clone(),
                         screen: new_screen,
                         border_colors: Wm::setup_colors(con,
@@ -176,7 +185,7 @@ impl<'a> Wm<'a> {
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
             | xproto::EVENT_MASK_PROPERTY_CHANGE;
         match xproto::change_window_attributes(
-            self.con, self.root, &[(xproto::CW_EVENT_MASK, values)])
+            self.con, self.root.0, &[(xproto::CW_EVENT_MASK, values)])
             .request_check() {
             Ok(()) => Ok(()),
             Err(_) => Err(WmError::OtherWmRunning),
@@ -188,7 +197,7 @@ impl<'a> Wm<'a> {
         // don't grab anything for now
         xproto::ungrab_key(
             self.con, xproto::GRAB_ANY as u8,
-            self.root, xproto::MOD_MASK_ANY as u16
+            self.root.0, xproto::MOD_MASK_ANY as u16
         );
 
         // compile keyboard bindings
@@ -202,7 +211,7 @@ impl<'a> Wm<'a> {
                 } else {
                     // register for the corresponding event
                     Some(xproto::grab_key(
-                        self.con, true, self.root,
+                        self.con, true, self.root.0,
                         key.mods as u16, key.code,
                         xproto::GRAB_MODE_ASYNC as u8,
                         xproto::GRAB_MODE_ASYNC as u8
@@ -231,7 +240,7 @@ impl<'a> Wm<'a> {
 
     /// Add all present clients to the datastructures on startup.
     pub fn setup_clients(&mut self) {
-        if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
+        if let Ok(root) = xproto::query_tree(self.con, self.root.0).get_reply() {
             for window in root.children() {
                 if let Some(client) = self.construct_client(*window) {
                     self.add_client(client);
@@ -475,6 +484,7 @@ impl<'a> Wm<'a> {
         // no client corresponding to the window, add it
         if self.clients.get_client_by_window(window).is_none() {
             if let Some(client) = self.construct_client(window) {
+                xproto::reparent_window(self.con, window, self.root.1, 0, 0).request_check();
                 // map window
                 let cookie = xproto::map_window(self.con, window);
                 // set border width
