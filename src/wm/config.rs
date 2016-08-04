@@ -109,14 +109,14 @@ impl Default for Mode {
 /// See the docs for `ScreenSize` for more information.
 pub fn generate_config() -> WmConfig {
     WmConfig {
-        f_color: (0x5353, 0x5d5d, 0x6c6c), // this is #535d6c
-        u_color: (0x0000, 0x0000, 0x0000), // and this is #000000
+        f_color: (0x0000, 0x5555, 0x7777), // this is #005577 (dwm cyan)
+        u_color: (0x0000, 0x0000, 0x0000), // and this is #000000 (black)
         border_width: 1,
         screen: ScreenSize {
             offset_x: 0,
             offset_y: 20,
-            width: 1366,  // defaults reasonable for Xephyr,
-            height: 768, // change to adjust to a real screen
+            width: 1366,
+            height: 768,
         },
     }
 }
@@ -126,7 +126,7 @@ pub fn generate_config() -> WmConfig {
 /// This includes keybindings, default tag stack and matching.
 pub fn setup_wm(wm: &mut Wm) {
     // keybindings
-    let modkey = ALTGR;
+    let modkey = MOD4;
     wm.setup_bindings(vec![
         // focus single-digit-tagset
         bind!(10, modkey, Mode::Normal, push_tagset!(0;; current_tagset)),
@@ -190,13 +190,18 @@ pub fn setup_wm(wm: &mut Wm) {
                 WmCommand::NoCommand
             }
         }),
+        // spawn dmenu_run
+        bind!(27, modkey, Mode::Normal, |_, _| {
+            let _ = Command::new("dmenu_run").spawn();
+            WmCommand::NoCommand
+        }),
         // spawn a terminal
         bind!(31, modkey, Mode::Normal, |_, _| {
             let _ = Command::new("termite").spawn();
             WmCommand::NoCommand
         }),
         // kill current client
-        bind!(54, modkey, Mode::Normal, |c, s| s
+        bind!(54, modkey+SHIFT, Mode::Normal, |c, s| s
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .map(WmCommand::Kill)
