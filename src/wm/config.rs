@@ -115,8 +115,8 @@ pub fn generate_config() -> WmConfig {
         screen: ScreenSize {
             offset_x: 0,
             offset_y: 20,
-            width: 800,  // defaults reasonable for Xephyr,
-            height: 600, // change to adjust to a real screen
+            width: 1366,  // defaults reasonable for Xephyr,
+            height: 768, // change to adjust to a real screen
         },
     }
 }
