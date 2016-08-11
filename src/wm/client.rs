@@ -502,7 +502,7 @@ impl TagSet {
 impl fmt::Display for TagSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(f, "["));
-        for tag in self.tags.iter().take(self.tags.len() - 1) {
+        for tag in self.tags.iter().take(self.tags.len().saturating_sub(1)) {
             try!(write!(f, "{},", tag));
         }
         if let Some(last_tag) = self.tags.last() {
