@@ -13,7 +13,7 @@
 //! But feel free to do otherwise if you wish.
 use std::fmt;
 
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
 use wm::kbd::*;
@@ -180,7 +180,12 @@ pub fn setup_wm(wm: &mut Wm) {
                 LayoutMessage::MasterFactorRel(5),
                 LayoutMessage::ColumnRel(1))),
         // quit the window manager
-        bind!(24, modkey+CTRL, Mode::Normal, |_, _| WmCommand::Quit),
+        bind!(24, modkey+CTRL, Mode::Normal, |_, _| {
+            let _ = Command::new("killall")
+                .arg("lemonbar")
+                .spawn();
+            WmCommand::Quit
+        }),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |c, s| {
             if s.view_prev() {
@@ -192,12 +197,16 @@ pub fn setup_wm(wm: &mut Wm) {
         }),
         // spawn dmenu_run
         bind!(27, modkey, Mode::Normal, |_, _| {
-            let _ = Command::new("dmenu_run").spawn();
+            let _ = Command::new("dmenu_run")
+                .stdout(Stdio::null())
+                .spawn();
             WmCommand::NoCommand
         }),
         // spawn a terminal
         bind!(31, modkey, Mode::Normal, |_, _| {
-            let _ = Command::new("termite").spawn();
+            let _ = Command::new("termite")
+                .stdout(Stdio::null())
+                .spawn();
             WmCommand::NoCommand
         }),
         // kill current client
