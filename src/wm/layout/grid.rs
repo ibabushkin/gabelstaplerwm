@@ -40,7 +40,12 @@ impl Layout for Grid {
                 .map(|i| {
                     let x = (width + 2) * (i % max_col) as u32;
                     let y = (height + 2) * (i / max_col) as u32;
-                    Some(Geometry { x: x, y: y, width: width, height: height })
+                    Some(Geometry {
+                        x: x + screen.offset_x,
+                        y: y + screen.offset_y,
+                        width: width,
+                        height: height
+                    })
                 })
                 .collect()
         } else {
