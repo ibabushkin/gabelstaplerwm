@@ -209,10 +209,19 @@ pub fn setup_wm(wm: &mut Wm) {
                 WmCommand::NoCommand
             }
         }),
+        // spawn custom dmenu
+        bind!(25, modkey, Mode::Normal, |_, _| {
+            let _ = Command::new("~/dotfiles/menu.sh")
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            WmCommand::NoCommand
+        }),
         // spawn dmenu_run
         bind!(27, modkey, Mode::Normal, |_, _| {
             let _ = Command::new("dmenu_run")
                 .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .spawn();
             WmCommand::NoCommand
         }),
@@ -220,6 +229,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(31, modkey, Mode::Normal, |_, _| {
             let _ = Command::new("termite")
                 .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .spawn();
             WmCommand::NoCommand
         }),
