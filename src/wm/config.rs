@@ -238,10 +238,15 @@ pub fn setup_wm(wm: &mut Wm) {
         }),
         // spawn password manager script for dmenu
         bind!(26, modkey, Mode::Normal, |_, _| {
-            let _ = Command::new("~/dotfiles/pass.sh")
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("pass.sh");
+                    Command::new(dir.into_os_string())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
             WmCommand::NoCommand
         }),
         // spawn dmenu_run
