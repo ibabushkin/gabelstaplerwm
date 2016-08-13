@@ -11,6 +11,7 @@
 //!   a more involved and complex feature that you are working on.
 //!
 //! But feel free to do otherwise if you wish.
+use std::env::home_dir;
 use std::fmt;
 
 use std::process::{Command, Stdio};
@@ -211,18 +212,28 @@ pub fn setup_wm(wm: &mut Wm) {
         }),
         // spawn custom dmenu
         bind!(25, modkey, Mode::Normal, |_, _| {
-            let _ = Command::new("~/dotfiles/menu.sh")
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("menu.sh");
+                    Command::new(dir.into_os_string())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
             WmCommand::NoCommand
         }),
         // spawn password manager script for dmenu
         bind!(26, modkey, Mode::Normal, |_, _| {
-            let _ = Command::new("~/dotfiles/pass.sh")
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("pass.sh");
+                    Command::new(dir.into_os_string())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
             WmCommand::NoCommand
         }),
         // spawn dmenu_run
