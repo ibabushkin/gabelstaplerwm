@@ -186,6 +186,20 @@ pub fn setup_wm(wm: &mut Wm) {
                 .spawn();
             WmCommand::Quit
         }),
+        // lock screen
+        bind!(39, modkey, Mode::Normal, |_, _| {
+            let _ = Command::new("slock")
+                .stdout(Stdio::null())
+                .spawn();
+            WmCommand::NoCommand
+        }),
+        // shutdown system
+        bind!(39, modkey+CTRL, Mode::Normal, |_, _| {
+            let _ = Command::new("sudo")
+                .args(&["shutdown", "-h", "now"])
+                .spawn();
+            WmCommand::NoCommand
+        }),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |c, s| {
             if s.view_prev() {
