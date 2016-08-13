@@ -15,6 +15,8 @@ extern crate log;
 #[cfg(with_mousetrap)]
 extern crate mousetrap;
 
+use std::env::remove_var;
+
 use xcb::base::*;
 
 pub mod wm;
@@ -31,6 +33,9 @@ fn main() {
     if env_logger::init().is_err() {
         handle_logger_error();
     }
+
+    // clean environment for cargo and other processes honoring `RUST_LOG`
+    remove_var("RUST_LOG");
 
     // include user config
     let config = generate_config();
