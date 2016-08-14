@@ -580,7 +580,68 @@ impl<'a> Wm<'a> {
         ].0
     }
 
+    /// get a set of properties for a window, in parallel
+    fn get_property_set(&self, window: xproto::Window,
+                        atom_response_pairs: Vec<(xproto::Atom, xproto::Atom)>)
+        -> Vec<ClientProp> {
+        let mut cookies: Vec<_> = atom_response_pairs
+            .iter()
+            .map(|&(atom, response_type)|
+                xproto::get_property(
+                    self.con, false, window, atom, response_type, 0, 0xffffffff
+                )
+            )
+            .collect();
+        let res = cookies
+            .drain(..)
+            .zip(atom_response_pairs.iter())
+            .map(|(cookie, &(_, response_type))|
+                match response_type {
+                    xproto::ATOM_ATOM => if let Ok(r) = cookie.get_reply() {
+                        let atoms: &[xproto::Atom] = r.value();
+                        if atoms.len() != 0 {
+                            ClientProp::NoProp
+                        } else {
+                            ClientProp::PropAtom(atoms[0])
+                        }
+                    } else {
+                        ClientProp::NoProp
+                    },
+                    xproto::ATOM_STRING => if let Ok(r) = cookie.get_reply() {
+                        let raw: &[c_char] = r.value();
+                        let mut res = Vec::new();
+                        for c in raw.split(|ch| *ch == 0) {
+                            if c.len() > 0 {
+                                unsafe {
+                                    if let Ok(cl) = str::from_utf8(
+                                        CStr::from_ptr(c.as_ptr()).to_bytes()) {
+                                        res.push(cl.to_owned());
+                                    }
+                                }
+                            }
+                        }
+                        ClientProp::PropString(res)
+                    } else {
+                        ClientProp::NoProp
+                    },
+                    _ => ClientProp::NoProp,
+                }
+            )
+            .collect();
+        res
+    }
+
+    /*
     /// Get a window's properties (like window type and such), if possible.
+    pub fn get_properties(&self, window: xproto::Window) -> ClientProps {
+        let props = self.get_property_set(window, vec![
+            (self.lookup_atom("_NET_WM_WINDOW_TYPE"), xproto::ATOM_ATOM),
+            (xproto::ATOM_WM_NAME, xproto::ATOM_STRING),
+            (xproto::ATOM_WM_CLASS, xproto::ATOM_STRING)
+        ]);
+    }
+    */
+
     pub fn get_properties(&self, window: xproto::Window)
         -> Option<ClientProps> {
         // request window type

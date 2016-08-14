@@ -10,6 +10,13 @@ use wm::config::Tag;
 use wm::layout::Layout;
 use wm::window_system::WmCommand;
 
+/// Client property, as returned from a call.
+pub enum ClientProp {
+    PropAtom(xproto::Atom),
+    PropString(Vec<String>),
+    NoProp,
+}
+
 /// Client properties, as obtained from the X server.
 #[derive(Debug, Clone)]
 pub struct ClientProps {
