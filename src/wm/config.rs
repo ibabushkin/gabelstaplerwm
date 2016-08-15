@@ -246,7 +246,7 @@ pub fn setup_wm(wm: &mut Wm) {
     );
     // matching function deciding upon client placement
     wm.setup_matching(Box::new(
-        |props| if props.name == "firefox" {
+        |props| if props.name == "Mozilla Firefox" {
             Some(vec![Tag::Web])
         } else {
             None

@@ -509,6 +509,7 @@ impl<'a> Wm<'a> {
     /// generate a client structure for it and return it, otherwise don't.
     fn construct_client(&self, window: xproto::Window) -> Option<Client> {
         let props = self.get_properties(window);
+        debug!("props of new client: {:?}", props);
         if props.window_type ==
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") &&
             props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) {
