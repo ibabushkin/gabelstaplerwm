@@ -22,6 +22,8 @@ pub enum ClientProp {
 pub struct ClientProps {
     /// client/window type
     pub window_type: xproto::Atom,
+    /// window state
+    pub state: Option<xproto::Atom>,
     /// the client's title
     pub name: String,
     /// the client's class(es)

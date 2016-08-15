@@ -17,10 +17,11 @@ use wm::kbd::*;
 use wm::layout::*;
 
 /// Atoms we register with the X server for partial EWMH compliance.
-static ATOM_VEC: [&'static str; 9] =
-    ["WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_STATE",
+static ATOM_VEC: [&'static str; 10] =
+    ["WM_PROTOCOLS", "WM_DELETE_WINDOW", "_NET_WM_STATE",
      "WM_TAKE_FOCUS", "_NET_WM_TAKE_FOCUS", "_NET_WM_NAME", "_NET_WM_CLASS",
-     "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_NORMAL"];
+     "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_NORMAL",
+     "_NET_WM_STATE_ABOVE"];
 
 /// Association vector type for atoms and their names.
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
@@ -335,8 +336,8 @@ impl<'a> Wm<'a> {
     /// Reset focus.
     ///
     /// The datastructures have been altered, we need to focus the appropriate
-    /// window as obtained from tehre. if an old window is given, uncolor it's
-    /// border.
+    /// window as obtained from there. If an old window is present, uncolor
+    /// it's border.
     fn reset_focus(&mut self) {
         if let Some(new) = self
             .tag_stack
@@ -508,7 +509,9 @@ impl<'a> Wm<'a> {
     /// generate a client structure for it and return it, otherwise don't.
     fn construct_client(&self, window: xproto::Window) -> Option<Client> {
         let props = self.get_properties(window);
-        if props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
+        if props.window_type ==
+            self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") &&
+            props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) {
             // compute tags of the new client
             let tags = if let Some(res) = self.matching
                 .as_ref()
@@ -629,6 +632,7 @@ impl<'a> Wm<'a> {
     pub fn get_properties(&self, window: xproto::Window) -> ClientProps {
         let mut properties = self.get_property_set(window, vec![
             (self.lookup_atom("_NET_WM_WINDOW_TYPE"), xproto::ATOM_ATOM),
+            (self.lookup_atom("_NET_WM_STATE"), xproto::ATOM_ATOM),
             (xproto::ATOM_WM_NAME, xproto::ATOM_STRING),
             (xproto::ATOM_WM_CLASS, xproto::ATOM_STRING)
         ]);
@@ -638,6 +642,12 @@ impl<'a> Wm<'a> {
             t
         } else { // assume reasonable default
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
+        };
+
+        let state = if let Some(ClientProp::PropAtom(s)) = props.next() {
+            Some(s)
+        } else {
+            None
         };
 
         let name = if let Some(ClientProp::PropString(mut n)) = props.next() {
@@ -658,6 +668,7 @@ impl<'a> Wm<'a> {
 
         ClientProps {
             window_type: window_type,
+            state: state,
             name: name,
             class: class,
         }
