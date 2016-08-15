@@ -44,7 +44,7 @@ impl Layout for DStack {
             res.push(Some(Geometry {
                 x: screen.offset_x,
                 y: screen.offset_y,
-                width: screen.width,
+                width: screen.width.saturating_sub(2),
                 height: screen.height.saturating_sub(2),
             }));
         } else if num_windows > 1 {
