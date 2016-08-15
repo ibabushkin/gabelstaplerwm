@@ -20,7 +20,7 @@ use wm::layout::*;
 static ATOM_VEC: [&'static str; 9] =
     ["WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_STATE",
      "WM_TAKE_FOCUS", "_NET_WM_TAKE_FOCUS", "_NET_WM_NAME", "_NET_WM_CLASS",
-     "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DOCK"];
+     "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_NORMAL"];
 
 /// Association vector type for atoms and their names.
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
@@ -502,19 +502,13 @@ impl<'a> Wm<'a> {
         }
     }
 
-    /// Construct a client for a window, or don't if we don't want to manage it.
+    /// Construct a client for a window if we want to manage it.
     ///
-    /// If the window has a type different from `_NET_WM_WINDOW_TYPE_DOCK`,
+    /// If the window has type `_NET_WM_WINDOW_TYPE_NORMAL`,
     /// generate a client structure for it and return it, otherwise don't.
     fn construct_client(&self, window: xproto::Window) -> Option<Client> {
-        let props = match self.get_properties(window) {
-            Some(props) => props,
-            None => {
-                error!("could not lookup properties");
-                return None;
-            }
-        };
-        if props.window_type != self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
+        let props = self.get_properties(window);
+        if props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
             // compute tags of the new client
             let tags = if let Some(res) = self.matching
                 .as_ref()
@@ -599,7 +593,7 @@ impl<'a> Wm<'a> {
                 match response_type {
                     xproto::ATOM_ATOM => if let Ok(r) = cookie.get_reply() {
                         let atoms: &[xproto::Atom] = r.value();
-                        if atoms.len() != 0 {
+                        if atoms.len() == 0 {
                             ClientProp::NoProp
                         } else {
                             ClientProp::PropAtom(atoms[0])
@@ -631,78 +625,41 @@ impl<'a> Wm<'a> {
         res
     }
 
-    /*
     /// Get a window's properties (like window type and such), if possible.
     pub fn get_properties(&self, window: xproto::Window) -> ClientProps {
-        let props = self.get_property_set(window, vec![
+        let mut properties = self.get_property_set(window, vec![
             (self.lookup_atom("_NET_WM_WINDOW_TYPE"), xproto::ATOM_ATOM),
             (xproto::ATOM_WM_NAME, xproto::ATOM_STRING),
             (xproto::ATOM_WM_CLASS, xproto::ATOM_STRING)
         ]);
-    }
-    */
+        let mut props = properties.drain(..);
 
-    pub fn get_properties(&self, window: xproto::Window)
-        -> Option<ClientProps> {
-        // request window type
-        let cookie1 = xproto::get_property(
-            self.con, false, window,
-            self.lookup_atom("_NET_WM_WINDOW_TYPE"),
-            xproto::ATOM_ATOM, 0, 0xffffffff
-        );
-        // request window name
-        let cookie2 = xproto::get_property(
-            self.con, false, window,
-            xproto::ATOM_WM_NAME, xproto::ATOM_STRING,
-            0, 0xffffffff
-        );
-        // request window class(es)
-        let cookie3 = xproto::get_property(
-            self.con, false, window,
-            xproto::ATOM_WM_CLASS, xproto::ATOM_STRING,
-            0, 0xffffffff
-        );
-        // check for replies
-        if let (Ok(r1), Ok(r2), Ok(r3)) = (cookie1.get_reply(),
-                                           cookie2.get_reply(),
-                                           cookie3.get_reply()) {
-            unsafe {
-                // we need to get exactly one atom for the type
-                let type_atoms: &[xproto::Atom] = r1.value();
-                if type_atoms.len() == 0 {
-                    return None;
-                }
+        let window_type = if let Some(ClientProp::PropAtom(t)) = props.next() {
+            t
+        } else { // assume reasonable default
+            self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
+        };
 
-                // the name is a single (variable-sized) string
-                let name_slice: &[c_char] = r2.value();
-                let name = CStr::from_ptr(name_slice.as_ptr())
-                    .to_string_lossy();
-
-                // the class(es) are a list of strings
-                let class_slice: &[c_char] = r3.value();
-                // iterate over them
-                let mut class = Vec::new();
-                for c in class_slice.split(|ch| *ch == 0) {
-                    if c.len() > 0 {
-                        if let Ok(cl) =
-                               str::from_utf8(CStr::from_ptr(c.as_ptr())
-                            .to_bytes()) {
-                            class.push(cl.to_owned());
-                        } else {
-                            return None;
-                        }
-                    }
-                }
-
-                // return the properties obtained
-                Some(ClientProps {
-                    window_type: type_atoms[0],
-                    name: name.into_owned(),
-                    class: class,
-                })
+        let name = if let Some(ClientProp::PropString(mut n)) = props.next() {
+            if n.len() == 1 {
+                n.pop().unwrap()
+            } else {
+                String::new()
             }
         } else {
-            None
+            String::new()
+        };
+
+        let class = if let Some(ClientProp::PropString(c)) = props.next() {
+            c
+        } else {
+            Vec::new()
+        };
+
+        ClientProps {
+            window_type: window_type,
+            name: name,
+            class: class,
         }
     }
 

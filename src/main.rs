@@ -5,6 +5,8 @@
 //! See the documentation for the `config` module for more information on
 //! configuration.
 
+#![feature(slice_patterns)]
+
 extern crate libc;
 extern crate xcb;
 
