@@ -318,6 +318,12 @@ pub fn setup_wm(wm: &mut Wm) {
     wm.setup_matching(Box::new(
         |props| if props.name == "Mozilla Firefox" {
             Some(vec![Tag::Web])
+        } else if props.class.contains(&String::from("uzbl-core")) {
+            Some(vec![Tag::Web])
+        } else if props.class.contains(&String::from("Chat")) {
+            Some(vec![Tag::Chat])
+        } else if props.class.contains(&String::from("Mon")) {
+            Some(vec![Tag::Mon])
         } else {
             None
         }
