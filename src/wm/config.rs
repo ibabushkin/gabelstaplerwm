@@ -265,6 +265,36 @@ pub fn setup_wm(wm: &mut Wm) {
                 .spawn();
             WmCommand::NoCommand
         }),
+        // spawn an agenda notification
+        bind!(32, modkey, Mode::Normal, |_, _| {
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push(".local");
+                    dir.push("bin");
+                    dir.push("morgue");
+                    Command::new(dir.into_os_string())
+                        .args(&["-d", "-f", "Pango", "-s", "slow",
+                              "~/org/notes.md", "~/org/uni.md"])
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
+            WmCommand::NoCommand
+        }),
+        // spawn a weather notification
+        bind!(32, modkey, Mode::Normal, |_, _| {
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("weather.sh");
+                    Command::new(dir.into_os_string())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
+            WmCommand::NoCommand
+        }),
+        
         // kill current client
         bind!(54, modkey+SHIFT, Mode::Normal, |c, s| s
             .current()
