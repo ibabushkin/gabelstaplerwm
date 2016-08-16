@@ -269,12 +269,9 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(32, modkey, Mode::Normal, |_, _| {
             let _ = home_dir()
                 .map(|mut dir| {
-                    dir.push(".local");
-                    dir.push("bin");
-                    dir.push("morgue");
+                    dir.push("dotfiles");
+                    dir.push("org.sh");
                     Command::new(dir.into_os_string())
-                        .args(&["-d", "-f", "Pango", "-s", "slow",
-                              "~/org/notes.md", "~/org/uni.md"])
                         .stdout(Stdio::null())
                         .stderr(Stdio::null())
                         .spawn()
@@ -282,7 +279,7 @@ pub fn setup_wm(wm: &mut Wm) {
             WmCommand::NoCommand
         }),
         // spawn a weather notification
-        bind!(32, modkey, Mode::Normal, |_, _| {
+        bind!(33, modkey, Mode::Normal, |_, _| {
             let _ = home_dir()
                 .map(|mut dir| {
                     dir.push("dotfiles");
