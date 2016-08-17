@@ -405,7 +405,7 @@ impl<'a> Wm<'a> {
                 self.handle_configure_request(base::cast_event(&event)),
             xproto::MAP_REQUEST =>
                 self.handle_map_request(base::cast_event(&event)),
-            num => debug!("ignoring event: {}", num),
+            num => info!("ignoring event: {}", num),
         }
     }
 
@@ -509,10 +509,10 @@ impl<'a> Wm<'a> {
     /// generate a client structure for it and return it, otherwise don't.
     fn construct_client(&self, window: xproto::Window) -> Option<Client> {
         let props = self.get_properties(window);
-        debug!("props of new client: {:?}", props);
-        if props.window_type ==
-            self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") &&
-            props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) {
+        info!("props of new window: {:?}", props);
+        if props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) &&
+            props.name != "" &&
+            props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
             // compute tags of the new client
             let tags = if let Some(res) = self.matching
                 .as_ref()
@@ -523,6 +523,7 @@ impl<'a> Wm<'a> {
             } else {
                 vec![Tag::default()]
             };
+            info!("client added on tags: {:?}", tags);
             Some(Client::new(window, tags, props))
         } else {
             None
