@@ -327,9 +327,11 @@ impl<'a> Wm<'a> {
     /// Send a client message and kill the client the hard and merciless way
     /// if that fails, for instance if the client ignores such messages.
     fn destroy_window(&self, window: xproto::Window) {
-        if self.send_event(window, "WM_DELETE_WINDOW") &&
-            xproto::kill_client(self.con, window).request_check().is_err() {
-            error!("could not kill client");
+        if self.send_event(window, "WM_DELETE_WINDOW") {
+            info!("client didn't accept WM_DELETE_WINDOW message");
+            if xproto::kill_client(self.con, window).request_check().is_err() {
+                error!("could not kill client");
+            }
         }
     }
 
@@ -351,7 +353,7 @@ impl<'a> Wm<'a> {
                 self.set_border_color(old_win, self.border_colors.1);
             }
             if self.send_event(new, "WM_TAKE_FOCUS") {
-                info!("could not send focus message to window");
+                info!("client didn't acept WM_TAKE_FOCUS message");
             }
             let cookie =
                 xproto::set_input_focus(self.con,
