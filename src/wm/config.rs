@@ -210,6 +210,19 @@ pub fn setup_wm(wm: &mut Wm) {
                 WmCommand::NoCommand
             }
         }),
+        // spawn alarm/reminder notification with a delay
+        bind!(24, modkey, Mode::Normal, |_, _| {
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("alarm.zsh");
+                    Command::new(dir.into_os_string())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
+            WmCommand::NoCommand
+        }),
         // spawn custom dmenu
         bind!(25, modkey, Mode::Normal, |_, _| {
             let _ = home_dir()
