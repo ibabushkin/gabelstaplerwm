@@ -190,6 +190,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(39, modkey, Mode::Normal, |_, _| {
             let _ = Command::new("slock")
                 .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .spawn();
             WmCommand::NoCommand
         }),
@@ -336,6 +337,48 @@ pub fn setup_wm(wm: &mut Wm) {
               toggle_show_tag!(Tag::Logs;; current_tagset)),
         bind!(18, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Mon;; current_tagset)),
+        // volume controls
+        bind!(121, 0, Mode::Normal, |_, _| {
+            let _ = Command::new("amixer")
+                .args(&["-c", "1", "set", "Master", "toggle"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            WmCommand::NoCommand
+        }),
+        bind!(122, 0, Mode::Normal, |_, _| {
+            let _ = Command::new("amixer")
+                .args(&["-c", "1", "set", "Master", "5%-"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            WmCommand::NoCommand
+        }),
+        bind!(123, 0, Mode::Normal, |_, _| {
+            let _ = Command::new("amixer")
+                .args(&["-c", "1", "set", "Master", "5%+"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            WmCommand::NoCommand
+        }),
+        // backlight controls
+        bind!(232, 0, Mode::Normal, |_, _| {
+            let _ = Command::new("xbacklight")
+                .args(&["-dec", "5"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            WmCommand::NoCommand
+        }),
+        bind!(233, 0, Mode::Normal, |_, _| {
+            let _ = Command::new("xbacklight")
+                .args(&["-inc", "5"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            WmCommand::NoCommand
+        }),
     ]);
     // default tag stack
     wm.setup_tags(
