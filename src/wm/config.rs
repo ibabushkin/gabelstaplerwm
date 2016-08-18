@@ -22,7 +22,6 @@ use wm::kbd::*;
 use wm::layout::{ScreenSize,LayoutMessage};
 use wm::layout::grid::Grid;
 use wm::layout::monocle::Monocle;
-use wm::layout::spiral::Spiral;
 use wm::layout::stack::{DStack,HStack,VStack};
 
 use wm::window_system::{Wm, WmConfig, WmCommand};
@@ -345,12 +344,20 @@ pub fn setup_wm(wm: &mut Wm) {
                 TagSet::new(vec![Tag::Web], DStack::default()),
                 TagSet::new(vec![Tag::Work2], VStack::default()),
                 TagSet::new(vec![Tag::Work3], VStack::default()),
-                TagSet::new(vec![Tag::Work4], Spiral::default()),
+                TagSet::new(vec![Tag::Work4], VStack::default()),
                 TagSet::new(vec![Tag::Work5], Grid::default()),
                 TagSet::new(vec![Tag::Media], Monocle::default()),
                 TagSet::new(vec![Tag::Chat], HStack::default()),
-                TagSet::new(vec![Tag::Logs], HStack::default()),
-                TagSet::new(vec![Tag::Mon], HStack::default()),
+                TagSet::new(vec![Tag::Logs], HStack {
+                    master_factor: 75,
+                    inverted: true,
+                    fixed: false,
+                }),
+                TagSet::new(vec![Tag::Mon], HStack {
+                    master_factor: 75,
+                    inverted: true,
+                    fixed: false,
+                }),
             ], 1
         )
     );
