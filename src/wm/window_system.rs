@@ -251,7 +251,7 @@ impl<'a> Wm<'a> {
     /// rendering client creation as a slave useless and unergonomic.
     fn new_window_as_master(&self) -> bool {
         match self.tag_stack.current() {
-            Some(ref tagset) => tagset.layout.new_window_as_master(),
+            Some(tagset) => tagset.layout.new_window_as_master(),
             _ => false,
         }
     }
