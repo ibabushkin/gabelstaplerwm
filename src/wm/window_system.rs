@@ -655,8 +655,8 @@ impl<'a> Wm<'a> {
         };
 
         let name = if let Some(ClientProp::PropString(mut n)) = props.next() {
-            if n.len() == 1 {
-                n.pop().unwrap()
+            if n.len() >= 1 {
+                n.remove(0)
             } else {
                 String::new()
             }
