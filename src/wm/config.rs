@@ -390,7 +390,11 @@ pub fn setup_wm(wm: &mut Wm) {
                 TagSet::new(vec![Tag::Work4], VStack::default()),
                 TagSet::new(vec![Tag::Work5], Grid::default()),
                 TagSet::new(vec![Tag::Media], Monocle::default()),
-                TagSet::new(vec![Tag::Chat], HStack::default()),
+                TagSet::new(vec![Tag::Chat], HStack {
+                    master_factor: 75,
+                    inverted: true,
+                    fixed: false,
+                }),
                 TagSet::new(vec![Tag::Logs], HStack {
                     master_factor: 75,
                     inverted: true,
