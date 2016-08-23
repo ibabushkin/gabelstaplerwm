@@ -13,16 +13,16 @@
 //! But feel free to do otherwise if you wish.
 use std::env::home_dir;
 use std::fmt;
-
+use std::fs::File;
+use std::io::prelude::*;
 use std::process::{Command, Stdio};
 
 use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
 use wm::kbd::*;
 
 use wm::layout::{ScreenSize,LayoutMessage};
-use wm::layout::grid::Grid;
 use wm::layout::monocle::Monocle;
-use wm::layout::stack::{DStack,HStack,VStack};
+use wm::layout::stack::{HStack,VStack};
 
 use wm::window_system::{Wm, WmConfig, WmCommand};
 
@@ -36,14 +36,10 @@ use wm::window_system::{Wm, WmConfig, WmCommand};
 pub enum Tag {
     /// the web tag - for browsers and stuff
     Web,
-    /// work tag
-    Work2,
-    /// work tag
-    Work3,
-    /// work tag
-    Work4,
-    /// work tag
-    Work5,
+    /// the bookmarks tag
+    Marks,
+    /// unlimited number of work tags
+    Work(usize),
     /// the media tag - movies, music apps etc. go here
     Media,
     /// the chat tag - for IRC and IM
@@ -56,23 +52,25 @@ pub enum Tag {
 
 impl Default for Tag {
     fn default() -> Tag {
-        Tag::Work2
+        Tag::Work(0)
     }
 }
 
 impl fmt::Display for Tag {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match *self {
-            Tag::Web => "web",
-            Tag::Work2 => "work2",
-            Tag::Work3 => "work3",
-            Tag::Work4 => "work4",
-            Tag::Work5 => "work5",
-            Tag::Media => "media",
-            Tag::Chat => "chat",
-            Tag::Logs => "logs",
-            Tag::Mon => "mon",
-        })
+        if let Tag::Work(n) = *self {
+            write!(f, "work/{}", n)
+        } else {
+            write!(f, "{}", match *self {
+                Tag::Web => "web",
+                Tag::Marks => "marks",
+                Tag::Media => "media",
+                Tag::Chat => "chat",
+                Tag::Logs => "logs",
+                Tag::Mon => "mon",
+                _ => "",
+            })
+        }
     }
 }
 
@@ -93,7 +91,11 @@ impl fmt::Display for Tag {
 pub enum Mode {
     /// normal mode doing normal stuff
     Normal,
-    /// setup mode to edit tagsets
+    /// toggle tag on client mode
+    Toggle,
+    /// move client to tag mode
+    Move,
+    /// toggle tag on tagset mode
     Setup,
 }
 
@@ -139,25 +141,44 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(17, modkey, Mode::Normal, push_tagset!(7;; current_tagset)),
         bind!(18, modkey, Mode::Normal, push_tagset!(8;; current_tagset)),
         // toggle tags on current client
-        bind!(10, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Web)),
-        bind!(11, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work2)),
-        bind!(12, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work3)),
-        bind!(13, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work4)),
-        bind!(14, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Work5)),
-        bind!(15, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Media)),
-        bind!(16, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Chat)),
-        bind!(17, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Logs)),
-        bind!(18, modkey+CTRL+SHIFT, Mode::Normal, toggle_tag!(Tag::Mon)),
+        bind!(10, modkey, Mode::Toggle, toggle_tag!(Tag::Web)),
+        bind!(11, modkey, Mode::Toggle, toggle_tag!(Tag::Work(0))),
+        bind!(12, modkey, Mode::Toggle, toggle_tag!(Tag::Work(1))),
+        bind!(13, modkey, Mode::Toggle, toggle_tag!(Tag::Work(2))),
+        bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Marks)),
+        bind!(15, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
+        bind!(16, modkey, Mode::Toggle, toggle_tag!(Tag::Chat)),
+        bind!(17, modkey, Mode::Toggle, toggle_tag!(Tag::Logs)),
+        bind!(18, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
         // move client to tags
-        bind!(10, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Web)),
-        bind!(11, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work2)),
-        bind!(12, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work3)),
-        bind!(13, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work4)),
-        bind!(14, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Work5)),
-        bind!(15, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Media)),
-        bind!(16, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Chat)),
-        bind!(17, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Logs)),
-        bind!(18, modkey+SHIFT, Mode::Normal, move_to_tag!(Tag::Mon)),
+        bind!(10, modkey, Mode::Move, move_to_tag!(Tag::Web)),
+        bind!(11, modkey, Mode::Move, move_to_tag!(Tag::Work(0))),
+        bind!(12, modkey, Mode::Move, move_to_tag!(Tag::Work(1))),
+        bind!(13, modkey, Mode::Move, move_to_tag!(Tag::Work(2))),
+        bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Marks)),
+        bind!(15, modkey, Mode::Move, move_to_tag!(Tag::Media)),
+        bind!(16, modkey, Mode::Move, move_to_tag!(Tag::Chat)),
+        bind!(17, modkey, Mode::Move, move_to_tag!(Tag::Logs)),
+        bind!(18, modkey, Mode::Move, move_to_tag!(Tag::Mon)),
+        // toggle tags on current tagset
+        bind!(10, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Web;; current_tagset)),
+        bind!(11, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Work(0);; current_tagset)),
+        bind!(12, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Work(1);; current_tagset)),
+        bind!(13, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Work(2);; current_tagset)),
+        bind!(14, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Marks;; current_tagset)),
+        bind!(15, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Media;; current_tagset)),
+        bind!(16, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Chat;; current_tagset)),
+        bind!(17, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Logs;; current_tagset)),
+        bind!(18, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Mon;; current_tagset)),
         // focus windows
         bind!(43, modkey, Mode::Normal, focus!(ClientSet::focus_left)),
         bind!(44, modkey, Mode::Normal, focus!(ClientSet::focus_bottom)),
@@ -179,6 +200,33 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(45, modkey+CTRL, Mode::Normal, edit_layout!(
                 LayoutMessage::MasterFactorRel(5),
                 LayoutMessage::ColumnRel(1))),
+        // change work tagset
+        bind!(43, modkey+CTRL, Mode::Normal, |c, s| {
+            let res = if let Some(&mut [Tag::Work(ref mut n), ..]) =
+                s.current_mut().map(|s| s.tags.as_mut_slice()) {
+                *n = n.saturating_sub(1);
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            };
+            if res == WmCommand::Redraw {
+                println!("{}", current_tagset(c, s));
+            }
+            res
+        }),
+        bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
+            let res = if let Some(&mut [Tag::Work(ref mut n), ..]) =
+                s.current_mut().map(|s| s.tags.as_mut_slice()) {
+                *n = n.saturating_add(1);
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            };
+            if res == WmCommand::Redraw {
+                println!("{}", current_tagset(c, s));
+            }
+            res
+        }),
         // quit the window manager
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| {
             let _ = Command::new("killall")
@@ -236,39 +284,78 @@ pub fn setup_wm(wm: &mut Wm) {
                 });
             WmCommand::NoCommand
         }),
-        // spawn password manager script for dmenu
-        bind!(26, modkey, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("pass.sh");
-                    Command::new(dir.into_os_string())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
-        // spawn password manager script for dmenu
-        bind!(26, modkey, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("pass.sh");
-                    Command::new(dir.into_os_string())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
         // spawn dmenu_run
-        bind!(27, modkey, Mode::Normal, |_, _| {
+        bind!(25, modkey+SHIFT, Mode::Normal, |_, _| {
             let _ = Command::new("dmenu_run")
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn();
             WmCommand::NoCommand
+        }),
+        // spawn password manager script for dmenu
+        bind!(26, modkey, Mode::Normal, |_, _| {
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("pass.sh");
+                    Command::new(dir.into_os_string())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
+            WmCommand::NoCommand
+        }),
+        // switch to normal mode
+        bind!(27, modkey, Mode::Toggle, |_, _| {
+            write_mode("NORMAL");
+            WmCommand::ModeSwitch(Mode::Normal)
+        }),
+        bind!(27, modkey, Mode::Move, |_, _| {
+            write_mode("NORMAL");
+            WmCommand::ModeSwitch(Mode::Normal)
+        }),
+        bind!(27, modkey, Mode::Setup, |_, _| {
+            write_mode("NORMAL");
+            WmCommand::ModeSwitch(Mode::Normal)
+        }),
+        // switch to toggle mode
+        bind!(28, modkey, Mode::Normal, |_, _| {
+            write_mode("TOGGLE");
+            WmCommand::ModeSwitch(Mode::Toggle)
+        }),
+        bind!(28, modkey, Mode::Move, |_, _| {
+            write_mode("TOGGLE");
+            WmCommand::ModeSwitch(Mode::Toggle)
+        }),
+        bind!(28, modkey, Mode::Setup, |_, _| {
+            write_mode("TOGGLE");
+            WmCommand::ModeSwitch(Mode::Toggle)
+        }),
+        // switch to move mode
+        bind!(29, modkey, Mode::Normal, |_, _| {
+            write_mode("MOVE");
+            WmCommand::ModeSwitch(Mode::Move)
+        }),
+        bind!(29, modkey, Mode::Toggle, |_, _| {
+            write_mode("MOVE");
+            WmCommand::ModeSwitch(Mode::Move)
+        }),
+        bind!(29, modkey, Mode::Setup, |_, _| {
+            write_mode("MOVE");
+            WmCommand::ModeSwitch(Mode::Move)
+        }),
+        // switch to setup mode
+        bind!(30, modkey, Mode::Normal, |_, _| {
+            write_mode("SETUP");
+            WmCommand::ModeSwitch(Mode::Setup)
+        }),
+        bind!(30, modkey, Mode::Toggle, |_, _| {
+            write_mode("SETUP");
+            WmCommand::ModeSwitch(Mode::Setup)
+        }),
+        bind!(30, modkey, Mode::Move, |_, _| {
+            write_mode("SETUP");
+            WmCommand::ModeSwitch(Mode::Setup)
         }),
         // spawn a terminal
         bind!(31, modkey, Mode::Normal, |_, _| {
@@ -312,31 +399,6 @@ pub fn setup_wm(wm: &mut Wm) {
             .map(WmCommand::Kill)
             .unwrap_or(WmCommand::NoCommand)
         ),
-        // switch to setup mode
-        bind!(36, modkey, Mode::Normal, |_, _|
-              WmCommand::ModeSwitch(Mode::Setup)),
-        // switch back to normal mode
-        bind!(36, modkey, Mode::Setup, |_, _|
-              WmCommand::ModeSwitch(Mode::Normal)),
-        // toggle tags on current tagset
-        bind!(10, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Web;; current_tagset)),
-        bind!(11, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Work2;; current_tagset)),
-        bind!(12, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Work3;; current_tagset)),
-        bind!(13, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Work4;; current_tagset)),
-        bind!(14, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Work5;; current_tagset)),
-        bind!(15, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Media;; current_tagset)),
-        bind!(16, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Chat;; current_tagset)),
-        bind!(17, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Logs;; current_tagset)),
-        bind!(18, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Mon;; current_tagset)),
         // volume controls
         bind!(121, 0, Mode::Normal, |_, _| {
             let _ = Command::new("amixer")
@@ -384,23 +446,19 @@ pub fn setup_wm(wm: &mut Wm) {
     wm.setup_tags(
         TagStack::from_presets(
             vec![
-                TagSet::new(vec![Tag::Web], DStack::default()),
-                TagSet::new(vec![Tag::Work2], VStack::default()),
-                TagSet::new(vec![Tag::Work3], VStack::default()),
-                TagSet::new(vec![Tag::Work4], VStack::default()),
-                TagSet::new(vec![Tag::Work5], Grid::default()),
-                TagSet::new(vec![Tag::Media], Monocle::default()),
+                TagSet::new(vec![Tag::Web, Tag::Marks], VStack {
+                    master_factor: 75,
+                    inverted: false,
+                    fixed: true,
+                }),
+                TagSet::new(vec![Tag::Work(0)], VStack::default()),
                 TagSet::new(vec![Tag::Chat], HStack {
                     master_factor: 75,
                     inverted: true,
                     fixed: false,
                 }),
-                TagSet::new(vec![Tag::Logs], HStack {
-                    master_factor: 75,
-                    inverted: true,
-                    fixed: false,
-                }),
-                TagSet::new(vec![Tag::Mon], HStack {
+                TagSet::new(vec![Tag::Media], Monocle::default()),
+                TagSet::new(vec![Tag::Logs, Tag::Mon], HStack {
                     master_factor: 75,
                     inverted: true,
                     fixed: false,
@@ -422,4 +480,18 @@ pub fn setup_wm(wm: &mut Wm) {
             None
         }
     ));
+}
+
+fn write_mode(mode: &str) {
+    // file descriptors for various named pipes
+    if let Some(path) = home_dir()
+        .map(|mut dir| {
+            dir.push("tmp");
+            dir.push("mode_fifo");
+            dir.into_os_string()
+        }) {
+        if let Ok(mut f) = File::create(path) {
+            let _ = writeln!(f, "{}", mode);
+        }
+    }
 }
