@@ -401,27 +401,42 @@ pub fn setup_wm(wm: &mut Wm) {
         ),
         // volume controls
         bind!(121, 0, Mode::Normal, |_, _| {
-            let _ = Command::new("amixer")
-                .args(&["-c", "1", "set", "Master", "toggle"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("volume.sh");
+                    Command::new(dir.into_os_string())
+                        .arg("toggle")
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
             WmCommand::NoCommand
         }),
         bind!(122, 0, Mode::Normal, |_, _| {
-            let _ = Command::new("amixer")
-                .args(&["-c", "1", "set", "Master", "5%-"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("volume.sh");
+                    Command::new(dir.into_os_string())
+                        .arg("5%-")
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
             WmCommand::NoCommand
         }),
         bind!(123, 0, Mode::Normal, |_, _| {
-            let _ = Command::new("amixer")
-                .args(&["-c", "1", "set", "Master", "5%+"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
+            let _ = home_dir()
+                .map(|mut dir| {
+                    dir.push("dotfiles");
+                    dir.push("volume.sh");
+                    Command::new(dir.into_os_string())
+                        .arg("5%+")
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                });
             WmCommand::NoCommand
         }),
         // backlight controls
