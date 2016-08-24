@@ -38,8 +38,8 @@ pub enum Tag {
     Web,
     /// the bookmarks tag
     Marks,
-    /// unlimited number of work tags
-    Work(usize),
+    /// "unlimited" number of work tags
+    Work(u8),
     /// the media tag - movies, music apps etc. go here
     Media,
     /// the chat tag - for IRC and IM
@@ -142,42 +142,30 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(18, modkey, Mode::Normal, push_tagset!(8;; current_tagset)),
         // toggle tags on current client
         bind!(10, modkey, Mode::Toggle, toggle_tag!(Tag::Web)),
-        bind!(11, modkey, Mode::Toggle, toggle_tag!(Tag::Work(0))),
-        bind!(12, modkey, Mode::Toggle, toggle_tag!(Tag::Work(1))),
-        bind!(13, modkey, Mode::Toggle, toggle_tag!(Tag::Work(2))),
-        bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Marks)),
-        bind!(15, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
-        bind!(16, modkey, Mode::Toggle, toggle_tag!(Tag::Chat)),
-        bind!(17, modkey, Mode::Toggle, toggle_tag!(Tag::Logs)),
-        bind!(18, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
+        bind!(11, modkey, Mode::Toggle, toggle_tag!(Tag::Marks)),
+        bind!(12, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
+        bind!(13, modkey, Mode::Toggle, toggle_tag!(Tag::Chat)),
+        bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Logs)),
+        bind!(15, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
         // move client to tags
         bind!(10, modkey, Mode::Move, move_to_tag!(Tag::Web)),
-        bind!(11, modkey, Mode::Move, move_to_tag!(Tag::Work(0))),
-        bind!(12, modkey, Mode::Move, move_to_tag!(Tag::Work(1))),
-        bind!(13, modkey, Mode::Move, move_to_tag!(Tag::Work(2))),
-        bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Marks)),
-        bind!(15, modkey, Mode::Move, move_to_tag!(Tag::Media)),
-        bind!(16, modkey, Mode::Move, move_to_tag!(Tag::Chat)),
-        bind!(17, modkey, Mode::Move, move_to_tag!(Tag::Logs)),
-        bind!(18, modkey, Mode::Move, move_to_tag!(Tag::Mon)),
+        bind!(11, modkey, Mode::Move, move_to_tag!(Tag::Marks)),
+        bind!(12, modkey, Mode::Move, move_to_tag!(Tag::Media)),
+        bind!(13, modkey, Mode::Move, move_to_tag!(Tag::Chat)),
+        bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Logs)),
+        bind!(15, modkey, Mode::Move, move_to_tag!(Tag::Mon)),
         // toggle tags on current tagset
         bind!(10, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Web;; current_tagset)),
         bind!(11, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Work(0);; current_tagset)),
-        bind!(12, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Work(1);; current_tagset)),
-        bind!(13, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Work(2);; current_tagset)),
-        bind!(14, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Marks;; current_tagset)),
-        bind!(15, modkey, Mode::Setup,
+        bind!(12, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Media;; current_tagset)),
-        bind!(16, modkey, Mode::Setup,
+        bind!(13, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Chat;; current_tagset)),
-        bind!(17, modkey, Mode::Setup,
+        bind!(14, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Logs;; current_tagset)),
-        bind!(18, modkey, Mode::Setup,
+        bind!(15, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Mon;; current_tagset)),
         // focus windows
         bind!(43, modkey, Mode::Normal, focus!(ClientSet::focus_left)),
@@ -214,6 +202,20 @@ pub fn setup_wm(wm: &mut Wm) {
             }
             res
         }),
+        bind!(43, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
+            if let Some(&[Tag::Work(ref n), ..]) =
+                s.current().map(|s| s.tags.as_slice()) {
+                s.current()
+                    .and_then(|t| c.get_focused_window(&t.tags))
+                    .and_then(|w| c.update_client(w, |mut cl| {
+                        cl.set_tags(&[Tag::Work(n.saturating_sub(1))]);
+                        WmCommand::Redraw
+                    }))
+                    .unwrap_or(WmCommand::NoCommand)
+            } else {
+                WmCommand::NoCommand
+            }
+        ),
         bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&mut [Tag::Work(ref mut n), ..]) =
                 s.current_mut().map(|s| s.tags.as_mut_slice()) {
@@ -227,6 +229,20 @@ pub fn setup_wm(wm: &mut Wm) {
             }
             res
         }),
+        bind!(46, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
+            if let Some(&[Tag::Work(ref n), ..]) =
+                s.current().map(|s| s.tags.as_slice()) {
+                s.current()
+                    .and_then(|t| c.get_focused_window(&t.tags))
+                    .and_then(|w| c.update_client(w, |mut cl| {
+                        cl.set_tags(&[Tag::Work(n.saturating_add(1))]);
+                        WmCommand::Redraw
+                    }))
+                    .unwrap_or(WmCommand::NoCommand)
+            } else {
+                WmCommand::NoCommand
+            }
+        ),
         // quit the window manager
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| {
             let _ = Command::new("killall")
