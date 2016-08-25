@@ -251,20 +251,10 @@ pub fn setup_wm(wm: &mut Wm) {
             WmCommand::Quit
         }),
         // lock screen
-        bind!(39, modkey, Mode::Normal, |_, _| {
-            let _ = Command::new("slock")
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
-            WmCommand::NoCommand
-        }),
+        bind!(39, modkey, Mode::Normal, |_, _| exec_command("slock", &[])),
         // shutdown system
-        bind!(39, modkey+CTRL, Mode::Normal, |_, _| {
-            let _ = Command::new("sudo")
-                .args(&["shutdown", "-h", "now"])
-                .spawn();
-            WmCommand::NoCommand
-        }),
+        bind!(39, modkey+CTRL, Mode::Normal, |_, _|
+              exec_command("sudo", &["shutdown", "-h", "now"])),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |c, s| {
             if s.view_prev() {
@@ -275,52 +265,14 @@ pub fn setup_wm(wm: &mut Wm) {
             }
         }),
         // spawn alarm/reminder notification with a delay
-        bind!(24, modkey, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("alarm.zsh");
-                    Command::new(dir.into_os_string())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
+        bind!(24, modkey, Mode::Normal, |_, _| exec_script("alarm.zsh", &[])),
         // spawn custom dmenu
-        bind!(25, modkey, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("menu.sh");
-                    Command::new(dir.into_os_string())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
+        bind!(25, modkey, Mode::Normal, |_, _| exec_script("menu.sh", &[])),
         // spawn dmenu_run
-        bind!(25, modkey+SHIFT, Mode::Normal, |_, _| {
-            let _ = Command::new("dmenu_run")
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
-            WmCommand::NoCommand
-        }),
+        bind!(25, modkey+SHIFT, Mode::Normal, |_, _|
+              exec_command("dmenu_run", &[])),
         // spawn password manager script for dmenu
-        bind!(26, modkey, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("pass.sh");
-                    Command::new(dir.into_os_string())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
+        bind!(26, modkey, Mode::Normal, |_, _| exec_script("pass.sh", &[])),
         // switch to normal mode
         bind!(27, modkey, Mode::Toggle, |_, _| {
             write_mode("NORMAL");
@@ -374,40 +326,11 @@ pub fn setup_wm(wm: &mut Wm) {
             WmCommand::ModeSwitch(Mode::Setup)
         }),
         // spawn a terminal
-        bind!(31, modkey, Mode::Normal, |_, _| {
-            let _ = Command::new("termite")
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
-            WmCommand::NoCommand
-        }),
+        bind!(31, modkey, Mode::Normal, |_, _| exec_command("termite", &[])),
         // spawn an agenda notification
-        bind!(32, modkey, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("org.sh");
-                    Command::new(dir.into_os_string())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
+        bind!(32, modkey, Mode::Normal, |_, _| exec_script("org.sh", &[])),
         // spawn a weather notification
-        bind!(33, modkey, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("weather.sh");
-                    Command::new(dir.into_os_string())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
-        
+        bind!(33, modkey, Mode::Normal, |_, _| exec_script("weather.sh", &[])),
         // kill current client
         bind!(54, modkey+SHIFT, Mode::Normal, |c, s| s
             .current()
@@ -416,62 +339,15 @@ pub fn setup_wm(wm: &mut Wm) {
             .unwrap_or(WmCommand::NoCommand)
         ),
         // volume controls
-        bind!(121, 0, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("volume.sh");
-                    Command::new(dir.into_os_string())
-                        .arg("toggle")
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
-        bind!(122, 0, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("volume.sh");
-                    Command::new(dir.into_os_string())
-                        .arg("5%-")
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
-        bind!(123, 0, Mode::Normal, |_, _| {
-            let _ = home_dir()
-                .map(|mut dir| {
-                    dir.push("dotfiles");
-                    dir.push("volume.sh");
-                    Command::new(dir.into_os_string())
-                        .arg("5%+")
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                });
-            WmCommand::NoCommand
-        }),
+        bind!(121, 0, Mode::Normal, |_, _|
+              exec_script("volume.sh", &["toggle"])),
+        bind!(122, 0, Mode::Normal, |_, _| exec_script("volume.sh", &["5%-"])),
+        bind!(123, 0, Mode::Normal, |_, _| exec_script("volume.sh", &["5%+"])),
         // backlight controls
-        bind!(232, 0, Mode::Normal, |_, _| {
-            let _ = Command::new("xbacklight")
-                .args(&["-dec", "5"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
-            WmCommand::NoCommand
-        }),
-        bind!(233, 0, Mode::Normal, |_, _| {
-            let _ = Command::new("xbacklight")
-                .args(&["-inc", "5"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
-            WmCommand::NoCommand
-        }),
+        bind!(232, 0, Mode::Normal, |_, _|
+              exec_command("xbacklight", &["-dec", "5"])),
+        bind!(233, 0, Mode::Normal, |_, _|
+              exec_command("xbacklight", &["-inc", "5"])),
     ]);
     // default tag stack
     wm.setup_tags(
@@ -514,7 +390,6 @@ pub fn setup_wm(wm: &mut Wm) {
 }
 
 fn write_mode(mode: &str) {
-    // file descriptors for various named pipes
     if let Some(path) = home_dir()
         .map(|mut dir| {
             dir.push("tmp");
@@ -525,4 +400,28 @@ fn write_mode(mode: &str) {
             let _ = writeln!(f, "{}", mode);
         }
     }
+}
+
+fn exec_script(script: &str, args: &[&str]) -> WmCommand {
+    let _ = home_dir()
+        .map(|mut dir| {
+            dir.push("dotfiles");
+            dir.push("scripts");
+            dir.push(script);
+            Command::new(dir.into_os_string())
+                .args(args)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+        });
+    WmCommand::NoCommand
+}
+
+fn exec_command(command: &str, args: &[&str]) -> WmCommand {
+    let _ = Command::new(command)
+        .args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+    WmCommand::NoCommand
 }
