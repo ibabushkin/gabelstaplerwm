@@ -381,6 +381,8 @@ pub fn setup_wm(wm: &mut Wm) {
             Some(vec![Tag::Web])
         } else if props.class.contains(&String::from("Chat")) {
             Some(vec![Tag::Chat])
+        } else if props.class.contains(&String::from("mpv")) {
+            Some(vec![Tag::Media])
         } else if props.class.contains(&String::from("Mon")) {
             Some(vec![Tag::Mon])
         } else {
