@@ -4,6 +4,7 @@ use xcb::base;
 
 /// An error encountered by the WM.
 pub enum WmError {
+    CouldNotEstablishHandlers,
     CouldNotConnect(base::ConnError),
     CouldNotAcquireScreen,
     CouldNotRegisterAtom(String),
@@ -16,6 +17,9 @@ impl WmError {
     /// "Handle" an error, ie. print error message and exit.
     pub fn handle(self) -> ! {
         match self {
+            WmError::CouldNotEstablishHandlers => {
+                error!("could not establish signal handlers")
+            }
             WmError::CouldNotConnect(e) => {
                 error!("could not connect: {:?}", e)
             }

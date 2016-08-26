@@ -17,14 +17,29 @@ extern crate log;
 #[cfg(with_mousetrap)]
 extern crate mousetrap;
 
-use std::env::remove_var;
+use std::mem::{transmute,uninitialized};
 
-use xcb::base::*;
+use std::env::remove_var;
 
 pub mod wm;
 use wm::config::*;
 use wm::err::*;
 use wm::window_system::Wm;
+
+use xcb::base::*;
+
+/// Reap children.
+extern fn sigchld_action(_: libc::c_int) {
+    unsafe {
+        loop {
+            let pid = libc::waitpid(-1, 0 as *mut libc::c_int, libc::WNOHANG);
+            if pid <= 0 {
+                return;
+            }
+            info!("reaped child pid {}", pid);
+        }
+    }
+}
 
 /// Main function.
 ///
@@ -34,6 +49,29 @@ fn main() {
     // logger setup
     if env_logger::init().is_err() {
         handle_logger_error();
+    }
+
+    // we're a good parent - we wait for our children when they get a screaming
+    // fit at the checkout lane
+    unsafe {
+        // initialize the sigaction struct
+        let mut act = uninitialized::<libc::sigaction>();
+
+        // convert our handler to a C-style function pointer
+        let f_ptr: *const libc::c_void =
+            transmute(sigchld_action as extern fn(libc::c_int));
+        act.sa_sigaction = f_ptr as libc::sighandler_t;
+
+        // some default values noone cares about
+        libc::sigemptyset(&mut act.sa_mask);
+        act.sa_flags = libc::SA_RESTART;
+
+        // setup our SIGCHLD-handler
+        if libc::sigaction(libc::SIGCHLD, &act, 0 as *mut libc::sigaction)
+            == -1 {
+            // crash and burn on failure
+            WmError::CouldNotEstablishHandlers.handle();
+        }
     }
 
     // clean environment for cargo and other processes honoring `RUST_LOG`
