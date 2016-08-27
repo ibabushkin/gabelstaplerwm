@@ -379,6 +379,8 @@ pub fn setup_wm(wm: &mut Wm) {
             Some(vec![Tag::Web])
         } else if props.class.contains(&String::from("uzbl-core")) {
             Some(vec![Tag::Web])
+        } else if props.class.contains(&String::from("Marks")) {
+            Some(vec![Tag::Marks])
         } else if props.class.contains(&String::from("Chat")) {
             Some(vec![Tag::Chat])
         } else if props.class.contains(&String::from("mpv")) {
