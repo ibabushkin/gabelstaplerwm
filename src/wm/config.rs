@@ -270,7 +270,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(25, modkey, Mode::Normal, |_, _| exec_script("menu.sh", &[])),
         // spawn dmenu_run
         bind!(25, modkey+SHIFT, Mode::Normal, |_, _|
-              exec_command("dmenu_run", &[])),
+              exec_command("dmenu_run", &["-y", "20"])),
         // spawn password manager script for dmenu
         bind!(26, modkey, Mode::Normal, |_, _| exec_script("pass.sh", &[])),
         // switch to normal mode
