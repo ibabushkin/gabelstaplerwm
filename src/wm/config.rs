@@ -130,7 +130,7 @@ pub fn setup_wm(wm: &mut Wm) {
     // keybindings
     let modkey = MOD4;
     wm.setup_bindings(vec![
-        // focus single-digit-tagset
+        // focus n'th-tagset - modkey+[1-9]
         bind!(10, modkey, Mode::Normal, push_tagset!(0;; current_tagset)),
         bind!(11, modkey, Mode::Normal, push_tagset!(1;; current_tagset)),
         bind!(12, modkey, Mode::Normal, push_tagset!(2;; current_tagset)),
@@ -140,21 +140,21 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(16, modkey, Mode::Normal, push_tagset!(6;; current_tagset)),
         bind!(17, modkey, Mode::Normal, push_tagset!(7;; current_tagset)),
         bind!(18, modkey, Mode::Normal, push_tagset!(8;; current_tagset)),
-        // toggle tags on current client
+        // toggle tags on current client - modkey+[1-6]
         bind!(10, modkey, Mode::Toggle, toggle_tag!(Tag::Web)),
         bind!(11, modkey, Mode::Toggle, toggle_tag!(Tag::Marks)),
         bind!(12, modkey, Mode::Toggle, toggle_tag!(Tag::Chat)),
         bind!(13, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
         bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Logs)),
         bind!(15, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
-        // move client to tags
+        // move client to tags - modkey+[1-6]
         bind!(10, modkey, Mode::Move, move_to_tag!(Tag::Web)),
         bind!(11, modkey, Mode::Move, move_to_tag!(Tag::Marks)),
         bind!(12, modkey, Mode::Move, move_to_tag!(Tag::Chat)),
         bind!(13, modkey, Mode::Move, move_to_tag!(Tag::Media)),
         bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Logs)),
         bind!(15, modkey, Mode::Move, move_to_tag!(Tag::Mon)),
-        // toggle tags on current tagset
+        // toggle tags on current tagset - modkey+[1-6]
         bind!(10, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Web;; current_tagset)),
         bind!(11, modkey, Mode::Setup,
@@ -167,28 +167,116 @@ pub fn setup_wm(wm: &mut Wm) {
               toggle_show_tag!(Tag::Logs;; current_tagset)),
         bind!(15, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Mon;; current_tagset)),
-        // focus windows
+        // quit the window manager - modkey+CTRL+q
+        bind!(24, modkey+CTRL, Mode::Normal, |_, _| {
+            let _ = Command::new("killall")
+                .arg("lemonbar")
+                .spawn();
+            WmCommand::Quit
+        }),
+        // spawn alarm/reminder notification with a delay - modkey+q
+        bind!(24, modkey, Mode::Normal, |_, _| exec_script("alarm.zsh", &[])),
+        // spawn custom dmenu - modkey+w
+        bind!(25, modkey, Mode::Normal, |_, _| exec_script("menu.sh", &[])),
+        // spawn dmenu_run - modkey+SHIFT-w
+        bind!(25, modkey+SHIFT, Mode::Normal, |_, _|
+              exec_command("dmenu_run", &["-y", "20"])),
+        // spawn password manager script for dmenu - modkey+e
+        bind!(26, modkey, Mode::Normal, |_, _| exec_script("pass.sh", &[])),
+        // switch to normal mode - modkey+r
+        bind!(27, modkey, Mode::Toggle, |_, _| {
+            write_mode("NORMAL");
+            WmCommand::ModeSwitch(Mode::Normal)
+        }),
+        bind!(27, modkey, Mode::Move, |_, _| {
+            write_mode("NORMAL");
+            WmCommand::ModeSwitch(Mode::Normal)
+        }),
+        bind!(27, modkey, Mode::Setup, |_, _| {
+            write_mode("NORMAL");
+            WmCommand::ModeSwitch(Mode::Normal)
+        }),
+        // switch to toggle mode - modkey+t
+        bind!(28, modkey, Mode::Normal, |_, _| {
+            write_mode("TOGGLE");
+            WmCommand::ModeSwitch(Mode::Toggle)
+        }),
+        bind!(28, modkey, Mode::Move, |_, _| {
+            write_mode("TOGGLE");
+            WmCommand::ModeSwitch(Mode::Toggle)
+        }),
+        bind!(28, modkey, Mode::Setup, |_, _| {
+            write_mode("TOGGLE");
+            WmCommand::ModeSwitch(Mode::Toggle)
+        }),
+        // switch to move mode - modkey+z
+        bind!(29, modkey, Mode::Normal, |_, _| {
+            write_mode("MOVE");
+            WmCommand::ModeSwitch(Mode::Move)
+        }),
+        bind!(29, modkey, Mode::Toggle, |_, _| {
+            write_mode("MOVE");
+            WmCommand::ModeSwitch(Mode::Move)
+        }),
+        bind!(29, modkey, Mode::Setup, |_, _| {
+            write_mode("MOVE");
+            WmCommand::ModeSwitch(Mode::Move)
+        }),
+        // switch to setup mode - modkey+u
+        bind!(30, modkey, Mode::Normal, |_, _| {
+            write_mode("SETUP");
+            WmCommand::ModeSwitch(Mode::Setup)
+        }),
+        bind!(30, modkey, Mode::Toggle, |_, _| {
+            write_mode("SETUP");
+            WmCommand::ModeSwitch(Mode::Setup)
+        }),
+        bind!(30, modkey, Mode::Move, |_, _| {
+            write_mode("SETUP");
+            WmCommand::ModeSwitch(Mode::Setup)
+        }),
+        // spawn a terminal - modkey+i
+        bind!(31, modkey, Mode::Normal, |_, _| exec_command("termite", &[])),
+        // spawn an agenda notification - modkey+o
+        bind!(32, modkey, Mode::Normal, |_, _| exec_script("org.sh", &[])),
+        // spawn a weather notification - modkey+p
+        bind!(33, modkey, Mode::Normal, |_, _| exec_script("weather.sh", &[])),
+        // lock screen - modkey+s
+        bind!(39, modkey, Mode::Normal, |_, _| exec_command("slock", &[])),
+        // shutdown system - modkey+CTRL+s
+        bind!(39, modkey+CTRL, Mode::Normal, |_, _|
+              exec_command("sudo", &["shutdown", "-h", "now"])),
+        // go back in tagset history - modkey+g
+        bind!(42, modkey, Mode::Normal, |c, s| {
+            if s.view_prev() {
+                println!("{}", current_tagset(c, s));
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            }
+        }),
+        // focus windows by direction or order - modkey+[hjkl+-]
         bind!(43, modkey, Mode::Normal, focus!(ClientSet::focus_left)),
         bind!(44, modkey, Mode::Normal, focus!(ClientSet::focus_bottom)),
         bind!(45, modkey, Mode::Normal, focus!(ClientSet::focus_top)),
         bind!(46, modkey, Mode::Normal, focus!(ClientSet::focus_right)),
         bind!(35, modkey, Mode::Normal, focus!(ClientSet::focus_next)),
         bind!(61, modkey, Mode::Normal, focus!(ClientSet::focus_prev)),
-        // swap windows
+        // swap windows by direction or order - modkey+SHIFT+[hjkl+-]
         bind!(43, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_left)),
         bind!(44, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_bottom)),
         bind!(45, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_top)),
         bind!(46, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_right)),
         bind!(35, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_next)),
         bind!(61, modkey+SHIFT, Mode::Normal, swap!(ClientSet::swap_prev)),
-        // change layout attributes
+        // change layout attributes - modkey+CTRL+[jk]
         bind!(44, modkey+CTRL, Mode::Normal, edit_layout!(
                 LayoutMessage::MasterFactorRel(-5),
                 LayoutMessage::ColumnRel(-1))),
         bind!(45, modkey+CTRL, Mode::Normal, edit_layout!(
                 LayoutMessage::MasterFactorRel(5),
                 LayoutMessage::ColumnRel(1))),
-        // change work tagset
+        // change work tagset - modkey+CTRL+[hl]
         bind!(43, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&mut [Tag::Work(ref mut n), ..]) =
                 s.current_mut().map(|s| s.tags.as_mut_slice()) {
@@ -202,6 +290,20 @@ pub fn setup_wm(wm: &mut Wm) {
             }
             res
         }),
+        bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
+            let res = if let Some(&mut [Tag::Work(ref mut n), ..]) =
+                s.current_mut().map(|s| s.tags.as_mut_slice()) {
+                *n = n.saturating_add(1);
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            };
+            if res == WmCommand::Redraw {
+                println!("{}", current_tagset(c, s));
+            }
+            res
+        }),
+        // move a client to an adjacent work tagset - modkey+CTRL+SHIFT+[hl]
         bind!(43, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
             if let Some(&[Tag::Work(ref n), ..]) =
                 s.current().map(|s| s.tags.as_slice()) {
@@ -216,19 +318,6 @@ pub fn setup_wm(wm: &mut Wm) {
                 WmCommand::NoCommand
             }
         ),
-        bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
-            let res = if let Some(&mut [Tag::Work(ref mut n), ..]) =
-                s.current_mut().map(|s| s.tags.as_mut_slice()) {
-                *n = n.saturating_add(1);
-                WmCommand::Redraw
-            } else {
-                WmCommand::NoCommand
-            };
-            if res == WmCommand::Redraw {
-                println!("{}", current_tagset(c, s));
-            }
-            res
-        }),
         bind!(46, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
             if let Some(&[Tag::Work(ref n), ..]) =
                 s.current().map(|s| s.tags.as_slice()) {
@@ -243,107 +332,22 @@ pub fn setup_wm(wm: &mut Wm) {
                 WmCommand::NoCommand
             }
         ),
-        // quit the window manager
-        bind!(24, modkey+CTRL, Mode::Normal, |_, _| {
-            let _ = Command::new("killall")
-                .arg("lemonbar")
-                .spawn();
-            WmCommand::Quit
-        }),
-        // lock screen
-        bind!(39, modkey, Mode::Normal, |_, _| exec_command("slock", &[])),
-        // shutdown system
-        bind!(39, modkey+CTRL, Mode::Normal, |_, _|
-              exec_command("sudo", &["shutdown", "-h", "now"])),
-        // go back in tagset history
-        bind!(42, modkey, Mode::Normal, |c, s| {
-            if s.view_prev() {
-                println!("{}", current_tagset(c, s));
-                WmCommand::Redraw
-            } else {
-                WmCommand::NoCommand
-            }
-        }),
-        // spawn alarm/reminder notification with a delay
-        bind!(24, modkey, Mode::Normal, |_, _| exec_script("alarm.zsh", &[])),
-        // spawn custom dmenu
-        bind!(25, modkey, Mode::Normal, |_, _| exec_script("menu.sh", &[])),
-        // spawn dmenu_run
-        bind!(25, modkey+SHIFT, Mode::Normal, |_, _|
-              exec_command("dmenu_run", &["-y", "20"])),
-        // spawn password manager script for dmenu
-        bind!(26, modkey, Mode::Normal, |_, _| exec_script("pass.sh", &[])),
-        // switch to normal mode
-        bind!(27, modkey, Mode::Toggle, |_, _| {
-            write_mode("NORMAL");
-            WmCommand::ModeSwitch(Mode::Normal)
-        }),
-        bind!(27, modkey, Mode::Move, |_, _| {
-            write_mode("NORMAL");
-            WmCommand::ModeSwitch(Mode::Normal)
-        }),
-        bind!(27, modkey, Mode::Setup, |_, _| {
-            write_mode("NORMAL");
-            WmCommand::ModeSwitch(Mode::Normal)
-        }),
-        // switch to toggle mode
-        bind!(28, modkey, Mode::Normal, |_, _| {
-            write_mode("TOGGLE");
-            WmCommand::ModeSwitch(Mode::Toggle)
-        }),
-        bind!(28, modkey, Mode::Move, |_, _| {
-            write_mode("TOGGLE");
-            WmCommand::ModeSwitch(Mode::Toggle)
-        }),
-        bind!(28, modkey, Mode::Setup, |_, _| {
-            write_mode("TOGGLE");
-            WmCommand::ModeSwitch(Mode::Toggle)
-        }),
-        // switch to move mode
-        bind!(29, modkey, Mode::Normal, |_, _| {
-            write_mode("MOVE");
-            WmCommand::ModeSwitch(Mode::Move)
-        }),
-        bind!(29, modkey, Mode::Toggle, |_, _| {
-            write_mode("MOVE");
-            WmCommand::ModeSwitch(Mode::Move)
-        }),
-        bind!(29, modkey, Mode::Setup, |_, _| {
-            write_mode("MOVE");
-            WmCommand::ModeSwitch(Mode::Move)
-        }),
-        // switch to setup mode
-        bind!(30, modkey, Mode::Normal, |_, _| {
-            write_mode("SETUP");
-            WmCommand::ModeSwitch(Mode::Setup)
-        }),
-        bind!(30, modkey, Mode::Toggle, |_, _| {
-            write_mode("SETUP");
-            WmCommand::ModeSwitch(Mode::Setup)
-        }),
-        bind!(30, modkey, Mode::Move, |_, _| {
-            write_mode("SETUP");
-            WmCommand::ModeSwitch(Mode::Setup)
-        }),
-        // spawn a terminal
-        bind!(31, modkey, Mode::Normal, |_, _| exec_command("termite", &[])),
-        // spawn an agenda notification
-        bind!(32, modkey, Mode::Normal, |_, _| exec_script("org.sh", &[])),
-        // spawn a weather notification
-        bind!(33, modkey, Mode::Normal, |_, _| exec_script("weather.sh", &[])),
-        // kill current client
+        // warp the mouse pointer out of the way - modkey+y
+        bind!(52, modkey, Mode::Normal, |_, _|
+              exec_command("swarp", &["0", "768"])),
+        // kill current client - modkey+SHIFT+c
         bind!(54, modkey+SHIFT, Mode::Normal, |c, s| s
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .map(WmCommand::Kill)
             .unwrap_or(WmCommand::NoCommand)
         ),
-        // volume controls
+        // volume controls - XF86Audio{Mute,{Raise,Lower}Volume}
         bind!(121, 0, Mode::Normal, |_, _|
               exec_script("volume.sh", &["toggle"])),
         bind!(122, 0, Mode::Normal, |_, _| exec_script("volume.sh", &["5%-"])),
         bind!(123, 0, Mode::Normal, |_, _| exec_script("volume.sh", &["5%+"])),
-        // backlight controls
+        // backlight controls - XF86MonBrightness{Down,Up}
         bind!(232, 0, Mode::Normal, |_, _|
               exec_command("xbacklight", &["-dec", "5"])),
         bind!(233, 0, Mode::Normal, |_, _|
