@@ -355,6 +355,9 @@ impl<'a> Wm<'a> {
             if self.send_event(new, "WM_TAKE_FOCUS") {
                 info!("client didn't acept WM_TAKE_FOCUS message");
             }
+            if self.send_event(new, "_NET_WM_TAKE_FOCUS") {
+                info!("client didn't acept _NET_WM_TAKE_FOCUS message");
+            }
             let cookie =
                 xproto::set_input_focus(self.con,
                                         xproto::INPUT_FOCUS_POINTER_ROOT as u8,
@@ -596,7 +599,7 @@ impl<'a> Wm<'a> {
         let res = cookies
             .drain(..)
             .zip(atom_response_pairs.iter())
-            .map(|(cookie, &(_, response_type))|
+            .map(|(cookie, &(_, response_type))| // TODO: use the returned response type
                 match response_type {
                     xproto::ATOM_ATOM => if let Ok(r) = cookie.get_reply() {
                         let atoms: &[xproto::Atom] = r.value();
@@ -611,12 +614,16 @@ impl<'a> Wm<'a> {
                     xproto::ATOM_STRING => if let Ok(r) = cookie.get_reply() {
                         let raw: &[c_char] = r.value();
                         let mut res = Vec::new();
+                        debug!("raw property data: {:?}, length: {}, type: {}",
+                               raw, r.value_len(), r.type_());
                         for c in raw.split(|ch| *ch == 0) {
                             if c.len() > 0 {
                                 unsafe {
                                     if let Ok(cl) = str::from_utf8(
                                         CStr::from_ptr(c.as_ptr()).to_bytes()) {
                                         res.push(cl.to_owned());
+                                    } else {
+                                        error!("decoding utf-8 from property failed");
                                     }
                                 }
                             }
@@ -638,19 +645,28 @@ impl<'a> Wm<'a> {
             (self.lookup_atom("_NET_WM_WINDOW_TYPE"), xproto::ATOM_ATOM),
             (self.lookup_atom("_NET_WM_STATE"), xproto::ATOM_ATOM),
             (xproto::ATOM_WM_NAME, xproto::ATOM_STRING),
-            (xproto::ATOM_WM_CLASS, xproto::ATOM_STRING)
+            (self.lookup_atom("_NET_WM_NAME"), xproto::ATOM_STRING),
+            (xproto::ATOM_WM_CLASS, xproto::ATOM_STRING),
+            (self.lookup_atom("_NET_WM_CLASS"), xproto::ATOM_STRING)
         ]);
         let mut props = properties.drain(..);
 
         let window_type = if let Some(ClientProp::PropAtom(t)) = props.next() {
             t
         } else { // assume reasonable default
+            info!("_NET_WM_WINDOW_TYPE: not set, assuming _NET_WM_WINDOW_TYPE_NORMAL");
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
         };
 
-        let state = if let Some(ClientProp::PropAtom(s)) = props.next() {
+        let state_iter = props.next();
+        let state = if let Some(ClientProp::PropAtom(s)) = state_iter {
             Some(s)
         } else {
+            if state_iter == Some(ClientProp::NoProp) {
+                info!("_NET_WM_STATE: not set");
+            } else {
+                error!("_NET_WM_STATE: unexpected response type");
+            }
             None
         };
 
@@ -658,22 +674,51 @@ impl<'a> Wm<'a> {
             if n.len() >= 1 {
                 n.remove(0)
             } else {
+                error!("WM_NAME: no value(s)");
                 String::new()
             }
         } else {
+            error!("WM_NAME: unexpected or no response type");
             String::new()
         };
 
-        let class = if let Some(ClientProp::PropString(c)) = props.next() {
+        let name2 = if let Some(ClientProp::PropString(mut n)) = props.next() {
+            if n.len() >= 1 {
+                n.remove(0)
+            } else {
+                error!("_NET_WM_NAME: no value(s)");
+                String::new()
+            }
+        } else {
+            error!("_NET_WM_NAME: unexpected or no response type");
+            String::new()
+        };
+
+        let mut class = if let Some(ClientProp::PropString(c)) = props.next() {
             c
         } else {
+            error!("WM_CLASS: unexpected or no response type");
             Vec::new()
         };
+
+        let class2_iter = props.next();
+        let class2 = if let Some(ClientProp::PropString(c)) = class2_iter {
+            c
+        } else {
+            if class2_iter == Some(ClientProp::NoProp) {
+                info!("_NET_WM_CLASS: not set");
+            } else {
+                error!("_NET_WM_CLASS: unexpected response type");
+            }
+            Vec::new()
+        };
+
+        class.extend(class2);
 
         ClientProps {
             window_type: window_type,
             state: state,
-            name: name,
+            name: if name2 == "" { name } else { name2 },
             class: class,
         }
     }
