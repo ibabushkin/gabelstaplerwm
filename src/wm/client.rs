@@ -11,6 +11,7 @@ use wm::layout::Layout;
 use wm::window_system::WmCommand;
 
 /// Client property, as returned from a call.
+#[derive(PartialEq, Eq)]
 pub enum ClientProp {
     PropAtom(xproto::Atom),
     PropString(Vec<String>),
