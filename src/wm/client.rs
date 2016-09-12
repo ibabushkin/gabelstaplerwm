@@ -247,9 +247,12 @@ impl ClientSet {
     /// Remove the client corresponding to a window.
     ///
     /// Removes the client objects and cleans all weak references to it.
-    pub fn remove(&mut self, window: xproto::Window) {
+    pub fn remove(&mut self, window: xproto::Window) -> bool {
         if self.clients.remove(&window).is_some() {
             self.clean();
+            true
+        } else {
+            false
         }
     }
 
