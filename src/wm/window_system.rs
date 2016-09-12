@@ -468,9 +468,10 @@ impl<'a> Wm<'a> {
     /// If the window is managed (i.e. has a client), destroy it. Otherwise,
     /// remove it from the vector of unmanaged windows.
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
-        self.clients.remove(ev.window());
-        self.reset_focus();
-        self.arrange_windows();
+        if self.clients.remove(ev.window()) {
+            self.reset_focus();
+            self.arrange_windows();
+        }
         if let Some(index) = self
             .unmanaged_windows
             .iter()
