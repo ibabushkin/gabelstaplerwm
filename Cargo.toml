@@ -19,7 +19,7 @@ with_plugins = []
 libc = "*"
 env_logger = "*"
 log = "*"
-xcb = { version = "0.7.4", features = ["xkb"] }
+xcb = { version = "0.7.5", features = ["xkb"] }
 mousetrap = { path = "extra/mousetrap", optional = true }
 
 [profile.release]

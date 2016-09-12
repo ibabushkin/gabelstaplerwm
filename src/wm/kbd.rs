@@ -54,7 +54,7 @@ pub struct KeyPress {
 /// Get a `KeyPress` struct from a `StateNotifyEvent`
 pub fn from_key(event: &xkb::StateNotifyEvent, mode: Mode) -> KeyPress {
     KeyPress {
-        code: event.xkbType(),
+        code: event.xkb_type(),
         mods: event.keycode(),
         mode: mode,
     }

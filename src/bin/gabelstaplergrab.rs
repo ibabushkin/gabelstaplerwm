@@ -65,7 +65,7 @@ fn print_event(event: GenericEvent) {
     if event.response_type() == xkb::STATE_NOTIFY {
         let ev: &xkb::StateNotifyEvent = cast_event(&event);
         println!("key pressed: code: {}, mods: {}",
-                 ev.xkbType(),
+                 ev.xkb_type(),
                  ev.keycode());
     }
 }
