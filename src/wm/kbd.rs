@@ -41,7 +41,7 @@ pub type PluginCallback = Box<Fn(&Connection) -> ()>;
 pub type PluginBindings = HashMap<KeyPress, PluginCallback>;
 
 /// a key has been pressed - keycode and modifier information.
-#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct KeyPress {
     /// Symbolic integer representing key.
     pub code: u8,
