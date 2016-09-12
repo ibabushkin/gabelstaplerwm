@@ -32,7 +32,7 @@ use wm::window_system::{Wm, WmConfig, WmCommand};
 /// Each window has one or more tags, and you can display zero or more tags.
 /// This means that all windows having at least one of the tags of the
 /// *tagset* to be displayed attached get displayed.
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Tag {
     /// the web tag - for browsers and stuff
     Web,
@@ -89,7 +89,7 @@ impl fmt::Display for Tag {
 /// is currently impossible. This can be lifted in the future, if we decide to
 /// regrab on every mode change, but that's a rather expensive operation, given
 /// the currrent, `HashMap`-based design.
-#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Mode {
     /// normal mode doing normal stuff
     Normal,

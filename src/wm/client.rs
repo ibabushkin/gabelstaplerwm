@@ -19,7 +19,7 @@ pub enum ClientProp {
 }
 
 /// Client properties, as obtained from the X server.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct ClientProps {
     /// client/window type
     pub window_type: xproto::Atom,
@@ -41,7 +41,7 @@ pub struct ClientProps {
 /// writes isn't calling any X functions to actually perform the actions it
 /// symbolizes. Instead, it modifies carefully crafted structures that act as
 /// an interpreting layer for the window manager.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct Client {
     /// the window (a direct child of root)
     pub window: xproto::Window,
