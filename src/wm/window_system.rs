@@ -468,14 +468,21 @@ impl<'a> Wm<'a> {
     /// If the window is managed (i.e. has a client), destroy it. Otherwise,
     /// remove it from the vector of unmanaged windows.
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
-        if self.clients.remove(ev.window()) {
-            self.reset_focus();
-            self.arrange_windows();
+        let win = ev.window();
+        if self.clients.remove(win) {
+            if let Some(index) = self
+                .visible_windows
+                .iter()
+                .position(|window| *window == win) {
+                self.reset_focus();
+                self.arrange_windows();
+                self.visible_windows.swap_remove(index);
+            }
         }
         if let Some(index) = self
             .unmanaged_windows
             .iter()
-            .position(|win| *win == ev.window()) {
+            .position(|window| *window == win) {
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
         }
