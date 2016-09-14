@@ -36,7 +36,7 @@ pub type Matching = Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
 ///
 /// Being returned from a callback closure which modified internal structures,
 /// gets interpreted to take necessary actions.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum WmCommand {
     /// redraw everything
     Redraw,
