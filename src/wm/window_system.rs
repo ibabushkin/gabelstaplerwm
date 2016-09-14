@@ -477,8 +477,8 @@ impl<'a> Wm<'a> {
                 .iter()
                 .position(|window| *window == win) {
                 self.reset_focus();
-                self.arrange_windows();
                 self.visible_windows.swap_remove(index);
+                self.arrange_windows();
             }
         }
         if let Some(index) = self
