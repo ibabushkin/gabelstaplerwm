@@ -36,6 +36,7 @@ pub type Matching = Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
 ///
 /// Being returned from a callback closure which modified internal structures,
 /// gets interpreted to take necessary actions.
+#[derive(Debug)]
 pub enum WmCommand {
     /// redraw everything
     Redraw,
@@ -435,7 +436,9 @@ impl<'a> Wm<'a> {
         let key = from_key(ev, self.mode);
         let mut command = WmCommand::NoCommand;
         if let Some(func) = self.bindings.get(&key) {
+            info!("executing binding for {:?}", key);
             command = func(&mut self.clients, &mut self.tag_stack);
+            info!("resulting command: {:?}", command);
         } else if let Some(func) = self.plugins.get(&key) {
             func(self.con);
         }
