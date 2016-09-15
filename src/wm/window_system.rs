@@ -86,8 +86,6 @@ pub struct Wm<'a> {
     bindings: Keybindings,
     /// matching function for client placement
     matching: Option<Matching>,
-    /// plugin container
-    plugins: PluginBindings,
     /// current keyboard mode
     mode: Mode,
     /// set of currently present clients
@@ -128,7 +126,6 @@ impl<'a> Wm<'a> {
                                                         config.u_color),
                         bindings: HashMap::new(),
                         matching: None,
-                        plugins: HashMap::new(),
                         mode: Mode::default(),
                         clients: ClientSet::new(),
                         tag_stack: TagStack::new(),
@@ -434,14 +431,14 @@ impl<'a> Wm<'a> {
     /// return value received.
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev, self.mode);
-        let mut command = WmCommand::NoCommand;
-        if let Some(func) = self.bindings.get(&key) {
+        let command = if let Some(func) = self.bindings.get(&key) {
             info!("executing binding for {:?}", key);
-            command = func(&mut self.clients, &mut self.tag_stack);
-            info!("resulting command: {:?}", command);
-        } else if let Some(func) = self.plugins.get(&key) {
-            func(self.con);
-        }
+            let c = func(&mut self.clients, &mut self.tag_stack);
+            info!("resulting command: {:?}", c);
+            c
+        } else {
+            WmCommand::NoCommand
+        };
         match command {
             WmCommand::Redraw => {
                 self.arrange_windows();
