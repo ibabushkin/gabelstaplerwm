@@ -467,12 +467,12 @@ impl<'a> Wm<'a> {
     /// If the window is managed (i.e. has a client), destroy it. Otherwise,
     /// remove it from the vector of unmanaged windows.
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
-        let win = ev.window();
-        if self.clients.remove(win) {
+        let window = ev.window();
+        if self.clients.remove(window) {
             if let Some(index) = self
                 .visible_windows
                 .iter()
-                .position(|window| *window == win) {
+                .position(|win| *win == window) {
                 self.reset_focus();
                 self.visible_windows.swap_remove(index);
                 self.arrange_windows();
@@ -481,15 +481,31 @@ impl<'a> Wm<'a> {
         if let Some(index) = self
             .unmanaged_windows
             .iter()
-            .position(|window| *window == win) {
+            .position(|win| *win == window) {
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
         }
     }
 
-    // TODO: implement
-    fn handle_configure_request(&self, _: &xproto::ConfigureRequestEvent) {
-        ()
+    /// A window wants to get a new geometry, react accordingly.
+    ///
+    /// If the window is managed (i.e. has a client), ignore the request.
+    /// Otherwise, set it's geometry as desired.
+    fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
+        let window = ev.window();
+        if self.clients.get_client_by_window(window).is_none() {
+            info!("changing window geometry upon request");
+            let cookie = xproto::configure_window(
+                self.con, window,
+                &[(xproto::CONFIG_WINDOW_X as u16, ev.x() as u32),
+                  (xproto::CONFIG_WINDOW_Y as u16, ev.y() as u32),
+                  (xproto::CONFIG_WINDOW_WIDTH as u16, ev.width() as u32),
+                  (xproto::CONFIG_WINDOW_HEIGHT as u16, ev.height() as u32)
+                ]);
+            if cookie.request_check().is_err() {
+                error!("could not set window geometry");
+            }
+        }
     }
 
     /// A client has sent a map request, react accordingly.
@@ -518,7 +534,7 @@ impl<'a> Wm<'a> {
                     error!("could not set border width");
                 }
             } else {
-                // it's a dock window - we don't care
+                // it's a window we don't care about
                 let cookie = xproto::map_window(self.con, window);
                 self.add_unmanaged(window);
                 if cookie.request_check().is_err() {
