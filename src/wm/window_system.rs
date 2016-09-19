@@ -477,11 +477,11 @@ impl<'a> Wm<'a> {
                 self.visible_windows.swap_remove(index);
                 self.arrange_windows();
             }
-        }
-        if let Some(index) = self
+        } else if let Some(index) = self
             .unmanaged_windows
             .iter()
             .position(|win| *win == window) {
+            self.reset_focus();
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
         }
@@ -535,13 +535,14 @@ impl<'a> Wm<'a> {
                 }
             } else {
                 // it's a window we don't care about
+                // TODO: add resizing and centred display for popups (for
+                // some definition of popup)
                 let cookie = xproto::map_window(self.con, window);
                 let cookie2 = xproto::set_input_focus(
                     self.con,
                     xproto::INPUT_FOCUS_POINTER_ROOT as u8,
                     window,
                     xproto::TIME_CURRENT_TIME);
-                self.set_border_color(window, self.border_colors.0);
                 self.add_unmanaged(window);
                 if cookie.request_check().is_err() {
                     error!("could not map window");
