@@ -644,43 +644,43 @@ impl<'a> Wm<'a> {
             .collect();
         let res = cookies
             .drain(..)
-            .zip(atom_response_pairs.iter())
-            .map(|(cookie, &(_, response_type))| // TODO: use the returned response type
-                match response_type {
-                    xproto::ATOM_ATOM => if let Ok(r) = cookie.get_reply() {
-                        let atoms: &[xproto::Atom] = r.value();
-                        if atoms.len() == 0 {
-                            ClientProp::NoProp
-                        } else {
-                            ClientProp::PropAtom(atoms[0])
-                        }
-                    } else {
-                        ClientProp::NoProp
-                    },
-                    xproto::ATOM_STRING => if let Ok(r) = cookie.get_reply() {
-                        let raw: &[c_char] = r.value();
-                        let mut res = Vec::new();
-                        debug!("raw property data: {:?}, length: {}, type: {}",
-                               raw, r.value_len(), r.type_());
-                        for c in raw.split(|ch| *ch == 0) {
-                            if c.len() > 0 {
-                                unsafe {
-                                    if let Ok(cl) = str::from_utf8(
-                                        CStr::from_ptr(c.as_ptr()).to_bytes()) {
-                                        res.push(cl.to_owned());
-                                    } else {
-                                        error!("decoding utf-8 from property failed");
+            .map(|cookie|
+                if let Ok(reply) = cookie.get_reply() {
+                    match reply.type_() {
+                        xproto::ATOM_ATOM => {
+                            let atoms: &[xproto::Atom] = reply.value();
+                            if atoms.len() == 0 {
+                                ClientProp::NoProp
+                            } else {
+                                ClientProp::PropAtom(atoms[0])
+                            }
+                        },
+                        xproto::ATOM_STRING => {
+                            let raw: &[c_char] = reply.value();
+                            let mut res = Vec::new();
+                            debug!("raw property data: {:?}, length: {}",
+                                   raw, reply.value_len());
+                            for c in raw.split(|ch| *ch == 0) {
+                                if c.len() > 0 {
+                                    unsafe {
+                                        if let Ok(cl) =
+                                            str::from_utf8(CStr::from_ptr(
+                                                    c.as_ptr()).to_bytes()) {
+                                            res.push(cl.to_owned());
+                                        } else {
+                                            error!("decoding utf-8 from property failed");
+                                        }
                                     }
                                 }
                             }
-                        }
-                        ClientProp::PropString(res)
-                    } else {
-                        ClientProp::NoProp
-                    },
-                    _ => ClientProp::NoProp,
-                }
-            )
+                            ClientProp::PropString(res)
+                        },
+                        _ => ClientProp::NoProp,
+                    }
+                } else {
+                    error!("could not look up property");
+                    ClientProp::NoProp
+                })
             .collect();
         res
     }
