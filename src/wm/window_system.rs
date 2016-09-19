@@ -536,9 +536,18 @@ impl<'a> Wm<'a> {
             } else {
                 // it's a window we don't care about
                 let cookie = xproto::map_window(self.con, window);
+                let cookie2 = xproto::set_input_focus(
+                    self.con,
+                    xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+                    window,
+                    xproto::TIME_CURRENT_TIME);
+                self.set_border_color(window, self.border_colors.0);
                 self.add_unmanaged(window);
                 if cookie.request_check().is_err() {
                     error!("could not map window");
+                }
+                if cookie2.request_check().is_err() {
+                    error!("could not focus window");
                 }
             }
         }
