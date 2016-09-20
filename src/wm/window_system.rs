@@ -232,7 +232,7 @@ impl<'a> Wm<'a> {
     pub fn setup_clients(&mut self) {
         if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
             for window in root.children() {
-                if let Some(client) = self.construct_client(*window) {
+                if let Ok(client) = self.construct_client(*window) {
                     self.add_client(client);
                     self.visible_windows.push(*window);
                 }
@@ -494,13 +494,18 @@ impl<'a> Wm<'a> {
     fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() {
-            info!("changing window geometry upon request");
+            let x = ev.x();
+            let y = ev.y();
+            let width = ev.width();
+            let height = ev.height();
+            info!("changing window geometry upon request: \
+                  x={} y={} width={} height={}", x, y, width, height);
             let cookie = xproto::configure_window(
                 self.con, window,
-                &[(xproto::CONFIG_WINDOW_X as u16, ev.x() as u32),
-                  (xproto::CONFIG_WINDOW_Y as u16, ev.y() as u32),
-                  (xproto::CONFIG_WINDOW_WIDTH as u16, ev.width() as u32),
-                  (xproto::CONFIG_WINDOW_HEIGHT as u16, ev.height() as u32)
+                &[(xproto::CONFIG_WINDOW_X as u16, x as u32),
+                  (xproto::CONFIG_WINDOW_Y as u16, y as u32),
+                  (xproto::CONFIG_WINDOW_WIDTH as u16, width as u32),
+                  (xproto::CONFIG_WINDOW_HEIGHT as u16, height as u32)
                 ]);
             if cookie.request_check().is_err() {
                 error!("could not set window geometry");
@@ -516,54 +521,75 @@ impl<'a> Wm<'a> {
         let window = ev.window();
         // no client corresponding to the window, add it
         if self.clients.get_client_by_window(window).is_none() {
-            if let Some(client) = self.construct_client(window) {
-                // map window
-                let cookie = xproto::map_window(self.con, window);
-                // set border width
-                let cookie2 = xproto::configure_window(self.con, window,
-                    &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                       self.config.border_width as u32)]);
-                self.add_client(client);
-                self.visible_windows.push(window);
-                self.arrange_windows();
-                self.reset_focus();
-                if cookie.request_check().is_err() {
-                    error!("could not map window");
-                }
-                if cookie2.request_check().is_err() {
-                    error!("could not set border width");
-                }
-            } else {
-                // it's a window we don't care about
-                // TODO: add resizing and centred display for popups (for
-                // some definition of popup)
-                let cookie = xproto::map_window(self.con, window);
-                let cookie2 = xproto::set_input_focus(
-                    self.con,
-                    xproto::INPUT_FOCUS_POINTER_ROOT as u8,
-                    window,
-                    xproto::TIME_CURRENT_TIME);
-                self.add_unmanaged(window);
-                if cookie.request_check().is_err() {
-                    error!("could not map window");
-                }
-                if cookie2.request_check().is_err() {
-                    error!("could not focus window");
-                }
+            match self.construct_client(window) {
+                Ok(client) => {
+                    // map window
+                    let cookie = xproto::map_window(self.con, window);
+                    // set border width
+                    let cookie2 = xproto::configure_window(self.con, window,
+                        &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                           self.config.border_width as u32)]);
+                    self.add_client(client);
+                    self.visible_windows.push(window);
+                    self.arrange_windows();
+                    self.reset_focus();
+                    if cookie.request_check().is_err() {
+                        error!("could not map window");
+                    }
+                    if cookie2.request_check().is_err() {
+                        error!("could not set border width");
+                    }
+                }, // it's a window we don't care about
+                Err(props) => self.init_unmanaged_window(window, props),
             }
         }
+    }
+
+    fn init_unmanaged_window(&mut self,
+                             window: xproto::Window,
+                             props: ClientProps) {
+        /*let cookie1 = xproto::configure_window(
+            self.con, window,
+            &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
+              (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
+              (xproto::CONFIG_WINDOW_WIDTH as u16, geom.width as u32),
+              (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height as u32)
+            ]);*/
+
+        // how to decide whether a window needs to be centered:
+        // _NET_WM_WINDOW_TYPE = _NET_WM_WINDOW_TYPE_DIALOG -
+        //   firefox auth/save
+        // WM_TRANSIENT_FOR set (?) -
+        //   GPG dialog, firefox auth/save
+        // WM_CLIENT_LEADER pointing to different window -
+        //   GPG dialog, firefox auth/save
+        let cookie2 = xproto::map_window(self.con, window);
+        let cookie3 = xproto::set_input_focus(
+            self.con,
+            xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+            window,
+            xproto::TIME_CURRENT_TIME);
+        self.add_unmanaged(window);
+        if cookie2.request_check().is_err() {
+            error!("could not map window");
+        }
+        if cookie3.request_check().is_err() {
+            error!("could not focus window");
+        }
+
     }
 
     /// Construct a client for a window if we want to manage it.
     ///
     /// If the window has type `_NET_WM_WINDOW_TYPE_NORMAL`,
     /// generate a client structure for it and return it, otherwise don't.
-    fn construct_client(&self, window: xproto::Window) -> Option<Client> {
+    fn construct_client(&self, window: xproto::Window)
+        -> Result<Client, ClientProps> {
         let props = self.get_properties(window);
         info!("props of new window: {:?}", props);
         if props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) &&
-            props.name != "" &&
-            props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
+            props.name != "" && props.window_type ==
+            self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
             // compute tags of the new client
             let tags = if let Some(res) = self.matching
                 .as_ref()
@@ -575,9 +601,9 @@ impl<'a> Wm<'a> {
                 vec![Tag::default()]
             };
             info!("client added on tags: {:?}", tags);
-            Some(Client::new(window, tags, props))
+            Ok(Client::new(window, tags, props))
         } else {
-            None
+            Err(props)
         }
     }
 
@@ -668,7 +694,8 @@ impl<'a> Wm<'a> {
                                                     c.as_ptr()).to_bytes()) {
                                             res.push(cl.to_owned());
                                         } else {
-                                            error!("decoding utf-8 from property failed");
+                                            error!("decoding utf-8 from \
+                                                   property failed");
                                         }
                                     }
                                 }
@@ -700,7 +727,8 @@ impl<'a> Wm<'a> {
         let window_type = if let Some(ClientProp::PropAtom(t)) = props.next() {
             t
         } else { // assume reasonable default
-            info!("_NET_WM_WINDOW_TYPE: not set, assuming _NET_WM_WINDOW_TYPE_NORMAL");
+            info!("_NET_WM_WINDOW_TYPE: not set, \
+                  assuming _NET_WM_WINDOW_TYPE_NORMAL");
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
         };
 
