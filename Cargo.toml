@@ -1,6 +1,6 @@
 [package]
 name = "gabelstaplerwm"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>"]
 description = "A semidynamic tiling window manager using XCB"
 documentation = "https://ibabushkin.github.io/rustdoc/gabelstaplerwm/"
@@ -9,6 +9,10 @@ repository = "https://github.com/ibabushkin/gabelstaplerwm"
 readme = "README.md"
 keywords = ["xcb", "window manager", "X"]
 license = "BSD3"
+
+[features]
+# default = ["parallel-resizing"]
+parallel-resizing = []
 
 [dependencies]
 libc = "*"

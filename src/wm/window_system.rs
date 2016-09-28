@@ -276,25 +276,57 @@ impl<'a> Wm<'a> {
         };
         // get geometries ...
         let geometries = layout.arrange(clients.1.len(), &self.screen);
-        // we set geometries in serial, because otherwise window redraws are
-        // rendered lazily, at least with xephyr. to avoid this condition,
-        // we accept some additional waiting time, which doesn't matter much
-        // - redraw times aren't subject to visible latency anyway. until this
-        // is fixed, the code below has to stay serial in nature.
-        for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
-            // ... and apply them if a window is to be displayed
-            if let (Some(ref cl), &Some(ref geom))
-                = (client.upgrade(), geometry) {
-                self.visible_windows.push(cl.borrow().window);
-                let cookie = xproto::configure_window(
-                    self.con, cl.borrow().window,
-                    &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
-                      (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
-                      (xproto::CONFIG_WINDOW_WIDTH as u16, geom.width as u32),
-                      (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height as u32)
-                    ]);
+        if cfg!(feature = "parallel-resizing") {
+            let connection = self.con;
+            let cookies: Vec<_> = clients.1
+                .iter()
+                .zip(geometries.iter())
+                .filter_map(|(client, geometry)| {
+                    if let (Some(ref cl), &Some(ref geom)) =
+                        (client.upgrade(), geometry) {
+                        Some((cl.borrow().window, geom))
+                    } else {
+                        None
+                    }
+                })
+                .map(|(window, geometry)| {
+                    (xproto::configure_window(
+                        connection, window,
+                        &[(xproto::CONFIG_WINDOW_X as u16, geometry.x as u32),
+                          (xproto::CONFIG_WINDOW_Y as u16, geometry.y as u32),
+                          (xproto::CONFIG_WINDOW_WIDTH as u16,
+                           geometry.width as u32),
+                          (xproto::CONFIG_WINDOW_HEIGHT as u16,
+                           geometry.height as u32)
+                        ]), window)
+                })
+                .collect();
+            for (cookie, window) in cookies {
+                // we do this here to avoid ugly issues with lifetimes
+                self.visible_windows.push(window);
                 if cookie.request_check().is_err() {
                     error!("could not set window geometry");
+                }
+            }
+        } else {
+            for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
+                // ... and apply them if a window is to be displayed
+                if let (Some(ref cl), &Some(ref geom))
+                    = (client.upgrade(), geometry) {
+                    let window = cl.borrow().window;
+                    self.visible_windows.push(window);
+                    let cookie = xproto::configure_window(
+                        self.con, window,
+                        &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
+                          (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
+                          (xproto::CONFIG_WINDOW_WIDTH as u16,
+                           geom.width as u32),
+                          (xproto::CONFIG_WINDOW_HEIGHT as u16,
+                           geom.height as u32)
+                        ]);
+                    if cookie.request_check().is_err() {
+                        error!("could not set window geometry");
+                    }
                 }
             }
         }
@@ -317,7 +349,6 @@ impl<'a> Wm<'a> {
                 error!("could not move window offscreen");
             }
         }
-
     }
 
     /// Destroy a window.
