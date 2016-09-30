@@ -519,8 +519,6 @@ impl<'a> Wm<'a> {
             //   GPG dialog, firefox auth/save
             let width = ev.width();
             let height = ev.height();
-            // let x = ev.x();
-            // let y = ev.y();
             let x = (self.screen.width - width as u32) / 2;
             let y = (self.screen.height - height as u32) / 2;
             info!("changing window geometry upon request: \
@@ -555,6 +553,9 @@ impl<'a> Wm<'a> {
                         &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                            self.config.border_width as u32)]);
                     self.add_client(client, slave);
+                    // FIXME: the following two lines are optional, as in, they
+                    // assume that the newly created client is visible, which
+                    // is no necessarily the case.
                     self.visible_windows.push(window);
                     self.arrange_windows();
                     self.reset_focus();
