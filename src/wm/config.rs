@@ -380,17 +380,17 @@ pub fn setup_wm(wm: &mut Wm) {
     // matching function deciding upon client placement
     wm.setup_matching(Box::new(
         |props| if props.name == "Mozilla Firefox" {
-            Some(vec![Tag::Web])
+            Some((vec![Tag::Web], true))
         } else if props.class.contains(&String::from("uzbl-core")) {
-            Some(vec![Tag::Web])
+            Some((vec![Tag::Web], true))
         } else if props.class.contains(&String::from("Marks")) {
-            Some(vec![Tag::Marks])
+            Some((vec![Tag::Marks], false))
         } else if props.class.contains(&String::from("Chat")) {
-            Some(vec![Tag::Chat])
+            Some((vec![Tag::Chat], false))
         } else if props.class.contains(&String::from("mpv")) {
-            Some(vec![Tag::Media])
+            Some((vec![Tag::Media], false))
         } else if props.class.contains(&String::from("Mon")) {
-            Some(vec![Tag::Mon])
+            Some((vec![Tag::Mon], false))
         } else {
             None
         }
