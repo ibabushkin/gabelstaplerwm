@@ -29,8 +29,12 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 /// Closure type of a callback function determining client placement on
 /// creation.
 ///
-/// Used to implement default tagsets for specific clients.
-pub type Matching = Box<Fn(&ClientProps) -> Option<Vec<Tag>>>;
+/// Used to implement default tagsets for specific clients, as well as to
+/// decide whether they appear as master windows or as slaves.
+/// A value of `true` returned by the function as the second element of the
+/// tuple signifies an insertion as a slave window, a value of `false`
+/// indicates the window being inserted as a master window.
+pub type Matching = Box<Fn(&ClientProps) -> Option<(Vec<Tag>, bool)>>;
 
 /// Enumeration type of commands executed by the window manager.
 ///
@@ -232,8 +236,8 @@ impl<'a> Wm<'a> {
     pub fn setup_clients(&mut self) {
         if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
             for window in root.children() {
-                if let Ok(client) = self.construct_client(*window) {
-                    self.add_client(client);
+                if let Ok((client, slave)) = self.construct_client(*window) {
+                    self.add_client(client, slave);
                     self.visible_windows.push(*window);
                 }
             }
@@ -543,14 +547,14 @@ impl<'a> Wm<'a> {
         // no client corresponding to the window, add it
         if self.clients.get_client_by_window(window).is_none() {
             match self.construct_client(window) {
-                Ok(client) => {
+                Ok((client, slave)) => {
                     // map window
                     let cookie = xproto::map_window(self.con, window);
                     // set border width
                     let cookie2 = xproto::configure_window(self.con, window,
                         &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                            self.config.border_width as u32)]);
-                    self.add_client(client);
+                    self.add_client(client, slave);
                     self.visible_windows.push(window);
                     self.arrange_windows();
                     self.reset_focus();
@@ -590,24 +594,24 @@ impl<'a> Wm<'a> {
     /// If the window has type `_NET_WM_WINDOW_TYPE_NORMAL`,
     /// generate a client structure for it and return it, otherwise don't.
     fn construct_client(&self, window: xproto::Window)
-        -> Result<Client, ClientProps> {
+        -> Result<(Client, bool), ClientProps> {
         let props = self.get_properties(window);
         info!("props of new window: {:?}", props);
         if props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) &&
             props.name != "" && props.window_type ==
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
             // compute tags of the new client
-            let tags = if let Some(res) = self.matching
+            let (tags, as_slave) = if let Some(res) = self.matching
                 .as_ref()
                 .and_then(|f| f(&props)) {
                 res
             } else if let Some(tagset) = self.tag_stack.current() {
-                tagset.tags.clone()
+                (tagset.tags.clone(), false)
             } else {
-                vec![Tag::default()]
+                (vec![Tag::default()], false)
             };
             info!("client added on tags: {:?}", tags);
-            Ok(Client::new(window, tags, props))
+            Ok((Client::new(window, tags, props), as_slave))
         } else {
             Err(props)
         }
@@ -617,8 +621,8 @@ impl<'a> Wm<'a> {
     ///
     /// Swaps new client with the master on the current layout if the
     /// currenlty used layout dictates it.
-    fn add_client(&mut self, client: Client) {
-        self.clients.add(client);
+    fn add_client(&mut self, client: Client, as_slave: bool) {
+        self.clients.add(client, as_slave);
         if let Some(tagset) = self.tag_stack.current() {
             if self.new_window_as_master() {
                 self.clients.swap_master(tagset);

@@ -228,8 +228,7 @@ impl ClientSet {
     ///
     /// Adds client object to master `HashMap` and creates references to
     /// on the tagsets the client is visible on.
-    // TODO: add as_master/as_slave distinction
-    pub fn add(&mut self, client: Client) {
+    pub fn add(&mut self, client: Client, as_slave: bool) {
         let window = client.window;
         let dummy_client = client.clone();
         let wrapped_client = Rc::new(RefCell::new(client));
@@ -238,7 +237,12 @@ impl ClientSet {
         for (tags, &mut (ref mut current, ref mut clients))
             in &mut self.order {
             if dummy_client.match_tags(tags) {
-                clients.push(weak.clone());
+                let c = weak.clone();
+                if as_slave {
+                    clients.push(c);
+                } else {
+                    clients.insert(0, c);
+                }
                 *current = Some(weak.clone());
             }
         }
