@@ -1,8 +1,3 @@
-// TODO's:
-// * add more consistency to error handling
-// * decide on a more consistent separation between windows and clients
-// * clean up code
-
 #[macro_use]
 pub mod util;
 
