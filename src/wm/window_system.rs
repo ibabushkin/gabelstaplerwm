@@ -525,10 +525,18 @@ impl<'a> Wm<'a> {
     fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() {
-            let x = ev.x();
-            let y = ev.y();
+            // _NET_WM_WINDOW_TYPE = _NET_WM_WINDOW_TYPE_DIALOG -
+            //   firefox auth/save
+            // WM_TRANSIENT_FOR set (?) -
+            //   GPG dialog, firefox auth/save
+            // WM_CLIENT_LEADER pointing to different window -
+            //   GPG dialog, firefox auth/save
             let width = ev.width();
             let height = ev.height();
+            // let x = ev.x();
+            // let y = ev.y();
+            let x = (self.screen.width - width as u32) / 2;
+            let y = (self.screen.height - height as u32) / 2;
             info!("changing window geometry upon request: \
                   x={} y={} width={} height={}", x, y, width, height);
             let cookie = xproto::configure_window(
@@ -578,22 +586,7 @@ impl<'a> Wm<'a> {
 
     fn init_unmanaged_window(&mut self,
                              window: xproto::Window,
-                             props: ClientProps) {
-        /*let cookie1 = xproto::configure_window(
-            self.con, window,
-            &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
-              (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
-              (xproto::CONFIG_WINDOW_WIDTH as u16, geom.width as u32),
-              (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height as u32)
-            ]);*/
-
-        // how to decide whether a window needs to be centered:
-        // _NET_WM_WINDOW_TYPE = _NET_WM_WINDOW_TYPE_DIALOG -
-        //   firefox auth/save
-        // WM_TRANSIENT_FOR set (?) -
-        //   GPG dialog, firefox auth/save
-        // WM_CLIENT_LEADER pointing to different window -
-        //   GPG dialog, firefox auth/save
+                             _: ClientProps) {
         let cookie2 = xproto::map_window(self.con, window);
         let cookie3 = xproto::set_input_focus(
             self.con,
