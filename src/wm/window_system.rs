@@ -431,14 +431,6 @@ impl<'a> Wm<'a> {
                 info!("received event: STATE_NOTIFY");
                 self.handle_state_notify(base::cast_event(&event))
             },
-            xproto::PROPERTY_NOTIFY => {
-                info!("received event: PROPERTY_NOTIFY");
-                self.handle_property_notify(base::cast_event(&event))
-            },
-            xproto::CLIENT_MESSAGE => {
-                info!("received event: CLIENT_MESSAGE");
-                self.handle_client_message(base::cast_event(&event))
-            },
             xproto::DESTROY_NOTIFY => {
                 info!("received event: DESTROY_NOTIFY");
                 self.handle_destroy_notify(base::cast_event(&event))
@@ -481,16 +473,6 @@ impl<'a> Wm<'a> {
             WmCommand::Quit => exit(0),
             WmCommand::NoCommand => (),
         };
-    }
-
-    // TODO: implement
-    fn handle_property_notify(&self, _: &xproto::PropertyNotifyEvent) {
-        ()
-    }
-
-    // TODO: implement
-    fn handle_client_message(&self, _: &xproto::ClientMessageEvent) {
-        ()
     }
 
     /// A window has been destroyed, react accordingly.
