@@ -107,11 +107,7 @@ macro_rules! toggle_tag {
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 println!("{}", $print(c, s));
-                if s.current()
-                    .unwrap()
-                    .tags
-                    .iter()
-                    .find(|t| **t == $tag).is_some() {
+                if s.current().unwrap().tags.contains($tag) {
                     WmCommand::Redraw
                 } else {
                     WmCommand::NoCommand
@@ -126,11 +122,7 @@ macro_rules! toggle_tag {
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 $( println!("{}", $print); )*
-                if s.current()
-                    .unwrap()
-                    .tags
-                    .iter()
-                    .find(|t| **t == $tag).is_some() {
+                if s.current().unwrap().tags.contains(&$tag) {
                     WmCommand::Redraw
                 } else {
                     WmCommand::NoCommand
@@ -190,25 +182,37 @@ macro_rules! move_to_tag {
     ($($tag:expr),*;; $print:expr) => {
         |c, s| s
             .current()
-            .and_then(|t| c.get_focused_window(&t.tags))
-            .and_then(|w| c.update_client(w, |mut cl| {
-                cl.set_tags(&[$($tag),*]);
-                println!("{}", $print(c, s));
-                // TODO: optimize for cases where current tags are present
-                WmCommand::Redraw
-            }))
+            .and_then(|t| if let Some(win) = c.get_focused_window(&t.tags) {
+                c.update_client(win, |mut cl| {
+                    cl.set_tags(&[$($tag),*]);
+                    println!("{}", $print(c, s));
+                    if !cl.match_tags(&t.tags) {
+                        WmCommand::Redraw
+                    } else {
+                        WmCommand::NoCommand
+                    }
+                })
+            } else {
+                None
+            })
             .unwrap_or(WmCommand::NoCommand)
     };
     ($($tag:expr),* $(; $print:expr)*) => {
         |c, s| s
             .current()
-            .and_then(|t| c.get_focused_window(&t.tags))
-            .and_then(|w| c.update_client(w, |mut cl| {
-                cl.set_tags(&[$($tag),*]);
-                $( println!("{}", $print); )*
-                // TODO: optimize for cases, where current tags are present
-                WmCommand::Redraw
-            }))
+            .and_then(|t| if let Some(win) = c.get_focused_window(&t.tags) {
+                c.update_client(win, |mut cl| {
+                    cl.set_tags(&[$($tag),*]);
+                    $( println!("{}", $print); )*
+                    if !cl.match_tags(&t.tags) {
+                        WmCommand::Redraw
+                    } else {
+                        WmCommand::NoCommand
+                    }
+                })
+            } else {
+                None
+            })
             .unwrap_or(WmCommand::NoCommand)
     }
 }

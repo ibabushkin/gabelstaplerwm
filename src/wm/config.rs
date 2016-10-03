@@ -11,6 +11,7 @@
 //!   a more involved and complex feature that you are working on.
 //!
 //! But feel free to do otherwise if you wish.
+use std::collections::BTreeSet;
 use std::env::home_dir;
 use std::fmt;
 use std::fs::File;
@@ -32,7 +33,7 @@ use wm::window_system::{Wm, WmConfig, WmCommand};
 /// Each window has one or more tags, and you can display zero or more tags.
 /// This means that all windows having at least one of the tags of the
 /// *tagset* to be displayed attached get displayed.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Tag {
     /// the web tag - for browsers and stuff
     Web,
@@ -278,9 +279,12 @@ pub fn setup_wm(wm: &mut Wm) {
                 LayoutMessage::ColumnRel(1))),
         // change work tagset - modkey+CTRL+[hl]
         bind!(43, modkey+CTRL, Mode::Normal, |c, s| {
-            let res = if let Some(&mut [Tag::Work(ref mut n), ..]) =
-                s.current_mut().map(|s| s.tags.as_mut_slice()) {
-                *n = n.saturating_sub(1);
+            let res = if let Some(&Tag::Work(n)) =
+                s.current().and_then(|s| s.tags.iter().next()) {
+                s.current_mut().map(|mut s| {
+                    s.tags.remove(&Tag::Work(n));
+                    s.tags.insert(Tag::Work(n.saturating_sub(1)));
+                });
                 WmCommand::Redraw
             } else {
                 WmCommand::NoCommand
@@ -291,9 +295,12 @@ pub fn setup_wm(wm: &mut Wm) {
             res
         }),
         bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
-            let res = if let Some(&mut [Tag::Work(ref mut n), ..]) =
-                s.current_mut().map(|s| s.tags.as_mut_slice()) {
-                *n = n.saturating_add(1);
+            let res = if let Some(&Tag::Work(n)) =
+                s.current().and_then(|s| s.tags.iter().next()) {
+                s.current_mut().map(|mut s| {
+                    s.tags.remove(&Tag::Work(n));
+                    s.tags.insert(Tag::Work(n.saturating_add(1)));
+                });
                 WmCommand::Redraw
             } else {
                 WmCommand::NoCommand
@@ -305,8 +312,8 @@ pub fn setup_wm(wm: &mut Wm) {
         }),
         // move a client to an adjacent work tagset - modkey+CTRL+SHIFT+[hl]
         bind!(43, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
-            if let Some(&[Tag::Work(ref n), ..]) =
-                s.current().map(|s| s.tags.as_slice()) {
+            if let Some(&Tag::Work(n)) =
+                s.current().and_then(|s| s.tags.iter().next()) {
                 s.current()
                     .and_then(|t| c.get_focused_window(&t.tags))
                     .and_then(|w| c.update_client(w, |mut cl| {
@@ -319,8 +326,8 @@ pub fn setup_wm(wm: &mut Wm) {
             }
         ),
         bind!(46, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
-            if let Some(&[Tag::Work(ref n), ..]) =
-                s.current().map(|s| s.tags.as_slice()) {
+            if let Some(&Tag::Work(n)) =
+                s.current().and_then(|s| s.tags.iter().next()) {
                 s.current()
                     .and_then(|t| c.get_focused_window(&t.tags))
                     .and_then(|w| c.update_client(w, |mut cl| {
@@ -354,43 +361,42 @@ pub fn setup_wm(wm: &mut Wm) {
               exec_command("xbacklight", &["-inc", "5"])),
     ]);
     // default tag stack
-    wm.setup_tags(
-        TagStack::from_presets(
-            vec![
-                TagSet::new(vec![Tag::Web, Tag::Marks], VStack {
-                    master_factor: 75,
-                    inverted: false,
-                    fixed: true,
-                }),
-                TagSet::new(vec![Tag::Work(0)], VStack::default()),
-                TagSet::new(vec![Tag::Chat], HStack {
-                    master_factor: 75,
-                    inverted: true,
-                    fixed: false,
-                }),
-                TagSet::new(vec![Tag::Media], Monocle::default()),
-                TagSet::new(vec![Tag::Logs, Tag::Mon], HStack {
-                    master_factor: 75,
-                    inverted: true,
-                    fixed: false,
-                }),
-            ], 1
-        )
-    );
+    wm.setup_tags({
+        let tagsets = vec![
+            TagSet::new(set![Tag::Web, Tag::Marks], VStack {
+                master_factor: 75,
+                inverted: false,
+                fixed: true,
+            }),
+            TagSet::new(set![Tag::Work(0)], VStack::default()),
+            TagSet::new(set![Tag::Chat], HStack {
+                master_factor: 75,
+                inverted: true,
+                fixed: false,
+            }),
+            TagSet::new(set![Tag::Media], Monocle::default()),
+            TagSet::new(set![Tag::Logs, Tag::Mon], HStack {
+                master_factor: 75,
+                inverted: true,
+                fixed: false,
+            })
+        ];
+        TagStack::from_presets(tagsets, 1)
+    });
     // matching function deciding upon client placement
     wm.setup_matching(Box::new(
         |props| if props.name == "Mozilla Firefox" {
-            Some((vec![Tag::Web], true))
+            Some((set![Tag::Web], true))
         } else if props.class.contains(&String::from("uzbl-core")) {
-            Some((vec![Tag::Web], true))
+            Some((set![Tag::Web], true))
         } else if props.class.contains(&String::from("Marks")) {
-            Some((vec![Tag::Marks], false))
+            Some((set![Tag::Marks], false))
         } else if props.class.contains(&String::from("Chat")) {
-            Some((vec![Tag::Chat], false))
+            Some((set![Tag::Chat], false))
         } else if props.class.contains(&String::from("mpv")) {
-            Some((vec![Tag::Media], false))
+            Some((set![Tag::Media], false))
         } else if props.class.contains(&String::from("Mon")) {
-            Some((vec![Tag::Mon], false))
+            Some((set![Tag::Mon], false))
         } else {
             None
         }
