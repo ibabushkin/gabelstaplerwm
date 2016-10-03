@@ -1,5 +1,5 @@
 use std::cell::{RefCell,RefMut};
-use std::collections::HashMap;
+use std::collections::{HashMap,BTreeSet};
 use std::collections::hash_map::Entry;
 use std::fmt;
 use std::rc::{Rc,Weak};
@@ -9,6 +9,26 @@ use xcb::xproto;
 use wm::config::Tag;
 use wm::layout::Layout;
 use wm::window_system::WmCommand;
+
+#[macro_export]
+macro_rules! set {
+    ($($elem:expr),*) => {{
+        let mut set = BTreeSet::new();
+        $( set.insert($elem); )*
+        set
+    }}
+}
+
+#[macro_export]
+macro_rules! set_from_slice {
+    ($slice:expr) => {{
+        let mut set = BTreeSet::new();
+        for elem in $slice {
+            set.insert(elem.clone());
+        }
+        set
+    }}
+}
 
 /// Client property, as returned from a call.
 #[derive(PartialEq, Eq)]
@@ -50,13 +70,13 @@ pub struct Client {
     /// indicates whether the client has the urgency flag set
     urgent: bool,
     /// all tags this client is visible on, in no particular order
-    tags: Vec<Tag>,
+    tags: BTreeSet<Tag>,
 }
 
 impl Client {
     /// Setup a new client for a specific window, on a set of tags
     /// and with given properties.
-    pub fn new(window: xproto::Window, tags: Vec<Tag>, props: ClientProps)
+    pub fn new(window: xproto::Window, tags: BTreeSet<Tag>, props: ClientProps)
         -> Client {
         Client {
             window: window,
@@ -71,7 +91,7 @@ impl Client {
     /// Assumes the slice denoted by `tags` doesn't contain duplicate elements.
     pub fn set_tags(&mut self, tags: &[Tag]) {
         if tags.len() > 0 {
-            self.tags = tags.to_vec();
+            self.tags = set_from_slice!(tags);
         }
     }
 
@@ -79,21 +99,19 @@ impl Client {
     ///
     /// If `client` would be visible on no tags at all, the operation is not
     /// performed.
-    pub fn toggle_tag(&mut self, tag: Tag) {
-        if let Some(index) = self.tags.iter().position(|t| *t == tag) {
-            if self.tags.len() > 1 {
-                self.tags.remove(index);
-            }
+    pub fn toggle_tag(&mut self, tag: Tag) -> bool {
+        if self.tags.contains(&tag) {
+            self.tags.remove(&tag);
+            true
         } else {
-            self.tags.push(tag);
+            self.tags.insert(tag);
+            false
         }
     }
 
     /// Check whether a client is visible on a set of tags.
-    pub fn match_tags(&self, tags: &[Tag]) -> bool {
-        self.tags
-            .iter()
-            .any(|t| tags.iter().any(|t2| t == t2))
+    pub fn match_tags(&self, tags: &BTreeSet<Tag>) -> bool {
+        self.tags.intersection(tags).next().is_some()
     }
 }
 
@@ -129,7 +147,7 @@ pub struct ClientSet {
     /// all clients
     clients: HashMap<xproto::Window, ClientRef>,
     /// ordered subsets of clients associated with tagsets
-    order: HashMap<Vec<Tag>, OrderEntry>,
+    order: HashMap<BTreeSet<Tag>, OrderEntry>,
 }
 
 impl ClientSet {
@@ -144,11 +162,11 @@ impl ClientSet {
         self.clients.get(&window)
     }
 
-
     /// Get the order entry for a set of tags.
     ///
     /// If not present, create it.
-    pub fn get_order_or_insert(&mut self, tags: &[Tag]) -> &mut OrderEntry {
+    pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>)
+        -> &mut OrderEntry {
         let clients: Vec<WeakClientRef> = self
             .clients
             .values()
@@ -156,7 +174,7 @@ impl ClientSet {
             .map(|r| Rc::downgrade(r))
             .collect();
         let focused = clients.first().cloned();
-        self.order.entry(tags.to_vec()).or_insert((focused, clients))
+        self.order.entry(tags.clone()).or_insert((focused, clients))
     }
 
     /// Clean client store from invalidated weak references.
@@ -279,7 +297,8 @@ impl ClientSet {
     }
 
     /// Get the currently focused window on a set of tags.
-    pub fn get_focused_window(&self, tags: &[Tag]) -> Option<xproto::Window> {
+    pub fn get_focused_window(&self, tags: &BTreeSet<Tag>)
+        -> Option<xproto::Window> {
         self.order
             .get(tags)
             .and_then(|t| t.0.clone())
@@ -289,7 +308,7 @@ impl ClientSet {
 
     /// Focus a window on a set of tags relative to the current
     /// by index difference, returning whether changes have been made.
-    fn focus_offset(&mut self, tags: &[Tag], offset: isize) -> bool {
+    fn focus_offset(&mut self, tags: &BTreeSet<Tag>, offset: isize) -> bool {
         let &mut (ref mut current, ref clients) =
             self.get_order_or_insert(tags);
         if let Some(current_window) = current
@@ -315,7 +334,7 @@ impl ClientSet {
 
     /// Swap with current window on a set of tags relative to the current
     /// by index difference, returning whether changes have been made.
-    fn swap_offset(&mut self, tags: &[Tag], offset: isize) -> bool {
+    fn swap_offset(&mut self, tags: &BTreeSet<Tag>, offset: isize) -> bool {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(tags);
         if let Some(current_window) = current
@@ -360,8 +379,8 @@ impl ClientSet {
 
     /// Focus a window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
-    fn focus_direction<F>(&mut self, tags: &[Tag], focus_func: F) -> bool
-        where F: Fn(usize, usize) -> Option<usize> {
+    fn focus_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F)
+        -> bool where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
             self.get_order_or_insert(tags);
         if let Some(current_window) = current
@@ -388,8 +407,8 @@ impl ClientSet {
 
     /// Swap with window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
-    fn swap_direction<F>(&mut self, tags: &[Tag], focus_func: F) -> bool
-        where F: Fn(usize, usize) -> Option<usize> {
+    fn swap_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F)
+        -> bool where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(tags);
         if let Some(current_window) = current
@@ -484,14 +503,14 @@ impl ClientSet {
 /// specified by a trait object, allowing for easy extending of the defaults.
 pub struct TagSet {
     /// tags belonging to tagset
-    pub tags: Vec<Tag>,
+    pub tags: BTreeSet<Tag>,
     /// the layout used to display clients on the tagset
     pub layout: Box<Layout>,
 }
 
 impl TagSet {
     /// Initialize a new tag set with a layout and a set of tags.
-    pub fn new<L: Layout + 'static>(tags: Vec<Tag>, layout: L) -> TagSet {
+    pub fn new<L: Layout + 'static>(tags: BTreeSet<Tag>, layout: L) -> TagSet {
         TagSet {
             tags: tags,
             layout: Box::new(layout),
@@ -500,11 +519,11 @@ impl TagSet {
 
     /// Toggle a tag on the tagset and return whether changes have been made.
     pub fn toggle_tag(&mut self, tag: Tag) -> bool {
-        if let Some(index) = self.tags.iter().position(|t| *t == tag) {
-            self.tags.remove(index);
+        if self.tags.contains(&tag) {
+            self.tags.remove(&tag);
             true
         } else {
-            self.tags.push(tag);
+            self.tags.insert(tag);
             false
         }
     }
@@ -522,7 +541,7 @@ impl fmt::Display for TagSet {
         for tag in self.tags.iter().take(self.tags.len().saturating_sub(1)) {
             try!(write!(f, "{},", tag));
         }
-        if let Some(last_tag) = self.tags.last() {
+        if let Some(last_tag) = self.tags.iter().last() {
             try!(write!(f, "{}", last_tag));
         }
         write!(f, "]")

@@ -1,6 +1,6 @@
 use libc::c_char;
 
-use std::collections::HashMap;
+use std::collections::{HashMap,BTreeSet};
 use std::ffi::CStr;
 use std::process::exit;
 use std::str;
@@ -34,7 +34,7 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 /// A value of `true` returned by the function as the second element of the
 /// tuple signifies an insertion as a slave window, a value of `false`
 /// indicates the window being inserted as a master window.
-pub type Matching = Box<Fn(&ClientProps) -> Option<(Vec<Tag>, bool)>>;
+pub type Matching = Box<Fn(&ClientProps) -> Option<(BTreeSet<Tag>, bool)>>;
 
 /// Enumeration type of commands executed by the window manager.
 ///
@@ -609,7 +609,7 @@ impl<'a> Wm<'a> {
             } else if let Some(tagset) = self.tag_stack.current() {
                 (tagset.tags.clone(), false)
             } else {
-                (vec![Tag::default()], false)
+                (set![Tag::default()], false)
             };
             info!("client added on tags: {:?}", tags);
             Ok((Client::new(window, tags, props), as_slave))

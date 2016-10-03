@@ -1,6 +1,6 @@
 [package]
 name = "gabelstaplerwm"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>"]
 description = "A semidynamic tiling window manager using XCB"
 documentation = "https://ibabushkin.github.io/rustdoc/gabelstaplerwm/"

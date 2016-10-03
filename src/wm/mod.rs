@@ -1,6 +1,6 @@
 #[macro_use]
 pub mod util;
-
+#[macro_use]
 pub mod client;
 pub mod config;
 pub mod err;

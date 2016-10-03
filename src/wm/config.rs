@@ -11,8 +11,8 @@
 //!   a more involved and complex feature that you are working on.
 //!
 //! But feel free to do otherwise if you wish.
+use std::collections::BTreeSet;
 use std::fmt;
-
 use std::process::Command;
 
 use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
@@ -32,7 +32,7 @@ use wm::window_system::{Wm, WmConfig, WmCommand};
 /// Each window has one or more tags, and you can display zero or more tags.
 /// This means that all windows having at least one of the tags of the
 /// *tagset* to be displayed attached get displayed.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Tag {
     /// the web tag - for browsers and stuff
     Web,
@@ -229,25 +229,24 @@ pub fn setup_wm(wm: &mut Wm) {
               toggle_show_tag!(Tag::Mon;; current_tagset)),
     ]);
     // default tag stack
-    wm.setup_tags(
-        TagStack::from_presets(
-            vec![
-                TagSet::new(vec![Tag::Web], DStack::default()),
-                TagSet::new(vec![Tag::Work2], VStack::default()),
-                TagSet::new(vec![Tag::Work3], VStack::default()),
-                TagSet::new(vec![Tag::Work4], Spiral::default()),
-                TagSet::new(vec![Tag::Work5], Grid::default()),
-                TagSet::new(vec![Tag::Media], Monocle::default()),
-                TagSet::new(vec![Tag::Chat], HStack::default()),
-                TagSet::new(vec![Tag::Logs], HStack::default()),
-                TagSet::new(vec![Tag::Mon], HStack::default()),
-            ], 1
-        )
-    );
+    wm.setup_tags({
+        let tagsets = vec![
+            TagSet::new(set![Tag::Web], DStack::default()),
+            TagSet::new(set![Tag::Work2], VStack::default()),
+            TagSet::new(set![Tag::Work3], VStack::default()),
+            TagSet::new(set![Tag::Work4], Spiral::default()),
+            TagSet::new(set![Tag::Work5], Grid::default()),
+            TagSet::new(set![Tag::Media], Monocle::default()),
+            TagSet::new(set![Tag::Chat], HStack::default()),
+            TagSet::new(set![Tag::Logs], HStack::default()),
+            TagSet::new(set![Tag::Mon], HStack::default())
+        ];
+        TagStack::from_presets(tagsets, 1)
+    });
     // matching function deciding upon client placement
     wm.setup_matching(Box::new(
         |props| if props.name == "Mozilla Firefox" {
-            Some((vec![Tag::Web], true))
+            Some((set![Tag::Web], true))
         } else {
             None
         }
