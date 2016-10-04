@@ -338,7 +338,7 @@ impl<'a> Wm<'a> {
 
     /// Hide some windows by moving them offscreen.
     fn hide_windows(&self, windows: &[xproto::Window]) {
-        let safe_x = (self.screen.width * 2) as u32;
+        let safe_x = self.screen.width + 2;
         let cookies: Vec<_> = windows
             .iter()
             .map(|window| xproto::configure_window(
@@ -511,12 +511,6 @@ impl<'a> Wm<'a> {
     fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() {
-            // _NET_WM_WINDOW_TYPE = _NET_WM_WINDOW_TYPE_DIALOG -
-            //   firefox auth/save
-            // WM_TRANSIENT_FOR set (?) -
-            //   GPG dialog, firefox auth/save
-            // WM_CLIENT_LEADER pointing to different window -
-            //   GPG dialog, firefox auth/save
             let width = ev.width();
             let height = ev.height();
             let x = (self.screen.width - width as u32) / 2;
@@ -546,19 +540,31 @@ impl<'a> Wm<'a> {
         if self.clients.get_client_by_window(window).is_none() {
             match self.construct_client(window) {
                 Ok((client, slave)) => {
+                    let safe_x = self.screen.width + 2;
                     // map window
                     let cookie = xproto::map_window(self.con, window);
-                    // set border width
+                    // set border width and coordinates
                     let cookie2 = xproto::configure_window(self.con, window,
                         &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                           self.config.border_width as u32)]);
+                           self.config.border_width as u32),
+                          (xproto::CONFIG_WINDOW_X as u16, safe_x),
+                          (xproto::CONFIG_WINDOW_Y as u16, 0)
+                        ]);
+                    // decide whether the client will be immediately visible
+                    let visible = if let Some(tags) =
+                        self.tag_stack.current().map(|t| &t.tags) {
+                            client.match_tags(tags)
+                        } else {
+                            false
+                        };
+                    // add client to the necessary datastructures
                     self.add_client(client, slave);
-                    // FIXME: the following two lines are optional, as in, they
-                    // assume that the newly created client is visible, which
-                    // is no necessarily the case.
-                    self.visible_windows.push(window);
-                    self.arrange_windows();
-                    self.reset_focus();
+                    // redraw currently visible clients if necessary
+                    if visible {
+                        self.visible_windows.push(window);
+                        self.arrange_windows();
+                        self.reset_focus();
+                    }
                     if cookie.request_check().is_err() {
                         error!("could not map window");
                     }
@@ -587,7 +593,6 @@ impl<'a> Wm<'a> {
         if cookie3.request_check().is_err() {
             error!("could not focus window");
         }
-
     }
 
     /// Construct a client for a window if we want to manage it.
