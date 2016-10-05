@@ -394,12 +394,15 @@ impl<'a> Wm<'a> {
             if let Some(old_win) = self.focused_window {
                 self.set_border_color(old_win, self.border_colors.1);
             }
+
+            // TODO: decide whether we really need this
             if self.send_event(new, "WM_TAKE_FOCUS") {
                 info!("client didn't acept WM_TAKE_FOCUS message");
             }
             if self.send_event(new, "_NET_WM_TAKE_FOCUS") {
                 info!("client didn't acept _NET_WM_TAKE_FOCUS message");
             }
+
             let cookie =
                 xproto::set_input_focus(self.con,
                                         xproto::INPUT_FOCUS_POINTER_ROOT as u8,
@@ -427,9 +430,10 @@ impl<'a> Wm<'a> {
     pub fn run(&mut self) -> Result<(), WmError> {
         loop {
             self.con.flush();
-            if let Err(_) = self.con.has_error() {
+            if self.con.has_error().is_err() {
                 return Err(WmError::ConnectionInterrupted);
             }
+
             match self.con.wait_for_event() {
                 Some(ev) => self.handle(ev),
                 None => return Err(WmError::IOError),
@@ -475,6 +479,7 @@ impl<'a> Wm<'a> {
         } else {
             WmCommand::NoCommand
         };
+
         match command {
             WmCommand::Redraw => {
                 self.arrange_windows();
@@ -524,8 +529,7 @@ impl<'a> Wm<'a> {
             let height = ev.height();
             let x = (self.screen.width - width as u32) / 2;
             let y = (self.screen.height - height as u32) / 2;
-            info!("changing window geometry upon request: \
-                  x={} y={} width={} height={}", x, y, width, height);
+
             let cookie = xproto::configure_window(
                 self.con, window,
                 &[(xproto::CONFIG_WINDOW_X as u16, x as u32),
@@ -533,6 +537,10 @@ impl<'a> Wm<'a> {
                   (xproto::CONFIG_WINDOW_WIDTH as u16, width as u32),
                   (xproto::CONFIG_WINDOW_HEIGHT as u16, height as u32)
                 ]);
+
+            info!("changing window geometry upon request: \
+                  x={} y={} width={} height={}", x, y, width, height);
+
             if cookie.request_check().is_err() {
                 error!("could not set window geometry");
             }
@@ -549,16 +557,17 @@ impl<'a> Wm<'a> {
         if self.clients.get_client_by_window(window).is_none() {
             match self.construct_client(window) {
                 Ok((client, slave)) => {
-                    let safe_x = self.screen.width + 2;
                     // map window
                     let cookie = xproto::map_window(self.con, window);
                     // set border width and coordinates
+                    let safe_x = self.screen.width + 2;
                     let cookie2 = xproto::configure_window(self.con, window,
                         &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                            self.config.border_width as u32),
                           (xproto::CONFIG_WINDOW_X as u16, safe_x),
                           (xproto::CONFIG_WINDOW_Y as u16, 0)
                         ]);
+
                     // decide whether the client will be immediately visible
                     let visible = if let Some(tags) =
                         self.tag_stack.current().map(|t| &t.tags) {
@@ -566,14 +575,17 @@ impl<'a> Wm<'a> {
                         } else {
                             false
                         };
+
                     // add client to the necessary datastructures
                     self.add_client(client, slave);
+
                     // redraw currently visible clients if necessary
                     if visible {
                         self.visible_windows.push(window);
                         self.arrange_windows();
                         self.reset_focus();
                     }
+
                     if cookie.request_check().is_err() {
                         error!("could not map window");
                     }
@@ -581,37 +593,40 @@ impl<'a> Wm<'a> {
                         error!("could not set border width");
                     }
                 }, // it's a window we don't care about
-                Err(props) => self.init_unmanaged_window(window, props),
+                Err(_) => self.init_unmanaged_window(window),
             }
         }
     }
 
-    fn init_unmanaged_window(&mut self,
-                             window: xproto::Window,
-                             _: ClientProps) {
-        let cookie2 = xproto::map_window(self.con, window);
-        let cookie3 = xproto::set_input_focus(
+    /// Initialize the state of a window we won't manage.
+    fn init_unmanaged_window(&mut self, window: xproto::Window) {
+        let cookie1 = xproto::map_window(self.con, window);
+        let cookie2 = xproto::set_input_focus(
             self.con,
             xproto::INPUT_FOCUS_POINTER_ROOT as u8,
             window,
             xproto::TIME_CURRENT_TIME);
+
         self.add_unmanaged(window);
-        if cookie2.request_check().is_err() {
+
+        if cookie1.request_check().is_err() {
             error!("could not map window");
         }
-        if cookie3.request_check().is_err() {
+        if cookie2.request_check().is_err() {
             error!("could not focus window");
         }
     }
 
     /// Construct a client for a window if we want to manage it.
     ///
-    /// If the window has type `_NET_WM_WINDOW_TYPE_NORMAL`,
-    /// generate a client structure for it and return it, otherwise don't.
+    /// If the window has type `_NET_WM_WINDOW_TYPE_NORMAL`, and it hasn't set
+    /// it's state to `_NET_WM_STATE_ABOVE`, generate a client structure for it
+    /// and return it, otherwise don't.
     fn construct_client(&self, window: xproto::Window)
         -> Result<(Client, bool), ClientProps> {
         let props = self.get_properties(window);
         info!("props of new window: {:?}", props);
+
         if props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) &&
             props.name != "" && props.window_type ==
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
@@ -655,11 +670,11 @@ impl<'a> Wm<'a> {
     fn get_atoms(con: &base::Connection, names: &[&'a str])
         -> Result<Vec<(xproto::Atom, &'a str)>, WmError> {
         let mut cookies = Vec::with_capacity(names.len());
-        let mut res: Vec<(xproto::Atom, &'a str)> =
-            Vec::with_capacity(names.len());
         for name in names {
-            cookies.push((xproto::intern_atom(con, false, name), name));
+            cookies.push((xproto::intern_atom(con, false, name), *name));
         }
+
+        let mut res = Vec::with_capacity(names.len());
         for (cookie, name) in cookies {
             match cookie.get_reply() {
                 Ok(r) => res.push((r.atom(), name)),
@@ -668,6 +683,7 @@ impl<'a> Wm<'a> {
                 }
             }
         }
+
         Ok(res)
     }
 
@@ -685,7 +701,7 @@ impl<'a> Wm<'a> {
     fn get_property_set(&self, window: xproto::Window,
                         atom_response_pairs: Vec<(xproto::Atom, xproto::Atom)>)
         -> Vec<ClientProp> {
-        let mut cookies: Vec<_> = atom_response_pairs
+        let cookies: Vec<_> = atom_response_pairs
             .iter()
             .map(|&(atom, response_type)|
                 xproto::get_property(
@@ -693,8 +709,9 @@ impl<'a> Wm<'a> {
                 )
             )
             .collect();
-        let res = cookies
-            .drain(..)
+
+        cookies
+            .iter()
             .map(|cookie|
                 if let Ok(reply) = cookie.get_reply() {
                     match reply.type_() {
@@ -733,8 +750,7 @@ impl<'a> Wm<'a> {
                     error!("could not look up property");
                     ClientProp::NoProp
                 })
-            .collect();
-        res
+            .collect()
     }
 
     /// Get a window's properties (like window type and such), if possible.
