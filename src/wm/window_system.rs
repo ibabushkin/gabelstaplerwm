@@ -110,24 +110,26 @@ impl<'a> Wm<'a> {
     /// Wrap a connection to initialize a window manager.
     pub fn new(con: &'a base::Connection, screen_num: i32, config: WmConfig)
         -> Result<Wm<'a>, WmError> {
-        let setup = con.get_setup();
-        if let Some(screen) = setup.roots().nth(screen_num as usize) {
+        if let Some(screen) =
+            con.get_setup().roots().nth(screen_num as usize) {
             let width = screen.width_in_pixels();
             let height = screen.height_in_pixels();
             let colormap = screen.default_colormap();
             let new_screen =
                 ScreenSize::new(&config.screen, width as u32, height as u32);
+            let colors = Wm::setup_colors(con,
+                                          colormap,
+                                          config.f_color,
+                                          config.u_color);
+
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => {
                     Ok(Wm {
                         con: con,
                         root: screen.root(),
-                        config: config.clone(),
+                        config: config,
                         screen: new_screen,
-                        border_colors: Wm::setup_colors(con,
-                                                        colormap,
-                                                        config.f_color,
-                                                        config.u_color),
+                        border_colors: colors,
                         bindings: HashMap::new(),
                         matching: None,
                         mode: Mode::default(),
@@ -167,6 +169,7 @@ impl<'a> Wm<'a> {
             Ok(reply) => reply.pixel(),
             Err(_) => panic!("Could not allocate your colors!"),
         };
+
         (f_pixel, u_pixel)
     }
 
@@ -178,6 +181,7 @@ impl<'a> Wm<'a> {
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
             | xproto::EVENT_MASK_PROPERTY_CHANGE;
+
         match xproto::change_window_attributes(
             self.con, self.root, &[(xproto::CW_EVENT_MASK, values)])
             .request_check() {
@@ -270,6 +274,7 @@ impl<'a> Wm<'a> {
         self.hide_windows(&self.visible_windows);
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
+
         // setup current client list
         let (clients, layout) = match self.tag_stack.current() {
             Some(tagset) => (
@@ -278,8 +283,10 @@ impl<'a> Wm<'a> {
             ),
             None => return, // nothing to do here - no current tagset
         };
+
         // get geometries ...
         let geometries = layout.arrange(clients.1.len(), &self.screen);
+        // ... and apply them if a window is to be displayed
         if cfg!(feature = "parallel-resizing") {
             let connection = self.con;
             let cookies: Vec<_> = clients.1
@@ -305,6 +312,7 @@ impl<'a> Wm<'a> {
                         ]), window)
                 })
                 .collect();
+
             for (cookie, window) in cookies {
                 // we do this here to avoid ugly issues with lifetimes
                 self.visible_windows.push(window);
@@ -314,7 +322,6 @@ impl<'a> Wm<'a> {
             }
         } else {
             for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
-                // ... and apply them if a window is to be displayed
                 if let (Some(ref cl), &Some(ref geom))
                     = (client.upgrade(), geometry) {
                     let window = cl.borrow().window;
@@ -328,6 +335,7 @@ impl<'a> Wm<'a> {
                           (xproto::CONFIG_WINDOW_HEIGHT as u16,
                            geom.height as u32)
                         ]);
+
                     if cookie.request_check().is_err() {
                         error!("could not set window geometry");
                     }
@@ -348,6 +356,7 @@ impl<'a> Wm<'a> {
                 )
             )
             .collect();
+
         for cookie in cookies {
             if cookie.request_check().is_err() {
                 error!("could not move window offscreen");
