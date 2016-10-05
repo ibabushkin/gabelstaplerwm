@@ -4,12 +4,20 @@ use xcb::base;
 
 /// An error encountered by the WM.
 pub enum WmError {
+    /// Signal handlers handling SIGCHLD's can't be established.
     CouldNotEstablishHandlers,
+    /// Could not connect to X server.
     CouldNotConnect(base::ConnError),
+    /// Could not acquire a screen reference from the X server.
     CouldNotAcquireScreen,
+    /// An atom used by the window manager wasn't accepted by the X server.
     CouldNotRegisterAtom(String),
+    /// Another window manager is running, so we can't get the necessary event
+    /// mask registered with the X server.
     OtherWmRunning,
+    /// The connection to the X server has been interrupted.
     ConnectionInterrupted,
+    /// Input/Output with the X server has issues.
     IOError,
 }
 
@@ -39,6 +47,8 @@ impl WmError {
     }
 }
 
+/// Output a pseudo-logger message in case said component could not be
+/// initialized (hint: that shouldn't happen).
 pub fn handle_logger_error() {
     println!("ERROR:main: could not initialize logger");
     exit(1);

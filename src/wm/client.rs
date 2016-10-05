@@ -10,6 +10,7 @@ use wm::config::Tag;
 use wm::layout::Layout;
 use wm::window_system::WmCommand;
 
+/// Construct a Set of... things, like you would use `vec!`.
 #[macro_export]
 macro_rules! set {
     ($($elem:expr),*) => {{
@@ -19,6 +20,8 @@ macro_rules! set {
     }}
 }
 
+/// Construct a Set of... things from a slice, like you would use
+/// `slice.to_vec()`.
 #[macro_export]
 macro_rules! set_from_slice {
     ($slice:expr) => {{
@@ -33,8 +36,11 @@ macro_rules! set_from_slice {
 /// Client property, as returned from a call.
 #[derive(PartialEq, Eq)]
 pub enum ClientProp {
+    /// Property lookup returned an atom.
     PropAtom(xproto::Atom),
+    /// Property lookup returned at least one string.
     PropString(Vec<String>),
+    /// No property was returned.
     NoProp,
 }
 
@@ -67,8 +73,6 @@ pub struct Client {
     pub window: xproto::Window,
     /// client properties
     props: ClientProps,
-    /// indicates whether the client has the urgency flag set
-    urgent: bool,
     /// all tags this client is visible on, in no particular order
     tags: BTreeSet<Tag>,
 }
@@ -81,7 +85,6 @@ impl Client {
         Client {
             window: window,
             props: props,
-            urgent: false,
             tags: tags,
         }
     }
@@ -99,13 +102,17 @@ impl Client {
     ///
     /// If `client` would be visible on no tags at all, the operation is not
     /// performed.
-    pub fn toggle_tag(&mut self, tag: Tag) -> bool {
+    pub fn toggle_tag(&mut self, tag: Tag) -> Option<bool> {
         if self.tags.contains(&tag) {
-            self.tags.remove(&tag);
-            true
+            if self.tags.len() > 1 {
+                self.tags.remove(&tag);
+                Some(true)
+            } else {
+                None
+            }
         } else {
             self.tags.insert(tag);
-            false
+            Some(false)
         }
     }
 
@@ -144,18 +151,13 @@ pub type OrderEntry = (Option<WeakClientRef>, Vec<WeakClientRef>);
 /// done as soon as clients are removed, i.e. it is non-lazy.
 #[derive(Default)]
 pub struct ClientSet {
-    /// all clients
+    /// All clients.
     clients: HashMap<xproto::Window, ClientRef>,
-    /// ordered subsets of clients associated with tagsets
+    /// Ordered subsets of clients associated with sets of tags.
     order: HashMap<BTreeSet<Tag>, OrderEntry>,
 }
 
 impl ClientSet {
-    /// Initialize an empty client list.
-    pub fn new() -> ClientSet {
-        ClientSet::default()
-    }
-
     /// Get a client that corresponds to a given window.
     pub fn get_client_by_window(&self, window: xproto::Window)
         -> Option<&ClientRef> {
@@ -201,7 +203,7 @@ impl ClientSet {
                 entry.1 = entry.1
                     .iter()
                     .filter_map(|r|
-                        if !Self::is_ref_to_client(r, &target_client) {
+                        if !is_ref_to_client(r, &target_client) {
                             Some(r.clone())
                         } else {
                             None
@@ -213,7 +215,7 @@ impl ClientSet {
                 entry.0 = entry.0
                     .iter()
                     .filter_map(|r|
-                        if !Self::is_ref_to_client(r, &target_client) {
+                        if !is_ref_to_client(r, &target_client) {
                             Some(r.clone())
                         } else {
                             None
@@ -223,7 +225,7 @@ impl ClientSet {
                     .or(entry.1.first().cloned());
             } else if entry.1
                 .iter()
-                .find(|r| Self::is_ref_to_client(*r, &target_client))
+                .find(|r| is_ref_to_client(*r, &target_client))
                 .is_none() {
                 // add client to references
                 entry.1.push(Rc::downgrade(&target_client));
@@ -237,11 +239,6 @@ impl ClientSet {
         }
     }
 
-    /// Check whether a weak reference is pointing to a specific client.
-    fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
-         r.upgrade().map(|r| r.borrow().window) == Some(target.borrow().window)
-    }
-
     /// Add a new client to the client store.
     ///
     /// Adds client object to master `HashMap` and creates references to
@@ -251,9 +248,9 @@ impl ClientSet {
         let dummy_client = client.clone();
         let wrapped_client = Rc::new(RefCell::new(client));
         let weak = Rc::downgrade(&wrapped_client);
+
         self.clients.insert(window, wrapped_client);
-        for (tags, &mut (ref mut current, ref mut clients))
-            in &mut self.order {
+        for (tags, &mut (ref mut cur, ref mut clients)) in &mut self.order {
             if dummy_client.match_tags(tags) {
                 let c = weak.clone();
                 if as_slave {
@@ -261,14 +258,15 @@ impl ClientSet {
                 } else {
                     clients.insert(0, c);
                 }
-                *current = Some(weak.clone());
+                *cur = Some(weak.clone());
             }
         }
     }
 
     /// Remove the client corresponding to a window.
     ///
-    /// Removes the client objects and cleans all weak references to it.
+    /// Removes the client objects and cleans all weak references to it,
+    /// returning whether a client has actually been removed
     pub fn remove(&mut self, window: xproto::Window) -> bool {
         if self.clients.remove(&window).is_some() {
             self.clean();
@@ -289,6 +287,7 @@ impl ClientSet {
             .clients
             .get_mut(&window)
             .map(|c| func(c.borrow_mut()));
+
         if res.is_some() {
             let client = self.clients.get(&window).unwrap().clone();
             self.fix_references(client);
@@ -380,7 +379,8 @@ impl ClientSet {
     /// Focus a window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
     fn focus_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F)
-        -> bool where F: Fn(usize, usize) -> Option<usize> {
+        -> bool
+        where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
             self.get_order_or_insert(tags);
         if let Some(current_window) = current
@@ -491,6 +491,11 @@ impl ClientSet {
     pub fn swap_master(&mut self, tagset: &TagSet) -> bool {
         self.swap_direction(&tagset.tags, |_, _| Some(0))
     }
+}
+
+/// Check whether a weak reference is pointing to a specific client.
+fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
+     r.upgrade().map(|r| r.borrow().window) == Some(target.borrow().window)
 }
 
 /// A set of tags with an associated layout.

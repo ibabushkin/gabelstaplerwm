@@ -72,8 +72,8 @@ understanding the source is pretty useful anyway.
 
 ## Future Development
 The project isn't stale, but I pause it from time to time when other things happen.
-The things that are planned for the near or less-near future are all listed in the
-[ideas file](https://www.github.com/ibabushkin/gabelstaplerwm/blob/master/IDEAS.md).
+At the moment, I'm very happy with the featureset and focus mainly on bugfixes and
+performance improvements.
 
 ## Contributing
 Contribution is always welcome, be it bug reports, feedback, patches or proposals.
