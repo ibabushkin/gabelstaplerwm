@@ -133,7 +133,7 @@ impl<'a> Wm<'a> {
                         bindings: HashMap::new(),
                         matching: None,
                         mode: Mode::default(),
-                        clients: ClientSet::new(),
+                        clients: ClientSet::default(),
                         tag_stack: TagStack::new(),
                         atoms: atoms,
                         visible_windows: Vec::new(),
