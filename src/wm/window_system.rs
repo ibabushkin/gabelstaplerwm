@@ -179,9 +179,8 @@ impl<'a> Wm<'a> {
     /// all events we are interested in.
     pub fn register(&self) -> Result<(), WmError> {
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
-            | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
-            | xproto::EVENT_MASK_PROPERTY_CHANGE;
-
+            | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY;
+            //| xproto::EVENT_MASK_PROPERTY_CHANGE;
         match xproto::change_window_attributes(
             self.con, self.root, &[(xproto::CW_EVENT_MASK, values)])
             .request_check() {
