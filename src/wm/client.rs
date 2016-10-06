@@ -349,8 +349,12 @@ impl ClientSet {
                 .unwrap();
             let new_index =
                 (current_index as isize + offset) as usize % clients.len();
-            clients.swap(current_index, new_index);
-            true
+            if new_index != current_index {
+                clients.swap(current_index, new_index);
+                true
+            } else {
+                false
+            }
         } else {
             false
         }
@@ -424,7 +428,7 @@ impl ClientSet {
                 .unwrap();
             if let Some(new_index) =
                 focus_func(current_index, clients.len() - 1) {
-                if new_index < clients.len() {
+                if new_index != current_index && new_index < clients.len() {
                     clients.swap(current_index, new_index);
                     return true;
                 }
