@@ -525,7 +525,6 @@ impl<'a> Wm<'a> {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() {
             let value_mask = ev.value_mask();
-
             let cookie =
                 if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&
                     value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 {
@@ -546,6 +545,7 @@ impl<'a> Wm<'a> {
                     info!("changing window geometry upon request: \
                           x={} y={} width={} height={}",
                           x, y, width, height);
+
                     cookie
                 } else {
                     let mut x: u32 = 0;
@@ -562,11 +562,16 @@ impl<'a> Wm<'a> {
                                expect ugly results");
                     }
 
-                    xproto::configure_window(
+                    let cookie = xproto::configure_window(
                         self.con, window,
                         &[(xproto::CONFIG_WINDOW_X as u16, x),
                           (xproto::CONFIG_WINDOW_Y as u16, y),
-                        ])
+                        ]);
+
+                    info!("changing window geometry upon request: x={} y={}",
+                          x, y);
+
+                    cookie
                 };
 
             if cookie.request_check().is_err() {
