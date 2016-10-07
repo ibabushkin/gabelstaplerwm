@@ -105,9 +105,9 @@ macro_rules! toggle_tag {
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .and_then(|w| c.update_client(w, |mut cl| {
-                cl.toggle_tag($tag);
+                cl.toggle_tag(&$tag);
                 println!("{}", $print(c, s));
-                if s.current().unwrap().tags.contains($tag) {
+                if !cl.match_tags(&s.current().unwrap().tags) {
                     WmCommand::Redraw
                 } else {
                     WmCommand::NoCommand
@@ -122,7 +122,7 @@ macro_rules! toggle_tag {
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 $( println!("{}", $print); )*
-                if s.current().unwrap().tags.contains(&$tag) {
+                if !cl.match_tags(&s.current().unwrap().tags) {
                     WmCommand::Redraw
                 } else {
                     WmCommand::NoCommand

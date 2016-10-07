@@ -524,21 +524,50 @@ impl<'a> Wm<'a> {
     fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() {
-            let width = ev.width();
-            let height = ev.height();
-            let x = (self.screen.width - width as u32) / 2;
-            let y = (self.screen.height - height as u32) / 2;
+            let value_mask = ev.value_mask();
 
-            let cookie = xproto::configure_window(
-                self.con, window,
-                &[(xproto::CONFIG_WINDOW_X as u16, x as u32),
-                  (xproto::CONFIG_WINDOW_Y as u16, y as u32),
-                  (xproto::CONFIG_WINDOW_WIDTH as u16, width as u32),
-                  (xproto::CONFIG_WINDOW_HEIGHT as u16, height as u32)
-                ]);
+            let cookie =
+                if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&
+                    value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 {
+                    let width = ev.width() as u32;
+                    let height = ev.height() as u32;
 
-            info!("changing window geometry upon request: \
-                  x={} y={} width={} height={}", x, y, width, height);
+                    let x = (self.screen.width - width) / 2;
+                    let y = (self.screen.height - height) / 2;
+
+                    let cookie = xproto::configure_window(
+                        self.con, window,
+                        &[(xproto::CONFIG_WINDOW_X as u16, x as u32),
+                          (xproto::CONFIG_WINDOW_Y as u16, y as u32),
+                          (xproto::CONFIG_WINDOW_WIDTH as u16, width),
+                          (xproto::CONFIG_WINDOW_HEIGHT as u16, height)
+                        ]);
+
+                    info!("changing window geometry upon request: \
+                          x={} y={} width={} height={}",
+                          x, y, width, height);
+                    cookie
+                } else {
+                    let mut x: u32 = 0;
+                    let mut y: u32 = 0;
+
+                    if let Ok(geom) = xproto::get_geometry(
+                        self.con, window).get_reply() {
+                        let width = geom.width() as u32;
+                        let height = geom.height() as u32;
+                        x = (self.screen.width - width) / 2;
+                        y = (self.screen.height - height) / 2;
+                    } else {
+                        error!("could not get window geometry, \
+                               expect ugly results");
+                    }
+
+                    xproto::configure_window(
+                        self.con, window,
+                        &[(xproto::CONFIG_WINDOW_X as u16, x),
+                          (xproto::CONFIG_WINDOW_Y as u16, y),
+                        ])
+                };
 
             if cookie.request_check().is_err() {
                 error!("could not set window geometry");
@@ -606,7 +635,8 @@ impl<'a> Wm<'a> {
             window,
             xproto::TIME_CURRENT_TIME);
 
-        self.add_unmanaged(window);
+        self.unmanaged_windows.push(window);
+        info!("registered unmanaged window");
 
         if cookie1.request_check().is_err() {
             error!("could not map window");
@@ -657,12 +687,6 @@ impl<'a> Wm<'a> {
                 self.clients.swap_master(tagset);
             }
         }
-    }
-
-    /// Add a window to the list of unmanaged windows.
-    fn add_unmanaged(&mut self, window: xproto::Window) {
-        self.unmanaged_windows.push(window);
-        info!("registered unmanaged window");
     }
 
     /// Register and get back atoms, return an error on failure.
