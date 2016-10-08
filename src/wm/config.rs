@@ -40,7 +40,7 @@ pub enum Tag {
     /// the bookmarks tag
     Marks,
     /// "unlimited" number of work tags
-    Work(u8),
+    Work(i8),
     /// the media tag - movies, music apps etc. go here
     Media,
     /// the chat tag - for IRC and IM
@@ -242,6 +242,8 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(32, modkey, Mode::Normal, |_, _| exec_script("org.sh", &[])),
         // spawn a weather notification - modkey+p
         bind!(33, modkey, Mode::Normal, |_, _| exec_script("weather.sh", &[])),
+        // reset focus (in case bad things happened)
+        bind!(34, modkey, Mode::Normal, |_, _| WmCommand::Focus),
         // lock screen - modkey+s
         bind!(39, modkey, Mode::Normal, |_, _| exec_command("slock", &[])),
         // shutdown system - modkey+CTRL+s
