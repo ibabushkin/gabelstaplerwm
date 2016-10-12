@@ -503,7 +503,6 @@ impl<'a> Wm<'a> {
                 .visible_windows
                 .iter()
                 .position(|win| *win == window) {
-                self.reset_focus();
                 self.visible_windows.swap_remove(index);
                 self.arrange_windows();
             }
@@ -511,10 +510,10 @@ impl<'a> Wm<'a> {
             .unmanaged_windows
             .iter()
             .position(|win| *win == window) {
-            self.reset_focus();
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
         }
+        self.reset_focus();
     }
 
     /// A window wants to get a new geometry, react accordingly.
