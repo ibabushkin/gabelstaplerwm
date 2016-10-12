@@ -503,7 +503,6 @@ impl<'a> Wm<'a> {
                 .visible_windows
                 .iter()
                 .position(|win| *win == window) {
-                self.reset_focus();
                 self.visible_windows.swap_remove(index);
                 self.arrange_windows();
             }
@@ -511,10 +510,10 @@ impl<'a> Wm<'a> {
             .unmanaged_windows
             .iter()
             .position(|win| *win == window) {
-            self.reset_focus();
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
         }
+        self.reset_focus();
     }
 
     /// A window wants to get a new geometry, react accordingly.
@@ -525,7 +524,6 @@ impl<'a> Wm<'a> {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() {
             let value_mask = ev.value_mask();
-
             let cookie =
                 if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&
                     value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 {
@@ -546,6 +544,7 @@ impl<'a> Wm<'a> {
                     info!("changing window geometry upon request: \
                           x={} y={} width={} height={}",
                           x, y, width, height);
+
                     cookie
                 } else {
                     let mut x: u32 = 0;
@@ -562,11 +561,16 @@ impl<'a> Wm<'a> {
                                expect ugly results");
                     }
 
-                    xproto::configure_window(
+                    let cookie = xproto::configure_window(
                         self.con, window,
                         &[(xproto::CONFIG_WINDOW_X as u16, x),
                           (xproto::CONFIG_WINDOW_Y as u16, y),
-                        ])
+                        ]);
+
+                    info!("changing window geometry upon request: x={} y={}",
+                          x, y);
+
+                    cookie
                 };
 
             if cookie.request_check().is_err() {
