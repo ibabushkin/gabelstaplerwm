@@ -513,6 +513,9 @@ impl<'a> Wm<'a> {
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
         }
+        // we reset the focus no matter what - since destroyed windows
+        // were often focused without our knowledge or otherwise lead to
+        // unexpected behaviour when destroyed.
         self.reset_focus();
     }
 
