@@ -18,7 +18,7 @@ parallel-resizing = []
 libc = "*"
 env_logger = "*"
 log = "*"
-xcb = { version = "0.7.5", features = ["xkb"] }
+xcb = { version = "0.7.5", features = ["xkb", "randr"] }
 
 [profile.release]
 opt-level = 3

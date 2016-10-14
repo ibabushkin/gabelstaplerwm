@@ -97,6 +97,11 @@ fn main() {
         e.handle();
     }
 
+    // setup necessary RandR machinery
+    if let Err(e) = wm.init_randr() {
+        e.handle();
+    }
+
     // user-defined setup
     setup_wm(&mut wm);
 
