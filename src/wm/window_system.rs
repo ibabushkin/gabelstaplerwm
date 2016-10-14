@@ -6,6 +6,7 @@ use std::process::exit;
 use std::str;
 
 use xcb::base;
+use xcb::randr;
 use xcb::xkb;
 use xcb::xproto;
 use xcb::ffi::xcb_client_message_data_t;
@@ -180,13 +181,30 @@ impl<'a> Wm<'a> {
     pub fn register(&self) -> Result<(), WmError> {
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY;
-            //| xproto::EVENT_MASK_PROPERTY_CHANGE;
-        match xproto::change_window_attributes(
-            self.con, self.root, &[(xproto::CW_EVENT_MASK, values)])
-            .request_check() {
-            Ok(()) => Ok(()),
-            Err(_) => Err(WmError::OtherWmRunning),
+        let cookie = xproto::change_window_attributes(
+            self.con, self.root, &[(xproto::CW_EVENT_MASK, values)]);
+        let cookie2 = randr::query_version(self.con, 1, 2);
+        match (cookie.request_check(), cookie2.get_reply()) {
+            (Ok(()), Ok(ref r)) =>
+                if r.major_version() == 1 && r.minor_version() >= 2 {
+                    Ok(())
+                } else {
+                    Err(WmError::RandRVersionMismatch)
+                },
+            (_, Err(_)) => Err(WmError::RandRVersionMismatch),
+            (Err(_), _) => Err(WmError::OtherWmRunning),
         }
+    }
+
+    pub fn init_randr(&self) -> Result<(), WmError> {
+        let values = randr::NOTIFY_MASK_SCREEN_CHANGE
+            | randr::NOTIFY_MASK_CRTC_CHANGE
+            | randr::NOTIFY_MASK_OUTPUT_CHANGE;
+
+        let res = randr::select_input(self.con, self.root, values as u16)
+            .request_check();
+
+        if res.is_ok() { Ok(()) } else { Err(WmError::RandRSetupFailed) }
     }
 
     /// Set up keybindings and necessary keygrabs.
@@ -442,6 +460,8 @@ impl<'a> Wm<'a> {
 
     /// Handle an event received from the X server.
     fn handle(&mut self, event: base::GenericEvent) {
+        const SCREEN_CHANGE_NOTIFY: u8 = randr::SCREEN_CHANGE_NOTIFY as u8;
+
         match event.response_type() {
             xkb::STATE_NOTIFY => {
                 info!("received event: STATE_NOTIFY");
@@ -459,15 +479,18 @@ impl<'a> Wm<'a> {
                 info!("received event: MAP_REQUEST");
                 self.handle_map_request(base::cast_event(&event))
             },
+            SCREEN_CHANGE_NOTIFY => {
+                info!("received event: SCREEN_CHANGE_NOTIFY");
+            },
             num => info!("ignoring event: {}", num),
         }
     }
 
     /// A key has been pressed, react accordingly.
     ///
-    /// Look for a matching key binding upon event receival and call a callback
-    /// closure if necessary. Determine what to do next based on the
-    /// return value received.
+    /// Look for a matching key binding upon event receival and call a
+    /// callback closure if necessary. Determine what to do next based on
+    /// the return value received.
     fn handle_state_notify(&mut self, ev: &xkb::StateNotifyEvent) {
         let key = from_key(ev, self.mode);
         let command = if let Some(func) = self.bindings.get(&key) {
