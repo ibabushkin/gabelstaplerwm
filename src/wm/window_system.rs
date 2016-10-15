@@ -548,7 +548,9 @@ impl<'a> Wm<'a> {
     /// Otherwise, set it's geometry as desired.
     fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
         let window = ev.window();
-        if self.clients.get_client_by_window(window).is_none() {
+        if self.clients.get_client_by_window(window).is_none() &&
+            self.get_properties(window).window_type !=
+            self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
             let value_mask = ev.value_mask();
             let cookie =
                 if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&

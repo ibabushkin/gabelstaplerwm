@@ -11,7 +11,7 @@ keywords = ["xcb", "window manager", "X"]
 license = "BSD3"
 
 [features]
-# default = ["parallel-resizing"]
+default = ["parallel-resizing"]
 parallel-resizing = []
 
 [dependencies]
