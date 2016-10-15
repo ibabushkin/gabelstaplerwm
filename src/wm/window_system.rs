@@ -18,11 +18,11 @@ use wm::kbd::*;
 use wm::layout::*;
 
 /// Atoms we register with the X server for partial EWMH compliance.
-static ATOM_VEC: [&'static str; 10] =
+static ATOM_VEC: [&'static str; 11] =
     ["WM_PROTOCOLS", "WM_DELETE_WINDOW", "_NET_WM_STATE",
      "WM_TAKE_FOCUS", "_NET_WM_TAKE_FOCUS", "_NET_WM_NAME", "_NET_WM_CLASS",
      "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_NORMAL",
-     "_NET_WM_STATE_ABOVE"];
+     "_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_STATE_ABOVE"];
 
 /// Association vector type for atoms and their names.
 type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
