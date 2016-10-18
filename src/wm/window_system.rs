@@ -162,16 +162,10 @@ impl<'a> Wm<'a> {
             con, colormap, u_color.0, u_color.1, u_color.2);
 
         // get the replies
-        let f_pixel = match f_cookie.get_reply() {
-            Ok(reply) => reply.pixel(),
-            Err(_) => panic!("Could not allocate your colors!"),
-        };
-        let u_pixel = match u_cookie.get_reply() {
-            Ok(reply) => reply.pixel(),
-            Err(_) => panic!("Could not allocate your colors!"),
-        };
-
-        (f_pixel, u_pixel)
+        match (f_cookie.get_reply(), u_cookie.get_reply()) {
+            (Ok(f_reply), Ok(u_reply)) => (f_reply.pixel(), u_reply.pixel()),
+            _ => panic!("Could not allocate your colors!"),
+        }
     }
 
     /// Register window manager.
@@ -196,6 +190,7 @@ impl<'a> Wm<'a> {
         }
     }
 
+    /// Initialize the RandR extension for multimonitor support
     pub fn init_randr(&self) -> Result<(), WmError> {
         let values = randr::NOTIFY_MASK_SCREEN_CHANGE
             | randr::NOTIFY_MASK_CRTC_CHANGE
