@@ -74,8 +74,10 @@ fn main() {
         }
     }
 
-    // clean environment for cargo and other processes honoring `RUST_LOG`
+    // clean environment for cargo and other processes honoring
+    // `RUST_LOG` and `RUST_BACKTRACE`
     remove_var("RUST_LOG");
+    remove_var("RUST_BACKTRACE");
 
     // include user config
     let config = generate_config();
