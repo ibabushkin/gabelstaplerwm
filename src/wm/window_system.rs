@@ -99,6 +99,8 @@ pub struct Wm<'a> {
     tag_stack: TagStack,
     /// atoms registered at runtime
     atoms: AtomList<'a>,
+    /// the first event index of our RandR extension
+    randr_base: u8,
     /// all windows currently visible
     visible_windows: Vec<xproto::Window>,
     /// currently focused window
@@ -138,6 +140,7 @@ impl<'a> Wm<'a> {
                         tag_stack: TagStack::new(),
                         atoms: atoms,
                         visible_windows: Vec::new(),
+                        randr_base: 0, // TODO
                         focused_window: None,
                         unmanaged_windows: Vec::new(),
                     })
@@ -172,29 +175,31 @@ impl<'a> Wm<'a> {
     ///
     /// Issues substructure redirects for the root window and registers for
     /// all events we are interested in.
-    pub fn register(&self) -> Result<(), WmError> {
+    pub fn register(&mut self) -> Result<(), WmError> {
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY;
         let cookie = xproto::change_window_attributes(
             self.con, self.root, &[(xproto::CW_EVENT_MASK, values)]);
         let cookie2 = randr::query_version(self.con, 1, 2);
-        match (cookie.request_check(), cookie2.get_reply()) {
-            (Ok(()), Ok(ref r)) =>
+        let randr_query = self.con.get_extension_data(&mut randr::id());
+        match (cookie.request_check(), cookie2.get_reply(), randr_query) {
+            (Ok(()), Ok(ref r), Some(ref res)) =>
                 if r.major_version() == 1 && r.minor_version() >= 2 {
+                    self.randr_base = res.first_event();
                     Ok(())
                 } else {
                     Err(WmError::RandRVersionMismatch)
                 },
-            (_, Err(_)) => Err(WmError::RandRVersionMismatch),
-            (Err(_), _) => Err(WmError::OtherWmRunning),
+            (_, Err(_), _) | (_, _, None) => Err(WmError::RandRVersionMismatch),
+            (Err(_), _, _) => Err(WmError::OtherWmRunning),
         }
     }
 
     /// Initialize the RandR extension for multimonitor support
     pub fn init_randr(&self) -> Result<(), WmError> {
-        let values = randr::NOTIFY_MASK_SCREEN_CHANGE
-            | randr::NOTIFY_MASK_CRTC_CHANGE
-            | randr::NOTIFY_MASK_OUTPUT_CHANGE;
+        let values = randr::NOTIFY_MASK_OUTPUT_CHANGE
+            | randr::NOTIFY_MASK_SCREEN_CHANGE;
+            //| randr::NOTIFY_MASK_CRTC_CHANGE
 
         let res = randr::select_input(self.con, self.root, values as u16)
             .request_check();
@@ -455,31 +460,42 @@ impl<'a> Wm<'a> {
 
     /// Handle an event received from the X server.
     fn handle(&mut self, event: base::GenericEvent) {
-        const SCREEN_CHANGE_NOTIFY: u8 = randr::SCREEN_CHANGE_NOTIFY as u8;
-
         match event.response_type() {
             xkb::STATE_NOTIFY => {
                 info!("received event: STATE_NOTIFY");
-                self.handle_state_notify(base::cast_event(&event))
+                self.handle_state_notify(base::cast_event(&event));
             },
             xproto::DESTROY_NOTIFY => {
                 info!("received event: DESTROY_NOTIFY");
-                self.handle_destroy_notify(base::cast_event(&event))
+                self.handle_destroy_notify(base::cast_event(&event));
             },
             xproto::CONFIGURE_REQUEST => {
                 info!("received event: CONFIGURE_REQUEST");
-                self.handle_configure_request(base::cast_event(&event))
+                self.handle_configure_request(base::cast_event(&event));
             },
             xproto::MAP_REQUEST => {
                 info!("received event: MAP_REQUEST");
-                self.handle_map_request(base::cast_event(&event))
+                self.handle_map_request(base::cast_event(&event));
             },
-            SCREEN_CHANGE_NOTIFY => {
-                info!("received event: SCREEN_CHANGE_NOTIFY");
-            },
-            num => info!("ignoring event: {}", num),
+            res => match res - self.randr_base as u8 {
+                randr::SCREEN_CHANGE_NOTIFY => {
+                    info!("received event: SCREEN_CHANGE_NOTIFY");
+                    self.handle_screen_change_notify(base::cast_event(&event));
+                },
+                randr::NOTIFY => {
+                    info!("received event: OUTPUT_NOTIFY");
+                    self.handle_output_notify(base::cast_event(&event));
+                },
+                _ => info!("ignoring event: {}", res),
+            }
         }
     }
+
+    /// The screen has been changed, react accordingly.
+    fn handle_screen_change_notify(&mut self, _: &randr::ScreenChangeNotifyEvent) { }
+
+    /// An output has been changed, react accordingly.
+    fn handle_output_notify(&mut self, _: &randr::NotifyEvent) { }
 
     /// A key has been pressed, react accordingly.
     ///
