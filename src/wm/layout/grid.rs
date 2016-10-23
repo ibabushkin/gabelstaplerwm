@@ -27,7 +27,7 @@ impl Default for Grid {
 }
 
 impl Layout for Grid {
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+    fn arrange(&self, num_windows: usize, screen: &TilingArea)
         -> Vec<Option<Geometry>> {
         if num_windows > 0 {
             let max_col = if self.max_col > 0 {

@@ -18,7 +18,7 @@ use std::process::Command;
 use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
 use wm::kbd::*;
 
-use wm::layout::{ScreenSize,LayoutMessage};
+use wm::layout::{TilingArea,LayoutMessage};
 use wm::layout::grid::Grid;
 use wm::layout::monocle::Monocle;
 use wm::layout::spiral::Spiral;
@@ -106,13 +106,13 @@ impl Default for Mode {
 /// Generate a window manager config - colors, border width...
 ///
 /// Here you can specify (or compute) the settings you want to have.
-/// See the docs for `ScreenSize` for more information.
+/// See the docs for `TilingArea` for more information.
 pub fn generate_config() -> WmConfig {
     WmConfig {
         f_color: (0x5353, 0x5d5d, 0x6c6c), // this is #535d6c
         u_color: (0x0000, 0x0000, 0x0000), // and this is #000000
         border_width: 1,
-        screen: ScreenSize {
+        screen: TilingArea {
             offset_x: 0,
             offset_y: 20,
             width: 1366,  // defaults reasonable for Xephyr,

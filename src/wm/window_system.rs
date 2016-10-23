@@ -67,7 +67,7 @@ pub struct WmConfig {
     /// window border width
     pub border_width: u8,
     /// screen parameters requested by user
-    pub screen: ScreenSize,
+    pub screen: TilingArea,
 }
 
 /// A window manager master-structure.
@@ -84,7 +84,7 @@ pub struct Wm<'a> {
     /// user-defined configuration parameters
     config: WmConfig,
     /// screen parameters as obtained from the X server upon connection
-    screen: ScreenSize,
+    screen: TilingArea,
     /// colors used for window borders, first denotes focused windows
     border_colors: (u32, u32),
     /// keybinding callbacks
@@ -119,7 +119,7 @@ impl<'a> Wm<'a> {
             let height = screen.height_in_pixels();
             let colormap = screen.default_colormap();
             let new_screen =
-                ScreenSize::new(&config.screen, width as u32, height as u32);
+                TilingArea::new(&config.screen, width as u32, height as u32);
             let colors = Wm::setup_colors(con,
                                           colormap,
                                           config.f_color,
@@ -199,7 +199,6 @@ impl<'a> Wm<'a> {
     pub fn init_randr(&self) -> Result<(), WmError> {
         let values = randr::NOTIFY_MASK_OUTPUT_CHANGE
             | randr::NOTIFY_MASK_SCREEN_CHANGE;
-            //| randr::NOTIFY_MASK_CRTC_CHANGE
 
         let res = randr::select_input(self.con, self.root, values as u16)
             .request_check();
@@ -492,10 +491,12 @@ impl<'a> Wm<'a> {
     }
 
     /// The screen has been changed, react accordingly.
-    fn handle_screen_change_notify(&mut self, _: &randr::ScreenChangeNotifyEvent) { }
+    fn handle_screen_change_notify(&mut self, _: &randr::ScreenChangeNotifyEvent) {
+    }
 
     /// An output has been changed, react accordingly.
-    fn handle_output_notify(&mut self, _: &randr::NotifyEvent) { }
+    fn handle_output_notify(&mut self, _: &randr::NotifyEvent) {
+    }
 
     /// A key has been pressed, react accordingly.
     ///

@@ -30,7 +30,7 @@ impl Default for DStack {
 }
 
 impl Layout for DStack {
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+    fn arrange(&self, num_windows: usize, screen: &TilingArea)
         -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // set master window width, capping factor
@@ -211,7 +211,7 @@ impl Default for HStack {
 }
 
 impl Layout for HStack {
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+    fn arrange(&self, num_windows: usize, screen: &TilingArea)
         -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // set master window height, capping factor
@@ -359,7 +359,7 @@ impl Default for VStack {
 }
 
 impl Layout for VStack {
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+    fn arrange(&self, num_windows: usize, screen: &TilingArea)
         -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // set master window width, capping factor

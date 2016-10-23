@@ -22,7 +22,7 @@ impl Default for Monocle {
 }
 
 impl Layout for Monocle {
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+    fn arrange(&self, num_windows: usize, screen: &TilingArea)
         -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // master window is shown
