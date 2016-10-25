@@ -670,12 +670,20 @@ impl TagStack {
     }
 }
 
+/// An ordered set of known screens.
+///
+/// A screen is a rectangular area on the X server screen's root window,
+/// that is used to show a distinct set of tags associated with a
+/// `TagStack`. There is an active screen at all times.
 pub struct ScreenSet {
+    /// all screens known to man
     screens: Vec<(TilingArea, TagStack)>,
+    /// the currently active screen's index
     current_screen: usize,
 }
 
 impl ScreenSet {
+    /// Setup a new screen set.
     pub fn new(screens: Vec<(TilingArea, TagStack)>) -> ScreenSet {
         ScreenSet {
             screens: screens,
@@ -683,24 +691,29 @@ impl ScreenSet {
         }
     }
 
+    /// Get a mutable reference to current screen's geometry and tag stack.
     pub fn current_mut(&mut self) -> &mut (TilingArea, TagStack) {
         self.screens.get_mut(self.current_screen).unwrap()
     }
 
+    /// Get an immutable reference to current screen's geometry and tag stack.
     pub fn current(&self) -> &(TilingArea, TagStack) {
         self.screens.get(self.current_screen).unwrap()
     }
 
+    /// Get an immutable reference to current screen's geometry.
     pub fn screen(&self) -> &TilingArea {
         let &(ref screen, _) = self.current();
         screen
     }
 
+    /// Get a mutable reference to the current screen's tag stack.
     pub fn tag_stack_mut(&mut self) -> &mut TagStack {
         let &mut (_, ref mut tag_stack) = self.current_mut();
         tag_stack
     }
 
+    /// Get an immutable reference to the current screen's tag stack.
     pub fn tag_stack(&self) -> &TagStack {
         let &(_, ref tag_stack) = self.current();
         tag_stack
