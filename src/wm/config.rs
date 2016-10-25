@@ -186,7 +186,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| WmCommand::Quit),
         // go back in tagset history
         bind!(42, modkey, Mode::Normal, |c, s| {
-            if s.view_prev() {
+            if s.tag_stack_mut().view_prev() {
                 println!("{}", current_tagset(c, s));
                 WmCommand::Redraw
             } else {
@@ -200,6 +200,7 @@ pub fn setup_wm(wm: &mut Wm) {
         }),
         // kill current client
         bind!(54, modkey, Mode::Normal, |c, s| s
+            .tag_stack()
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .map(WmCommand::Kill)

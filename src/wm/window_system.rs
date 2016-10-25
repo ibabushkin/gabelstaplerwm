@@ -475,7 +475,7 @@ impl<'a> Wm<'a> {
                 info!("received event: MAP_REQUEST");
                 self.handle_map_request(base::cast_event(&event));
             },
-            res => match res - self.randr_base as u8 {
+            res if res > self.randr_base => match res - self.randr_base as u8 {
                 randr::SCREEN_CHANGE_NOTIFY => {
                     info!("received event: SCREEN_CHANGE_NOTIFY");
                     self.handle_screen_change_notify(base::cast_event(&event));
@@ -485,7 +485,8 @@ impl<'a> Wm<'a> {
                     self.handle_output_notify(base::cast_event(&event));
                 },
                 _ => info!("ignoring event: {}", res),
-            }
+            },
+            res => info!("ignoring event: {}", res),
         }
     }
 
@@ -506,7 +507,7 @@ impl<'a> Wm<'a> {
         let key = from_key(ev, self.mode);
         let command = if let Some(func) = self.bindings.get(&key) {
             info!("executing binding for {:?}", key);
-            let c = func(&mut self.clients, self.screens.tag_stack_mut());
+            let c = func(&mut self.clients, &mut self.screens);
             info!("resulting command: {:?}", c);
             c
         } else {

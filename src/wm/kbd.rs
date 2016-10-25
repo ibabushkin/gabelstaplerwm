@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use xcb::xkb;
 
-use wm::client::{ClientSet, TagStack};
+use wm::client::{ClientSet, ScreenSet};
 use wm::config::Mode;
 use wm::window_system::WmCommand;
 
@@ -30,7 +30,7 @@ pub const MOD4: u8 = 64;
 pub const ALTGR: u8 = 136;
 
 /// Closure type of a callback function running on key press.
-pub type KeyCallback = Box<Fn(&mut ClientSet, &mut TagStack) -> WmCommand>;
+pub type KeyCallback = Box<Fn(&mut ClientSet, &mut ScreenSet) -> WmCommand>;
 /// Keybinding map.
 pub type Keybindings = HashMap<KeyPress, KeyCallback>;
 

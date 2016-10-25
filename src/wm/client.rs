@@ -723,9 +723,8 @@ impl ScreenSet {
 /// Helper function to get the current tagset from a `TagStack`
 ///
 /// Takes two arguments to allow for usage in config macros.
-pub fn current_tagset(_: &ClientSet, s: &TagStack) -> String {
-    /*s.current()
-        .and_then(|&(_, ref t)| t.current())
-        .map_or("[]".to_string(), |t| format!("{}", t))*/
-    s.current().map_or("[]".to_string(), |t| format!("{}", t))
+pub fn current_tagset(_: &ClientSet, s: &ScreenSet) -> String {
+    let &(_, ref t) = s.current();
+    t.current().map_or("[]".to_string(), |t| format!("{}", t))
+    //s.current().map_or("[]".to_string(), |t| format!("{}", t))
 }
