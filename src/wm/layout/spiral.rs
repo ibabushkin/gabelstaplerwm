@@ -13,7 +13,7 @@ impl Default for Spiral {
 }
 
 impl Layout for Spiral {
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+    fn arrange(&self, num_windows: usize, screen: &TilingArea)
         -> Vec<Option<Geometry>> {
         let mut east = true;
         let mut north = true;

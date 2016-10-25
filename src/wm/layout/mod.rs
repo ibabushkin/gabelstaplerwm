@@ -3,12 +3,12 @@ pub mod monocle;
 pub mod spiral;
 pub mod stack;
 
-/// A screen size to be accounted for when arranging windows.
+/// A screen area size to be accounted for when arranging windows.
 ///
 /// Describes the area used for tiling windows. This allows to leave an open
 /// spot for desktop windows, bars and whatever else you might want.
 #[derive(Clone)]
-pub struct ScreenSize {
+pub struct TilingArea {
     /// x offset of tiling area
     pub offset_x: u32,
     /// y offset of tiling area
@@ -19,12 +19,12 @@ pub struct ScreenSize {
     pub height: u32,
 }
 
-impl ScreenSize {
-    /// Create a new `ScreenSize` object.
+impl TilingArea {
+    /// Create a new `TilingArea` object.
     ///
-    /// Uses a `ScreenSize` that represents the user's wishes to get something
+    /// Uses a `TilingArea` that represents the user's wishes to get something
     /// that is actually possible.
-    pub fn new(old: &ScreenSize, width: u32, height: u32) -> ScreenSize {
+    pub fn new(old: &TilingArea, width: u32, height: u32) -> TilingArea {
         let new_width = if old.width + old.offset_x < width {
             old.width - old.offset_x
         } else {
@@ -35,7 +35,7 @@ impl ScreenSize {
         } else {
             height - old.offset_y
         };
-        ScreenSize {
+        TilingArea {
             offset_x: old.offset_x,
             offset_y: old.offset_y,
             width: new_width,
@@ -59,13 +59,13 @@ pub struct Geometry {
 
 /// Types that compute geometries for arbitrary amounts of windows.
 ///
-/// The only input such objects get are `ScreenSize` and number of windows.
+/// The only input such objects get are `TilingArea` and number of windows.
 pub trait Layout {
     /// Compute window geometries. 
     ///
     /// If a `None` is returned at a particular position, that window is not
     /// to be made visible.
-    fn arrange(&self, num_windows: usize, screen: &ScreenSize)
+    fn arrange(&self, num_windows: usize, screen: &TilingArea)
         -> Vec<Option<Geometry>>;
     /// Get the window to the right of the nth window.
     fn right_window(&self, index: usize, max: usize) -> Option<usize>;

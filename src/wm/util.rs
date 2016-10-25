@@ -66,8 +66,8 @@ macro_rules! bind {
 macro_rules! push_tagset {
     ($index:expr;; $print:expr) => {
         |c, s| {
-            if !s.current_index().map_or(false, |i| *i == $index) {
-                s.push($index);
+            if !s.tag_stack().current_index().map_or(false, |i| *i == $index) {
+                s.tag_stack_mut().push($index);
                 println!("{}", $print(c, s));
                 WmCommand::Redraw
             } else {
@@ -77,8 +77,8 @@ macro_rules! push_tagset {
     };
     ($index:expr $(; $print:expr)*) => {
         |_, s| {
-            if !s.current_index().map_or(false, |i| *i == $index) {
-                s.push($index);
+            if !s.tag_stack().current_index().map_or(false, |i| *i == $index) {
+                s.tag_stack_mut().push($index);
                 $( println!("{}", $print); )*
                 WmCommand::Redraw
             } else {
@@ -102,12 +102,13 @@ macro_rules! push_tagset {
 macro_rules! toggle_tag {
     ($tag:expr;; $print:expr) => {
         |c, s| s
+            .tag_stack()
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag(&$tag);
                 println!("{}", $print(c, s));
-                if !cl.match_tags(&s.current().unwrap().tags) {
+                if !cl.match_tags(&s.tag_stack().current().unwrap().tags) {
                     WmCommand::Redraw
                 } else {
                     WmCommand::NoCommand
@@ -117,12 +118,13 @@ macro_rules! toggle_tag {
     };
     ($tag:expr $(; $print:expr)*) => {
         |c, s| s
+            .tag_stack()
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 $( println!("{}", $print); )*
-                if !cl.match_tags(&s.current().unwrap().tags) {
+                if !cl.match_tags(&s.tag_stack().current().unwrap().tags) {
                     WmCommand::Redraw
                 } else {
                     WmCommand::NoCommand
@@ -146,7 +148,8 @@ macro_rules! toggle_tag {
 macro_rules! toggle_show_tag {
     ($tag:expr;; $print:expr) => {
         |c, s|
-            if s.current_mut()
+            if s.tag_stack_mut()
+                .current_mut()
                 .map(|tagset| tagset.toggle_tag($tag))
                 .is_some() {
                 println!("{}", $print(c, s));
@@ -157,6 +160,7 @@ macro_rules! toggle_show_tag {
     };
     ($tag:expr $(; $print:expr)*) => {
         |_, s| s
+            .tag_stack_mut()
             .current_mut()
             .map(|tagset| {
                 tagset.toggle_tag($tag);
@@ -181,6 +185,7 @@ macro_rules! toggle_show_tag {
 macro_rules! move_to_tag {
     ($($tag:expr),*;; $print:expr) => {
         |c, s| s
+            .tag_stack()
             .current()
             .and_then(|t| if let Some(win) = c.get_focused_window(&t.tags) {
                 c.update_client(win, |mut cl| {
@@ -199,6 +204,7 @@ macro_rules! move_to_tag {
     };
     ($($tag:expr),* $(; $print:expr)*) => {
         |c, s| s
+            .tag_stack()
             .current()
             .and_then(|t| if let Some(win) = c.get_focused_window(&t.tags) {
                 c.update_client(win, |mut cl| {
@@ -230,6 +236,7 @@ macro_rules! move_to_tag {
 macro_rules! focus {
     ($func:expr;; $print:expr) => {
         |c, s| s
+            .tag_stack()
             .current()
             .map_or(WmCommand::NoCommand, |t| {
                 if $func(c, t) {
@@ -242,6 +249,7 @@ macro_rules! focus {
     };
     ($func:expr $(; $print:expr)*) => {
         |c, s| s
+            .tag_stack()
             .current()
             .map_or(WmCommand::NoCommand, |t| {
                 if $func(c, t) {
@@ -268,6 +276,7 @@ macro_rules! focus {
 macro_rules! swap {
     ($func:expr;; $print:expr) => {
         |c, s| s
+            .tag_stack()
             .current()
             .map_or(WmCommand::NoCommand, |t| {
                 if $func(c, t) {
@@ -280,6 +289,7 @@ macro_rules! swap {
     };
     ($func:expr $(; $print:expr)*) => {
         |c, s| s
+            .tag_stack()
             .current()
             .map_or(WmCommand::NoCommand, |t| {
                 if $func(c, t) {
@@ -311,7 +321,8 @@ macro_rules! swap {
 macro_rules! edit_layout {
     ($($cmd:expr),*;; $print:expr) => {
         |c, s|
-            if s.current_mut()
+            if s.tag_stack_mut()
+                .current_mut()
                 .map(|t| t.layout.edit_layout_retry(vec![$($cmd,)*]))
                 == Some(true) {
                 println!("{}", $print(c, s));
@@ -322,6 +333,7 @@ macro_rules! edit_layout {
     };
     ($($cmd:expr),* $(; $print:expr)*) => {
         |_, s| s
+            .tag_stack_mut()
             .current_mut()
             .map_or(WmCommand::NoCommand, |t| {
                 if t.layout.edit_layout_retry(vec![$($cmd,)*]) {

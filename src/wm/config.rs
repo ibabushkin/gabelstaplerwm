@@ -21,7 +21,7 @@ use std::process::{Command, Stdio};
 use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
 use wm::kbd::*;
 
-use wm::layout::{ScreenSize,LayoutMessage};
+use wm::layout::{TilingArea,LayoutMessage};
 use wm::layout::monocle::Monocle;
 use wm::layout::stack::{HStack,VStack};
 
@@ -109,13 +109,16 @@ impl Default for Mode {
 /// Generate a window manager config - colors, border width...
 ///
 /// Here you can specify (or compute) the settings you want to have.
-/// See the docs for `ScreenSize` for more information.
+/// See the docs for `TilingArea` for more information.
 pub fn generate_config() -> WmConfig {
     WmConfig {
         f_color: (0x0000, 0x5555, 0x7777), // this is #005577 (dwm cyan)
         u_color: (0x0000, 0x0000, 0x0000), // and this is #000000 (black)
         border_width: 1,
-        screen: ScreenSize {
+        // TODO: future configs should contain a closure (or define a function or w/e)
+        // that gets passed a vector of tiling areas (corresponding to monitors) and
+        // returns a vector of tiling areas to use.
+        screen: TilingArea {
             offset_x: 0,
             offset_y: 20,
             width: 1366,
@@ -251,7 +254,7 @@ pub fn setup_wm(wm: &mut Wm) {
               exec_command("sudo", &["shutdown", "-h", "now"])),
         // go back in tagset history - modkey+g
         bind!(42, modkey, Mode::Normal, |c, s| {
-            if s.view_prev() {
+            if s.tag_stack_mut().view_prev() {
                 println!("{}", current_tagset(c, s));
                 WmCommand::Redraw
             } else {
@@ -282,8 +285,8 @@ pub fn setup_wm(wm: &mut Wm) {
         // change work tagset - modkey+CTRL+[hl]
         bind!(43, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&Tag::Work(n)) =
-                s.current().and_then(|s| s.tags.iter().next()) {
-                s.current_mut().map(|mut s| {
+                s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
+                s.tag_stack_mut().current_mut().map(|mut s| {
                     s.tags.remove(&Tag::Work(n));
                     s.tags.insert(Tag::Work(n.saturating_sub(1)));
                 });
@@ -298,8 +301,8 @@ pub fn setup_wm(wm: &mut Wm) {
         }),
         bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&Tag::Work(n)) =
-                s.current().and_then(|s| s.tags.iter().next()) {
-                s.current_mut().map(|mut s| {
+                s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
+                s.tag_stack_mut().current_mut().map(|mut s| {
                     s.tags.remove(&Tag::Work(n));
                     s.tags.insert(Tag::Work(n.saturating_add(1)));
                 });
@@ -315,8 +318,9 @@ pub fn setup_wm(wm: &mut Wm) {
         // move a client to an adjacent work tagset - modkey+CTRL+SHIFT+[hl]
         bind!(43, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
             if let Some(&Tag::Work(n)) =
-                s.current().and_then(|s| s.tags.iter().next()) {
-                s.current()
+                s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
+                s.tag_stack()
+                    .current()
                     .and_then(|t| c.get_focused_window(&t.tags))
                     .and_then(|w| c.update_client(w, |mut cl| {
                         cl.set_tags(&[Tag::Work(n.saturating_sub(1))]);
@@ -329,8 +333,9 @@ pub fn setup_wm(wm: &mut Wm) {
         ),
         bind!(46, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
             if let Some(&Tag::Work(n)) =
-                s.current().and_then(|s| s.tags.iter().next()) {
-                s.current()
+                s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
+                s.tag_stack()
+                    .current()
                     .and_then(|t| c.get_focused_window(&t.tags))
                     .and_then(|w| c.update_client(w, |mut cl| {
                         cl.set_tags(&[Tag::Work(n.saturating_add(1))]);
@@ -346,6 +351,7 @@ pub fn setup_wm(wm: &mut Wm) {
               exec_command("swarp", &["0", "768"])),
         // kill current client - modkey+SHIFT+c
         bind!(54, modkey+SHIFT, Mode::Normal, |c, s| s
+            .tag_stack()
             .current()
             .and_then(|t| c.get_focused_window(&t.tags))
             .map(WmCommand::Kill)
