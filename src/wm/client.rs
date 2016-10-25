@@ -7,7 +7,7 @@ use std::rc::{Rc,Weak};
 use xcb::xproto;
 
 use wm::config::Tag;
-use wm::layout::Layout;
+use wm::layout::{Layout,TilingArea};
 use wm::window_system::WmCommand;
 
 /// Construct a Set of... things, like you would use `vec!`.
@@ -670,9 +670,49 @@ impl TagStack {
     }
 }
 
+pub struct ScreenSet {
+    screens: Vec<(TilingArea, TagStack)>,
+    current_screen: usize,
+}
+
+impl ScreenSet {
+    pub fn new(screens: Vec<(TilingArea, TagStack)>) -> ScreenSet {
+        ScreenSet {
+            screens: screens,
+            current_screen: 0,
+        }
+    }
+
+    pub fn current_mut(&mut self) -> &mut (TilingArea, TagStack) {
+        self.screens.get_mut(self.current_screen).unwrap()
+    }
+
+    pub fn current(&self) -> &(TilingArea, TagStack) {
+        self.screens.get(self.current_screen).unwrap()
+    }
+
+    pub fn screen(&self) -> &TilingArea {
+        let &(ref screen, _) = self.current();
+        screen
+    }
+
+    pub fn tag_stack_mut(&mut self) -> &mut TagStack {
+        let &mut (_, ref mut tag_stack) = self.current_mut();
+        tag_stack
+    }
+
+    pub fn tag_stack(&self) -> &TagStack {
+        let &(_, ref tag_stack) = self.current();
+        tag_stack
+    }
+}
+
 /// Helper function to get the current tagset from a `TagStack`
 ///
 /// Takes two arguments to allow for usage in config macros.
 pub fn current_tagset(_: &ClientSet, s: &TagStack) -> String {
+    /*s.current()
+        .and_then(|&(_, ref t)| t.current())
+        .map_or("[]".to_string(), |t| format!("{}", t))*/
     s.current().map_or("[]".to_string(), |t| format!("{}", t))
 }

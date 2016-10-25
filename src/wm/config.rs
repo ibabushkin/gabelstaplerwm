@@ -112,6 +112,9 @@ pub fn generate_config() -> WmConfig {
         f_color: (0x5353, 0x5d5d, 0x6c6c), // this is #535d6c
         u_color: (0x0000, 0x0000, 0x0000), // and this is #000000
         border_width: 1,
+        // TODO: future configs should contain a closure (or define a function or w/e)
+        // that gets passed a vector of tiling areas (corresponding to monitors) and
+        // returns a vector of tiling areas to use.
         screen: TilingArea {
             offset_x: 0,
             offset_y: 20,

@@ -83,8 +83,9 @@ pub struct Wm<'a> {
     root: xproto::Window,
     /// user-defined configuration parameters
     config: WmConfig,
-    /// screen parameters as obtained from the X server upon connection
-    screen: TilingArea,
+    /// all screen areas we tile windows on,
+    /// together with their corresponding `TagStack`
+    screens: ScreenSet,
     /// colors used for window borders, first denotes focused windows
     border_colors: (u32, u32),
     /// keybinding callbacks
@@ -95,8 +96,6 @@ pub struct Wm<'a> {
     mode: Mode,
     /// set of currently present clients
     clients: ClientSet,
-    /// set of currently present tagsets and their display history
-    tag_stack: TagStack,
     /// atoms registered at runtime
     atoms: AtomList<'a>,
     /// the first event index of our RandR extension
@@ -131,13 +130,12 @@ impl<'a> Wm<'a> {
                         con: con,
                         root: screen.root(),
                         config: config,
-                        screen: new_screen,
+                        screens: ScreenSet::new(vec![(new_screen, TagStack::new())]),
                         border_colors: colors,
                         bindings: HashMap::new(),
                         matching: None,
                         mode: Mode::default(),
                         clients: ClientSet::default(),
-                        tag_stack: TagStack::new(),
                         atoms: atoms,
                         visible_windows: Vec::new(),
                         randr_base: 0, // TODO
@@ -249,7 +247,7 @@ impl<'a> Wm<'a> {
 
     /// Set up the tagset stack.
     pub fn setup_tags(&mut self, stack: TagStack) {
-        self.tag_stack = stack;
+        *self.screens.tag_stack_mut() = stack;
     }
 
     /// Add all present clients to the datastructures on startup.
@@ -272,7 +270,7 @@ impl<'a> Wm<'a> {
     /// For instance, the `Monocle` layout only shows the master window,
     /// rendering client creation as a slave useless and unergonomic.
     fn new_window_as_master(&self) -> bool {
-        match self.tag_stack.current() {
+        match self.screens.tag_stack().current() {
             Some(tagset) => tagset.layout.new_window_as_master(),
             _ => false,
         }
@@ -292,7 +290,7 @@ impl<'a> Wm<'a> {
         self.visible_windows.clear();
 
         // setup current client list
-        let (clients, layout) = match self.tag_stack.current() {
+        let (clients, layout) = match self.screens.tag_stack().current() {
             Some(tagset) => (
                 self.clients.get_order_or_insert(&tagset.tags),
                 &tagset.layout
@@ -301,7 +299,7 @@ impl<'a> Wm<'a> {
         };
 
         // get geometries ...
-        let geometries = layout.arrange(clients.1.len(), &self.screen);
+        let geometries = layout.arrange(clients.1.len(), self.screens.screen());
         // ... and apply them if a window is to be displayed
         if cfg!(feature = "parallel-resizing") {
             let connection = self.con;
@@ -362,7 +360,7 @@ impl<'a> Wm<'a> {
 
     /// Hide some windows by moving them offscreen.
     fn hide_windows(&self, windows: &[xproto::Window]) {
-        let safe_x = self.screen.width + 2;
+        let safe_x = self.screens.screen().width + 2;
         let cookies: Vec<_> = windows
             .iter()
             .map(|window| xproto::configure_window(
@@ -400,11 +398,12 @@ impl<'a> Wm<'a> {
     /// it's border.
     fn reset_focus(&mut self) {
         if let Some(new) = self
-            .tag_stack
+            .screens
+            .tag_stack()
             .current()
             .and_then(|t| self.clients.get_focused_window(&t.tags)) {
             if self.new_window_as_master() {
-               self.clients.swap_master(self.tag_stack.current().unwrap());
+               self.clients.swap_master(self.screens.tag_stack().current().unwrap());
                self.arrange_windows();
             }
             if let Some(old_win) = self.focused_window {
@@ -507,7 +506,7 @@ impl<'a> Wm<'a> {
         let key = from_key(ev, self.mode);
         let command = if let Some(func) = self.bindings.get(&key) {
             info!("executing binding for {:?}", key);
-            let c = func(&mut self.clients, &mut self.tag_stack);
+            let c = func(&mut self.clients, self.screens.tag_stack_mut());
             info!("resulting command: {:?}", c);
             c
         } else {
@@ -564,14 +563,15 @@ impl<'a> Wm<'a> {
             self.get_properties(window).window_type !=
             self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
             let value_mask = ev.value_mask();
+            let screen = self.screens.screen();
             let cookie =
                 if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&
                     value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 {
                     let width = ev.width() as u32;
                     let height = ev.height() as u32;
 
-                    let x = (self.screen.width - width) / 2;
-                    let y = (self.screen.height - height) / 2;
+                    let x = (screen.width - width) / 2;
+                    let y = (screen.height - height) / 2;
 
                     let cookie = xproto::configure_window(
                         self.con, window,
@@ -594,8 +594,8 @@ impl<'a> Wm<'a> {
                         self.con, window).get_reply() {
                         let width = geom.width() as u32;
                         let height = geom.height() as u32;
-                        x = (self.screen.width - width) / 2;
-                        y = (self.screen.height - height) / 2;
+                        x = (screen.width - width) / 2;
+                        y = (screen.height - height) / 2;
                     } else {
                         error!("could not get window geometry, \
                                expect ugly results");
@@ -632,7 +632,7 @@ impl<'a> Wm<'a> {
                     // map window
                     let cookie = xproto::map_window(self.con, window);
                     // set border width and coordinates
-                    let safe_x = self.screen.width + 2;
+                    let safe_x = self.screens.screen().width + 2;
                     let cookie2 = xproto::configure_window(self.con, window,
                         &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                            self.config.border_width as u32),
@@ -642,7 +642,7 @@ impl<'a> Wm<'a> {
 
                     // decide whether the client will be immediately visible
                     let visible = if let Some(tags) =
-                        self.tag_stack.current().map(|t| &t.tags) {
+                        self.screens.tag_stack().current().map(|t| &t.tags) {
                             client.match_tags(tags)
                         } else {
                             false
@@ -708,7 +708,7 @@ impl<'a> Wm<'a> {
                 .as_ref()
                 .and_then(|f| f(&props)) {
                 res
-            } else if let Some(tagset) = self.tag_stack.current() {
+            } else if let Some(tagset) = self.screens.tag_stack().current() {
                 (tagset.tags.clone(), false)
             } else {
                 (set![Tag::default()], false)
@@ -726,7 +726,7 @@ impl<'a> Wm<'a> {
     /// currenlty used layout dictates it.
     fn add_client(&mut self, client: Client, as_slave: bool) {
         self.clients.add(client, as_slave);
-        if let Some(tagset) = self.tag_stack.current() {
+        if let Some(tagset) = self.screens.tag_stack().current() {
             if self.new_window_as_master() {
                 self.clients.swap_master(tagset);
             }
