@@ -719,11 +719,11 @@ impl ScreenSet {
         tag_stack
     }
 
+    /// Swap horizontal and vertical axes of all screens.
     pub fn rotate(&mut self) {
-        for &mut (ref mut screen, _) in self.screens.iter_mut() {
-            let tmp = screen.width;
-            screen.width = screen.height;
-            screen.height = tmp;
+        use std::mem::swap;
+        for &mut (ref mut screen, _) in &mut self.screens {
+            swap(&mut screen.width, &mut screen.height);
         }
     }
 }
@@ -734,5 +734,4 @@ impl ScreenSet {
 pub fn current_tagset(_: &ClientSet, s: &ScreenSet) -> String {
     let &(_, ref t) = s.current();
     t.current().map_or("[]".to_string(), |t| format!("{}", t))
-    //s.current().map_or("[]".to_string(), |t| format!("{}", t))
 }
