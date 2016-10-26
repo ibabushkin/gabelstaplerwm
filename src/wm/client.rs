@@ -718,6 +718,14 @@ impl ScreenSet {
         let &(_, ref tag_stack) = self.current();
         tag_stack
     }
+
+    pub fn rotate(&mut self) {
+        for &mut (ref mut screen, _) in self.screens.iter_mut() {
+            let tmp = screen.width;
+            screen.width = screen.height;
+            screen.height = tmp;
+        }
+    }
 }
 
 /// Helper function to get the current tagset from a `TagStack`

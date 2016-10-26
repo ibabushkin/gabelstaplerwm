@@ -83,8 +83,7 @@ pub struct Wm<'a> {
     root: xproto::Window,
     /// user-defined configuration parameters
     config: WmConfig,
-    /// all screen areas we tile windows on,
-    /// together with their corresponding `TagStack`
+    /// all screen areas we tile windows on, and their tag stacks
     screens: ScreenSet,
     /// colors used for window borders, first denotes focused windows
     border_colors: (u32, u32),
@@ -491,7 +490,16 @@ impl<'a> Wm<'a> {
     }
 
     /// The screen has been changed, react accordingly.
-    fn handle_screen_change_notify(&mut self, _: &randr::ScreenChangeNotifyEvent) {
+    ///
+    /// If a rotation took place, make the geometries of our screens rotate.
+    /// This might need some update in case we need to change some offsets as well.
+    /// However, this code isn't likely to be used often.
+    fn handle_screen_change_notify(&mut self, ev: &randr::ScreenChangeNotifyEvent) {
+        if ev.root() == self.root && ev.rotation() as u32 &
+            (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
+            info!("rotating all screen areas.");
+            self.screens.rotate();
+        }
     }
 
     /// An output has been changed, react accordingly.
