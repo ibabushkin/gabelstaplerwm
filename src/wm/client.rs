@@ -1,13 +1,13 @@
-use std::cell::{RefCell,RefMut};
-use std::collections::{HashMap,BTreeSet};
+use std::cell::{RefCell, RefMut};
+use std::collections::{HashMap, BTreeSet};
 use std::collections::hash_map::Entry;
 use std::fmt;
-use std::rc::{Rc,Weak};
+use std::rc::{Rc, Weak};
 
 use xcb::xproto;
 
 use wm::config::Tag;
-use wm::layout::{Layout,TilingArea};
+use wm::layout::{Layout, TilingArea};
 use wm::window_system::WmCommand;
 
 /// Construct a Set of... things, like you would use `vec!`.

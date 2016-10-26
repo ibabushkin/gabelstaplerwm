@@ -17,9 +17,9 @@ extern crate log;
 #[cfg(with_mousetrap)]
 extern crate mousetrap;
 
-use std::mem::{transmute,uninitialized};
-
 use std::env::remove_var;
+
+use std::mem::{transmute, uninitialized};
 
 pub mod wm;
 use wm::config::*;

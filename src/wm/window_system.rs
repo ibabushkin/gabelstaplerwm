@@ -1,6 +1,6 @@
 use libc::c_char;
 
-use std::collections::{HashMap,BTreeSet};
+use std::collections::{HashMap, BTreeSet};
 use std::ffi::CStr;
 use std::process::exit;
 use std::str;
@@ -12,7 +12,7 @@ use xcb::xproto;
 use xcb::ffi::xcb_client_message_data_t;
 
 use wm::client::*;
-use wm::config::{Tag,Mode};
+use wm::config::{Tag, Mode};
 use wm::err::*;
 use wm::kbd::*;
 use wm::layout::*;

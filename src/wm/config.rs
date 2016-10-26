@@ -18,11 +18,11 @@ use std::process::Command;
 use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
 use wm::kbd::*;
 
-use wm::layout::{TilingArea,LayoutMessage};
+use wm::layout::{TilingArea, LayoutMessage};
 use wm::layout::grid::Grid;
 use wm::layout::monocle::Monocle;
 use wm::layout::spiral::Spiral;
-use wm::layout::stack::{DStack,HStack,VStack};
+use wm::layout::stack::{DStack, HStack, VStack};
 
 use wm::window_system::{Wm, WmConfig, WmCommand};
 
