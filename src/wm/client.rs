@@ -724,6 +724,7 @@ impl ScreenSet {
         use std::mem::swap;
         for &mut (ref mut screen, _) in &mut self.screens {
             swap(&mut screen.width, &mut screen.height);
+            swap(&mut screen.offset_x, &mut screen.offset_y);
         }
     }
 }
