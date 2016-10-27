@@ -137,7 +137,8 @@ impl<'a> Wm<'a> {
                         clients: ClientSet::default(),
                         atoms: atoms,
                         visible_windows: Vec::new(),
-                        randr_base: 0, // TODO
+                        randr_base: 0, // this is fine because we fail in cases
+                                       // where we can't reset this value
                         focused_window: None,
                         unmanaged_windows: Vec::new(),
                     })
@@ -503,7 +504,13 @@ impl<'a> Wm<'a> {
     }
 
     /// An output has been changed, react accordingly.
-    fn handle_output_notify(&mut self, _: &randr::NotifyEvent) {
+    fn handle_output_notify(&mut self, ev: &randr::NotifyEvent) {
+        if ev.sub_code() as u32 == randr::NOTIFY_OUTPUT_CHANGE {
+            let _: &randr::OutputChange = unsafe {
+                &*(ev.u() as *const randr::NotifyData as *const randr::OutputChange)
+            };
+            // TODO: handling logic here
+        }
     }
 
     /// A key has been pressed, react accordingly.
