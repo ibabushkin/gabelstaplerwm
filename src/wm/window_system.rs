@@ -79,32 +79,32 @@ pub struct WmConfig {
 pub struct Wm<'a> {
     /// connection to the X server
     con: &'a base::Connection,
+    /// atoms registered at runtime
+    atoms: AtomList<'a>,
     /// root window
     root: xproto::Window,
-    /// user-defined configuration parameters
-    config: WmConfig,
-    /// all screen areas we tile windows on, and their tag stacks
-    screens: ScreenSet,
+    /// the first event index of our RandR extension
+    randr_base: u8,
+    /// border width
+    border_width: u8,
     /// colors used for window borders, first denotes focused windows
     border_colors: (u32, u32),
+    /// all screen areas we tile windows on, and their tag stacks
+    screens: ScreenSet,
+    /// set of currently present clients
+    clients: ClientSet,
+    /// all windows currently visible
+    visible_windows: Vec<xproto::Window>,
+    /// windows we know about, but do not manage
+    unmanaged_windows: Vec<xproto::Window>,
+    /// currently focused window
+    focused_window: Option<xproto::Window>,
+    /// current keyboard mode
+    mode: Mode,
     /// keybinding callbacks
     bindings: Keybindings,
     /// matching function for client placement
     matching: Option<Matching>,
-    /// current keyboard mode
-    mode: Mode,
-    /// set of currently present clients
-    clients: ClientSet,
-    /// atoms registered at runtime
-    atoms: AtomList<'a>,
-    /// the first event index of our RandR extension
-    randr_base: u8,
-    /// all windows currently visible
-    visible_windows: Vec<xproto::Window>,
-    /// currently focused window
-    focused_window: Option<xproto::Window>,
-    /// windows we know about, but do not manage
-    unmanaged_windows: Vec<xproto::Window>,
 }
 
 impl<'a> Wm<'a> {
@@ -127,20 +127,19 @@ impl<'a> Wm<'a> {
                 Ok(atoms) => {
                     Ok(Wm {
                         con: con,
+                        atoms: atoms,
                         root: screen.root(),
-                        config: config,
-                        screens: ScreenSet::new(vec![(new_screen, TagStack::new())]),
+                        randr_base: 0,
+                        border_width: config.border_width,
                         border_colors: colors,
+                        screens: ScreenSet::new(vec![(new_screen, TagStack::new())]),
+                        clients: ClientSet::default(),
+                        visible_windows: Vec::new(),
+                        unmanaged_windows: Vec::new(),
+                        focused_window: None,
+                        mode: Mode::default(),
                         bindings: HashMap::new(),
                         matching: None,
-                        mode: Mode::default(),
-                        clients: ClientSet::default(),
-                        atoms: atoms,
-                        visible_windows: Vec::new(),
-                        randr_base: 0, // this is fine because we fail in cases
-                                       // where we can't reset this value
-                        focused_window: None,
-                        unmanaged_windows: Vec::new(),
                     })
                 }
                 Err(e) => Err(e),
@@ -167,6 +166,16 @@ impl<'a> Wm<'a> {
             (Ok(f_reply), Ok(u_reply)) => (f_reply.pixel(), u_reply.pixel()),
             _ => panic!("Could not allocate your colors!"),
         }
+    }
+
+    // Get info on all outputs and register them in a `ScreenSet`.
+    fn setup_screens(con: &'a base::Connection, root: xproto::Window) -> ScreenSet {
+        /*if let Ok(r) = randr::get_screen_resources(con, root).get_reply() {
+        }*/
+        // TODO: iterate over all outputs and get the information in a consistent
+        // representation. Then, pass that info to our user-supplied matching function
+        // and construct a ScreenSet of corresponding representation.
+        unreachable!()
     }
 
     /// Register window manager.
@@ -506,10 +515,16 @@ impl<'a> Wm<'a> {
     /// An output has been changed, react accordingly.
     fn handle_output_notify(&mut self, ev: &randr::NotifyEvent) {
         if ev.sub_code() as u32 == randr::NOTIFY_OUTPUT_CHANGE {
-            let _: &randr::OutputChange = unsafe {
+            let output_change: &randr::OutputChange = unsafe {
                 &*(ev.u() as *const randr::NotifyData as *const randr::OutputChange)
             };
-            // TODO: handling logic here
+
+            // TODO
+            match output_change.connection() as u32 {
+                 randr::CONNECTION_CONNECTED => {},
+                 randr::CONNECTION_DISCONNECTED => {},
+                 _ => {},
+            }
         }
     }
 
@@ -651,7 +666,7 @@ impl<'a> Wm<'a> {
                     let safe_x = self.screens.screen().width + 2;
                     let cookie2 = xproto::configure_window(self.con, window,
                         &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                           self.config.border_width as u32),
+                           self.border_width as u32),
                           (xproto::CONFIG_WINDOW_X as u16, safe_x),
                           (xproto::CONFIG_WINDOW_Y as u16, 0)
                         ]);

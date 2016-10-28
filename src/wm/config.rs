@@ -255,4 +255,6 @@ pub fn setup_wm(wm: &mut Wm) {
             None
         }
     ));
+    // matching function deciding upon screen handling
+    //wm.setup_screen_matching(Box::new(|s| s));
 }
