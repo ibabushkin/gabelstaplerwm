@@ -5,6 +5,7 @@ use std::fmt;
 use std::rc::{Rc, Weak};
 
 use xcb::xproto::{Atom, Window};
+use xcb::randr::Crtc;
 
 use wm::config::Tag;
 use wm::layout::{Layout, TilingArea};
@@ -671,9 +672,18 @@ impl TagStack {
 }
 
 pub struct Screen {
-    area: TilingArea,
-    tag_stack: TagStack,
-    neighbours: (usize, usize, usize, usize),
+    pub area: TilingArea,
+    pub tag_stack: TagStack,
+    //pub neighbours: (usize, usize, usize, usize),
+}
+
+impl Screen {
+    pub fn swap_dimensions(&mut self) {
+        use std::mem::swap;
+
+        swap(&mut self.area.width, &mut self.area.height);
+        swap(&mut self.area.offset_x, &mut self.area.offset_y);
+    }
 }
 
 /// An ordered set of known screens.
@@ -683,61 +693,60 @@ pub struct Screen {
 /// `TagStack`. There is an active screen at all times.
 pub struct ScreenSet {
     /// all screens known to man
-    screens: Vec<(TilingArea, TagStack)>,
+    screens: HashMap<Crtc, Screen>,
     /// the currently active screen's index
-    current_screen: usize,
+    current_screen: Crtc,
 }
 
 impl ScreenSet {
     /// Setup a new screen set.
-    pub fn new(screens: Vec<(TilingArea, TagStack)>) -> ScreenSet {
-        ScreenSet {
-            screens: screens,
-            current_screen: 0,
+    pub fn new(screens: HashMap<Crtc, Screen>) -> Option<ScreenSet> {
+        if let Some(&index) = screens.keys().next() {
+            Some(ScreenSet {
+                screens: screens,
+                current_screen: index,
+            })
+        } else {
+            None
         }
     }
 
     /// Get a mutable reference to current screen's geometry and tag stack.
-    pub fn current_mut(&mut self) -> &mut (TilingArea, TagStack) {
-        self.screens.get_mut(self.current_screen).unwrap()
+    pub fn current_mut(&mut self) -> &mut Screen {
+        self.screens.get_mut(&self.current_screen).unwrap()
     }
 
     /// Get an immutable reference to current screen's geometry and tag stack.
-    pub fn current(&self) -> &(TilingArea, TagStack) {
-        self.screens.get(self.current_screen).unwrap()
+    pub fn current(&self) -> &Screen {
+        self.screens.get(&self.current_screen).unwrap()
     }
 
     /// Get an immutable reference to current screen's geometry.
     pub fn screen(&self) -> &TilingArea {
-        let &(ref screen, _) = self.current();
-        screen
+        &self.current().area
     }
 
     /// Get a mutable reference to the current screen's tag stack.
     pub fn tag_stack_mut(&mut self) -> &mut TagStack {
-        let &mut (_, ref mut tag_stack) = self.current_mut();
-        tag_stack
+        &mut self.current_mut().tag_stack
     }
 
     /// Get an immutable reference to the current screen's tag stack.
     pub fn tag_stack(&self) -> &TagStack {
-        let &(_, ref tag_stack) = self.current();
-        tag_stack
+        &self.current().tag_stack
     }
 
     /// Swap horizontal and vertical axes of all screens.
     pub fn rotate(&mut self) {
-        use std::mem::swap;
-        for &mut (ref mut screen, _) in &mut self.screens {
-            swap(&mut screen.width, &mut screen.height);
-            swap(&mut screen.offset_x, &mut screen.offset_y);
+        for (_, mut screen) in &mut self.screens {
+            screen.swap_dimensions();
         }
     }
 
     /// Select a screen by index.
-    pub fn select_screen(&mut self, index: usize) -> bool {
-        if index < self.screens.len() {
-            self.current_screen = index;
+    pub fn select_screen(&mut self, new: Crtc) -> bool {
+        if self.screens.contains_key(&new) {
+            self.current_screen = new;
             true
         } else {
             false
