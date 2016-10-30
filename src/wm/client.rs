@@ -4,7 +4,7 @@ use std::collections::hash_map::Entry;
 use std::fmt;
 use std::rc::{Rc, Weak};
 
-use xcb::xproto;
+use xcb::xproto::{Atom, Window};
 
 use wm::config::Tag;
 use wm::layout::{Layout, TilingArea};
@@ -37,7 +37,7 @@ macro_rules! set_from_slice {
 #[derive(PartialEq, Eq)]
 pub enum ClientProp {
     /// Property lookup returned an atom.
-    PropAtom(xproto::Atom),
+    PropAtom(Atom),
     /// Property lookup returned at least one string.
     PropString(Vec<String>),
     /// No property was returned.
@@ -48,9 +48,9 @@ pub enum ClientProp {
 #[derive(Clone, Debug)]
 pub struct ClientProps {
     /// client/window type
-    pub window_type: xproto::Atom,
+    pub window_type: Atom,
     /// window state
-    pub state: Option<xproto::Atom>,
+    pub state: Option<Atom>,
     /// the client's title
     pub name: String,
     /// the client's class(es)
@@ -70,7 +70,7 @@ pub struct ClientProps {
 #[derive(Clone, Debug)]
 pub struct Client {
     /// the window (a direct child of root)
-    pub window: xproto::Window,
+    pub window: Window,
     /// client properties
     props: ClientProps,
     /// all tags this client is visible on, in no particular order
@@ -80,7 +80,7 @@ pub struct Client {
 impl Client {
     /// Setup a new client for a specific window, on a set of tags
     /// and with given properties.
-    pub fn new(window: xproto::Window, tags: BTreeSet<Tag>, props: ClientProps)
+    pub fn new(window: Window, tags: BTreeSet<Tag>, props: ClientProps)
         -> Client {
         Client {
             window: window,
@@ -152,14 +152,14 @@ pub type OrderEntry = (Option<WeakClientRef>, Vec<WeakClientRef>);
 #[derive(Default)]
 pub struct ClientSet {
     /// All clients.
-    clients: HashMap<xproto::Window, ClientRef>,
+    clients: HashMap<Window, ClientRef>,
     /// Ordered subsets of clients associated with sets of tags.
     order: HashMap<BTreeSet<Tag>, OrderEntry>,
 }
 
 impl ClientSet {
     /// Get a client that corresponds to a given window.
-    pub fn get_client_by_window(&self, window: xproto::Window)
+    pub fn get_client_by_window(&self, window: Window)
         -> Option<&ClientRef> {
         self.clients.get(&window)
     }
@@ -267,7 +267,7 @@ impl ClientSet {
     ///
     /// Removes the client objects and cleans all weak references to it,
     /// returning whether a client has actually been removed
-    pub fn remove(&mut self, window: xproto::Window) -> bool {
+    pub fn remove(&mut self, window: Window) -> bool {
         if self.clients.remove(&window).is_some() {
             self.clean();
             true
@@ -280,7 +280,7 @@ impl ClientSet {
     ///
     /// Maps the function and updates references as needed, returning a
     /// window manager command as returned by the passed closure.
-    pub fn update_client<F>(&mut self, window: xproto::Window, func: F)
+    pub fn update_client<F>(&mut self, window: Window, func: F)
         -> Option<WmCommand>
         where F: Fn(RefMut<Client>) -> WmCommand {
         let res = self
@@ -297,7 +297,7 @@ impl ClientSet {
 
     /// Get the currently focused window on a set of tags.
     pub fn get_focused_window(&self, tags: &BTreeSet<Tag>)
-        -> Option<xproto::Window> {
+        -> Option<Window> {
         self.order
             .get(tags)
             .and_then(|t| t.0.clone())
@@ -749,6 +749,5 @@ impl ScreenSet {
 ///
 /// Takes two arguments to allow for usage in config macros.
 pub fn current_tagset(_: &ClientSet, s: &ScreenSet) -> String {
-    let &(_, ref t) = s.current();
-    t.current().map_or("[]".to_string(), |t| format!("{}", t))
+    s.tag_stack().current().map_or("[]".to_string(), |t| format!("{}", t))
 }
