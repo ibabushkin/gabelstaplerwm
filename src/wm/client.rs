@@ -670,6 +670,12 @@ impl TagStack {
     }
 }
 
+pub struct Screen {
+    area: TilingArea,
+    tag_stack: TagStack,
+    neighbours: (usize, usize, usize, usize),
+}
+
 /// An ordered set of known screens.
 ///
 /// A screen is a rectangular area on the X server screen's root window,
@@ -725,6 +731,16 @@ impl ScreenSet {
         for &mut (ref mut screen, _) in &mut self.screens {
             swap(&mut screen.width, &mut screen.height);
             swap(&mut screen.offset_x, &mut screen.offset_y);
+        }
+    }
+
+    /// Select a screen by index.
+    pub fn select_screen(&mut self, index: usize) -> bool {
+        if index < self.screens.len() {
+            self.current_screen = index;
+            true
+        } else {
+            false
         }
     }
 }
