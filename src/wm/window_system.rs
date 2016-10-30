@@ -513,7 +513,7 @@ impl<'a> Wm<'a> {
                 },
                 randr::NOTIFY => {
                     info!("received event: CRTC_NOTIFY");
-                    self.handle_output_notify(base::cast_event(&event));
+                    self.handle_crtc_notify(base::cast_event(&event));
                 },
                 _ => info!("ignoring event: {}", res),
             },
@@ -534,14 +534,17 @@ impl<'a> Wm<'a> {
         }
     }
 
-    /// An output has been changed, react accordingly.
-    fn handle_output_notify(&mut self, ev: &randr::NotifyEvent) {
+    /// A crtc has been changed, react accordingly.
+    fn handle_crtc_notify(&mut self, ev: &randr::NotifyEvent) {
         if ev.sub_code() as u32 == randr::NOTIFY_CRTC_CHANGE {
             let crtc_change: &randr::CrtcChange = unsafe {
                 &*(ev.u() as *const randr::NotifyData as *const randr::CrtcChange)
             };
-
-            // TODO
+            if crtc_change.mode() == 0 {
+                self.screens.remove(crtc_change.crtc());
+            } else {
+                self.screens.update(crtc_change);
+            }
         }
     }
 

@@ -5,7 +5,8 @@ use std::fmt;
 use std::rc::{Rc, Weak};
 
 use xcb::xproto::{Atom, Window};
-use xcb::randr::Crtc;
+use xcb::randr;
+use xcb::randr::{Crtc, CrtcChange};
 
 use wm::config::Tag;
 use wm::layout::{Layout, TilingArea};
@@ -671,6 +672,8 @@ impl TagStack {
     }
 }
 
+/// A rectangular screen area displaying a `TagStack`.
+#[derive(Default)]
 pub struct Screen {
     pub area: TilingArea,
     pub tag_stack: TagStack,
@@ -750,6 +753,30 @@ impl ScreenSet {
             true
         } else {
             false
+        }
+    }
+
+    /// Remove a CRTC from our list of screens.
+    pub fn remove(&mut self, crtc: Crtc) {
+        self.screens.remove(&crtc);
+    }
+
+    /// Update a screen associated with a CRTC or create
+    /// one if none is present.
+    pub fn update(&mut self, change: &CrtcChange) {
+        let entry =
+            self.screens
+                .entry(change.crtc())
+                .or_insert_with(Screen::default);
+
+        entry.area.offset_x = change.x() as u32;
+        entry.area.offset_y = change.y() as u32;
+        entry.area.width = change.width() as u32;
+        entry.area.height = change.height() as u32;
+
+        if change.rotation() as u32 &
+            (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
+            entry.swap_dimensions();
         }
     }
 }
