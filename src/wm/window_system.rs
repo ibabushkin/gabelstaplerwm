@@ -193,6 +193,7 @@ impl<'a> Wm<'a> {
             (Ok(()), Ok(ref r), Some(ref res)) =>
                 if r.major_version() == 1 && r.minor_version() >= 2 {
                     self.randr_base = res.first_event();
+                    info!("got RANDR base: {}", self.randr_base);
                     Ok(())
                 } else {
                     Err(WmError::RandRVersionMismatch)
@@ -204,7 +205,7 @@ impl<'a> Wm<'a> {
 
     /// Initialize the RandR extension for multimonitor support
     pub fn init_randr(&self) -> Result<(), WmError> {
-        let values = randr::NOTIFY_MASK_OUTPUT_CHANGE
+        let values = randr::NOTIFY_MASK_CRTC_CHANGE
             | randr::NOTIFY_MASK_SCREEN_CHANGE;
 
         let res = randr::select_input(self.con, self.root, values as u16)
@@ -484,13 +485,13 @@ impl<'a> Wm<'a> {
                 info!("received event: MAP_REQUEST");
                 self.handle_map_request(base::cast_event(&event));
             },
-            res if res > self.randr_base => match res - self.randr_base as u8 {
+            res if res >= self.randr_base => match res - self.randr_base as u8 {
                 randr::SCREEN_CHANGE_NOTIFY => {
                     info!("received event: SCREEN_CHANGE_NOTIFY");
                     self.handle_screen_change_notify(base::cast_event(&event));
                 },
                 randr::NOTIFY => {
-                    info!("received event: OUTPUT_NOTIFY");
+                    info!("received event: CRTC_NOTIFY");
                     self.handle_output_notify(base::cast_event(&event));
                 },
                 _ => info!("ignoring event: {}", res),
@@ -514,17 +515,12 @@ impl<'a> Wm<'a> {
 
     /// An output has been changed, react accordingly.
     fn handle_output_notify(&mut self, ev: &randr::NotifyEvent) {
-        if ev.sub_code() as u32 == randr::NOTIFY_OUTPUT_CHANGE {
-            let output_change: &randr::OutputChange = unsafe {
-                &*(ev.u() as *const randr::NotifyData as *const randr::OutputChange)
+        if ev.sub_code() as u32 == randr::NOTIFY_CRTC_CHANGE {
+            let output_change: &randr::CrtcChange = unsafe {
+                &*(ev.u() as *const randr::NotifyData as *const randr::CrtcChange)
             };
 
             // TODO
-            match output_change.connection() as u32 {
-                 randr::CONNECTION_CONNECTED => {},
-                 randr::CONNECTION_DISCONNECTED => {},
-                 _ => {},
-            }
         }
     }
 
