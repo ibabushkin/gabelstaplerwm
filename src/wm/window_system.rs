@@ -113,26 +113,21 @@ impl<'a> Wm<'a> {
         -> Result<Wm<'a>, WmError> {
         if let Some(screen) =
             con.get_setup().roots().nth(screen_num as usize) {
-            let width = screen.width_in_pixels();
-            let height = screen.height_in_pixels();
+            let root = screen.root();
             let colormap = screen.default_colormap();
-            let new_screen =
-                TilingArea::new(&config.screen, width as u32, height as u32);
-            let colors = Wm::setup_colors(con,
-                                          colormap,
-                                          config.f_color,
-                                          config.u_color);
+            let colors =
+                try!(Wm::setup_colors(con, colormap, config.f_color, config.u_color));
 
             match Wm::get_atoms(con, &ATOM_VEC) {
                 Ok(atoms) => {
                     Ok(Wm {
                         con: con,
                         atoms: atoms,
-                        root: screen.root(),
+                        root: root,
                         randr_base: 0,
                         border_width: config.border_width,
                         border_colors: colors,
-                        screens: ScreenSet::new(vec![(new_screen, TagStack::new())]),
+                        screens: try!(Wm::setup_screens(con, root)),
                         clients: ClientSet::default(),
                         visible_windows: Vec::new(),
                         unmanaged_windows: Vec::new(),
@@ -154,7 +149,7 @@ impl<'a> Wm<'a> {
                     colormap: xproto::Colormap,
                     f_color: (u16, u16, u16),
                     u_color: (u16, u16, u16))
-        -> (u32, u32) {
+        -> Result<(u32, u32), WmError> {
         // request color pixels
         let f_cookie = xproto::alloc_color(
             con, colormap, f_color.0, f_color.1, f_color.2);
@@ -163,19 +158,45 @@ impl<'a> Wm<'a> {
 
         // get the replies
         match (f_cookie.get_reply(), u_cookie.get_reply()) {
-            (Ok(f_reply), Ok(u_reply)) => (f_reply.pixel(), u_reply.pixel()),
-            _ => panic!("Could not allocate your colors!"),
+            (Ok(f_reply), Ok(u_reply)) => Ok((f_reply.pixel(), u_reply.pixel())),
+            _ => Err(WmError::CouldNotAllocateColors),
         }
     }
 
     // Get info on all outputs and register them in a `ScreenSet`.
-    fn setup_screens(con: &'a base::Connection, root: xproto::Window) -> ScreenSet {
-        /*if let Ok(r) = randr::get_screen_resources(con, root).get_reply() {
-        }*/
-        // TODO: iterate over all outputs and get the information in a consistent
-        // representation. Then, pass that info to our user-supplied matching function
-        // and construct a ScreenSet of corresponding representation.
-        unreachable!()
+    fn setup_screens(con: &'a base::Connection, root: xproto::Window)
+        -> Result<ScreenSet, WmError> {
+        if let Ok(reply) = randr::get_screen_resources(con, root).get_reply() {
+            let cfg = reply.config_timestamp();
+            let cookies: Vec<_> = reply
+                .crtcs()
+                .iter()
+                .map(|crtc| (crtc, randr::get_crtc_info(con, *crtc, cfg)))
+                .collect();
+            let screens = cookies
+                .iter()
+                .filter_map(|&(crtc, ref cookie)| if let Ok(r) = cookie.get_reply() {
+                    Some((*crtc, Screen {
+                        area: TilingArea {
+                            offset_x: r.x() as u32,
+                            offset_y: r.y() as u32,
+                            width: r.width() as u32,
+                            height: r.height() as u32,
+                        },
+                        tag_stack: TagStack::new(),
+                    }))
+                } else {
+                    None
+                })
+                .collect();
+            if let Some(res) = ScreenSet::new(screens) {
+                Ok(res)
+            } else {
+                Err(WmError::BadCrtc)
+            }
+        } else {
+            Err(WmError::CouldNotGetScreenResources)
+        }
     }
 
     /// Register window manager.
@@ -492,7 +513,7 @@ impl<'a> Wm<'a> {
                 },
                 randr::NOTIFY => {
                     info!("received event: CRTC_NOTIFY");
-                    self.handle_output_notify(base::cast_event(&event));
+                    self.handle_crtc_notify(base::cast_event(&event));
                 },
                 _ => info!("ignoring event: {}", res),
             },
@@ -513,14 +534,17 @@ impl<'a> Wm<'a> {
         }
     }
 
-    /// An output has been changed, react accordingly.
-    fn handle_output_notify(&mut self, ev: &randr::NotifyEvent) {
+    /// A crtc has been changed, react accordingly.
+    fn handle_crtc_notify(&mut self, ev: &randr::NotifyEvent) {
         if ev.sub_code() as u32 == randr::NOTIFY_CRTC_CHANGE {
-            let output_change: &randr::CrtcChange = unsafe {
+            let crtc_change: &randr::CrtcChange = unsafe {
                 &*(ev.u() as *const randr::NotifyData as *const randr::CrtcChange)
             };
-
-            // TODO
+            if crtc_change.mode() == 0 {
+                self.screens.remove(crtc_change.crtc());
+            } else {
+                self.screens.update(crtc_change);
+            }
         }
     }
 

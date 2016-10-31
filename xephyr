@@ -3,7 +3,7 @@ Xephyr -ac -br -noreset -screen 1366x768 :1.0 &
 sleep 1
 # TODO: run with proper path
 if [ "$1" == "-k" ]; then
-  RUST_LOG=debug DISPLAY=:1.0 "./target/debug/gabelstaplergrab"
+  RUST_BACKTRACE=1 RUST_LOG=debug DISPLAY=:1.0 "./target/debug/gabelstaplergrab"
 else
-  RUST_LOG=debug DISPLAY=:1.0 "./target/debug/gabelstaplerwm"
+  RUST_BACKTRACE=1 RUST_LOG=debug DISPLAY=:1.0 "./target/debug/gabelstaplerwm"
 fi
