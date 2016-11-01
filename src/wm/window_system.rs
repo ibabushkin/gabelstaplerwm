@@ -37,6 +37,8 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 /// indicates the window being inserted as a master window.
 pub type Matching = Box<Fn(&ClientProps) -> Option<(BTreeSet<Tag>, bool)>>;
 
+pub type ScreenMatching = Box<Fn(&mut ScreenSet)>;
+
 /// Enumeration type of commands executed by the window manager.
 ///
 /// Being returned from a callback closure which modified internal structures,
@@ -105,6 +107,8 @@ pub struct Wm<'a> {
     bindings: Keybindings,
     /// matching function for client placement
     matching: Option<Matching>,
+    /// matching function for screen editing
+    screen_matching: Option<ScreenMatching>,
 }
 
 impl<'a> Wm<'a> {
@@ -135,6 +139,7 @@ impl<'a> Wm<'a> {
                         mode: Mode::default(),
                         bindings: HashMap::new(),
                         matching: None,
+                        screen_matching: None,
                     })
                 }
                 Err(e) => Err(e),
@@ -168,8 +173,8 @@ impl<'a> Wm<'a> {
         -> Result<ScreenSet, WmError> {
         if let Ok(reply) = randr::get_screen_resources(con, root).get_reply() {
             let cfg = reply.config_timestamp();
-            let cookies: Vec<_> = reply
-                .crtcs()
+            let crtcs = reply.crtcs();
+            let cookies: Vec<_> = crtcs
                 .iter()
                 .map(|crtc| (crtc, randr::get_crtc_info(con, *crtc, cfg)))
                 .collect();
@@ -189,7 +194,7 @@ impl<'a> Wm<'a> {
                     None
                 })
                 .collect();
-            if let Some(res) = ScreenSet::new(screens) {
+            if let Some(res) = ScreenSet::new(screens, crtcs.to_vec()) {
                 Ok(res)
             } else {
                 Err(WmError::BadCrtc)
@@ -274,6 +279,12 @@ impl<'a> Wm<'a> {
     /// Set up client matching.
     pub fn setup_matching(&mut self, matching: Matching) {
         self.matching = Some(matching);
+    }
+
+    /// Set up screen matching.
+    pub fn setup_screen_matching(&mut self, matching: ScreenMatching) {
+        matching(&mut self.screens);
+        self.screen_matching = Some(matching);
     }
 
     /// Set up the tagset stack.

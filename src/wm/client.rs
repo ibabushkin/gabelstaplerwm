@@ -694,20 +694,24 @@ impl Screen {
 /// A screen is a rectangular area on the X server screen's root window,
 /// that is used to show a distinct set of tags associated with a
 /// `TagStack`. There is an active screen at all times.
+#[allow(dead_code)] // TODO
 pub struct ScreenSet {
     /// all screens known to man
     screens: HashMap<Crtc, Screen>,
-    /// the currently active screen's index
+    /// all CRTCs present, in order
+    crtcs: Vec<Crtc>,
+    /// the currently active screen's key
     current_screen: Crtc,
 }
 
 impl ScreenSet {
     /// Setup a new screen set.
-    pub fn new(screens: HashMap<Crtc, Screen>) -> Option<ScreenSet> {
-        if let Some(&index) = screens.keys().next() {
+    pub fn new(screens: HashMap<Crtc, Screen>, crtcs: Vec<Crtc>) -> Option<ScreenSet> {
+        if let Some(&current) = crtcs.first() {
             Some(ScreenSet {
                 screens: screens,
-                current_screen: index,
+                crtcs: crtcs,
+                current_screen: current,
             })
         } else {
             None
