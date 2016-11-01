@@ -694,7 +694,6 @@ impl Screen {
 /// A screen is a rectangular area on the X server screen's root window,
 /// that is used to show a distinct set of tags associated with a
 /// `TagStack`. There is an active screen at all times.
-#[allow(dead_code)] // TODO
 pub struct ScreenSet {
     /// all screens known to man
     screens: HashMap<Crtc, Screen>,
