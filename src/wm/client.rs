@@ -10,7 +10,7 @@ use xcb::randr::{Crtc, CrtcChange};
 
 use wm::config::Tag;
 use wm::layout::{Layout, TilingArea};
-use wm::window_system::WmCommand;
+use wm::window_system::{ScreenMatching, WmCommand};
 
 /// Construct a Set of... things, like you would use `vec!`.
 #[macro_export]
@@ -762,6 +762,14 @@ impl ScreenSet {
     /// Remove a CRTC from our list of screens.
     pub fn remove(&mut self, crtc: Crtc) {
         self.screens.remove(&crtc);
+    }
+
+    /// Apply a screen matching to all screens (that is, CRTCs) that we know of.
+    pub fn run_matching(&mut self, matching: &ScreenMatching) {
+        for (index, (&crtc, screen)) in self.screens.iter_mut().enumerate() {
+            info!("ran screen matching on CRTC {}", index);
+            matching(screen, crtc, index);
+        }
     }
 
     /// Update a screen associated with a CRTC or create

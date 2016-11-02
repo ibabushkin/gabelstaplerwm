@@ -37,7 +37,9 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 /// indicates the window being inserted as a master window.
 pub type Matching = Box<Fn(&ClientProps) -> Option<(BTreeSet<Tag>, bool)>>;
 
-pub type ScreenMatching = Box<Fn(&mut ScreenSet)>;
+/// Closure type of a callback function modifying screen areas to configure
+/// multimonitor setups and screen areas in general.
+pub type ScreenMatching = Box<Fn(&mut Screen, randr::Crtc, usize)>;
 
 /// Enumeration type of commands executed by the window manager.
 ///
@@ -283,8 +285,9 @@ impl<'a> Wm<'a> {
 
     /// Set up screen matching.
     pub fn setup_screen_matching(&mut self, matching: ScreenMatching) {
-        matching(&mut self.screens);
+        self.screens.run_matching(&matching);
         self.screen_matching = Some(matching);
+        info!("setup (and ran) screen matching");
     }
 
     /// Set up the tagset stack.
@@ -552,10 +555,15 @@ impl<'a> Wm<'a> {
                 use std::mem::transmute;
                 transmute(ev.u())
             };
+
             if crtc_change.mode() == 0 {
                 self.screens.remove(crtc_change.crtc());
             } else {
                 self.screens.update(&crtc_change);
+            }
+
+            if let Some(ref matching) = self.screen_matching {
+                self.screens.run_matching(matching);
             }
         }
     }
