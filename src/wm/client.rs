@@ -762,11 +762,16 @@ impl ScreenSet {
     /// Remove a CRTC from our list of screens.
     pub fn remove(&mut self, crtc: Crtc) {
         self.screens.remove(&crtc);
+        self.crtcs.retain(|c| *c != crtc);
+        if self.current_screen == crtc {
+            self.current_screen = *self.crtcs.first().unwrap();
+        }
     }
 
     /// Apply a screen matching to all screens (that is, CRTCs) that we know of.
     pub fn run_matching(&mut self, matching: &ScreenMatching) {
-        for (index, (&crtc, screen)) in self.screens.iter_mut().enumerate() {
+        for (&crtc, screen) in self.screens.iter_mut() {
+            let index = self.crtcs.iter().position(|c| *c == crtc).unwrap();
             info!("ran screen matching on CRTC {}", index);
             matching(screen, crtc, index);
         }
@@ -775,10 +780,18 @@ impl ScreenSet {
     /// Update a screen associated with a CRTC or create
     /// one if none is present.
     pub fn update(&mut self, change: &CrtcChange) {
+        let crtc = change.crtc();
         let entry =
             self.screens
-                .entry(change.crtc())
+                .entry(crtc)
                 .or_insert_with(Screen::default);
+
+        // this will likely break ordering - we probably want to
+        // update the whole structure by calling get_screen_resources
+        // or something similar
+        if self.crtcs.iter().position(|c| *c == crtc).is_none() {
+            self.crtcs.push(crtc);
+        }
 
         entry.area.offset_x = change.x() as u32;
         entry.area.offset_y = change.y() as u32;
