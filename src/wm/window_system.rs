@@ -37,6 +37,10 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 /// indicates the window being inserted as a master window.
 pub type Matching = Box<Fn(&ClientProps) -> Option<(BTreeSet<Tag>, bool)>>;
 
+/// Closure type of a callback function modifying screen areas to configure
+/// multimonitor setups and screen areas in general.
+pub type ScreenMatching = Box<Fn(&mut Screen, randr::Crtc, usize)>;
+
 /// Enumeration type of commands executed by the window manager.
 ///
 /// Being returned from a callback closure which modified internal structures,
@@ -105,6 +109,8 @@ pub struct Wm<'a> {
     bindings: Keybindings,
     /// matching function for client placement
     matching: Option<Matching>,
+    /// matching function for screen editing
+    screen_matching: Option<ScreenMatching>,
 }
 
 impl<'a> Wm<'a> {
@@ -135,6 +141,7 @@ impl<'a> Wm<'a> {
                         mode: Mode::default(),
                         bindings: HashMap::new(),
                         matching: None,
+                        screen_matching: None,
                     })
                 }
                 Err(e) => Err(e),
@@ -168,8 +175,8 @@ impl<'a> Wm<'a> {
         -> Result<ScreenSet, WmError> {
         if let Ok(reply) = randr::get_screen_resources(con, root).get_reply() {
             let cfg = reply.config_timestamp();
-            let cookies: Vec<_> = reply
-                .crtcs()
+            let crtcs = reply.crtcs();
+            let cookies: Vec<_> = crtcs
                 .iter()
                 .map(|crtc| (crtc, randr::get_crtc_info(con, *crtc, cfg)))
                 .collect();
@@ -189,7 +196,7 @@ impl<'a> Wm<'a> {
                     None
                 })
                 .collect();
-            if let Some(res) = ScreenSet::new(screens) {
+            if let Some(res) = ScreenSet::new(screens, crtcs.to_vec()) {
                 Ok(res)
             } else {
                 Err(WmError::BadCrtc)
@@ -274,6 +281,13 @@ impl<'a> Wm<'a> {
     /// Set up client matching.
     pub fn setup_matching(&mut self, matching: Matching) {
         self.matching = Some(matching);
+    }
+
+    /// Set up screen matching.
+    pub fn setup_screen_matching(&mut self, matching: ScreenMatching) {
+        self.screens.run_matching(&matching);
+        self.screen_matching = Some(matching);
+        info!("setup (and ran) screen matching");
     }
 
     /// Set up the tagset stack.
@@ -537,13 +551,19 @@ impl<'a> Wm<'a> {
     /// A crtc has been changed, react accordingly.
     fn handle_crtc_notify(&mut self, ev: &randr::NotifyEvent) {
         if ev.sub_code() as u32 == randr::NOTIFY_CRTC_CHANGE {
-            let crtc_change: &randr::CrtcChange = unsafe {
-                &*(ev.u() as *const randr::NotifyData as *const randr::CrtcChange)
+            let crtc_change: randr::CrtcChange = unsafe { // BOO!
+                use std::mem::transmute;
+                transmute(ev.u())
             };
+
             if crtc_change.mode() == 0 {
                 self.screens.remove(crtc_change.crtc());
             } else {
-                self.screens.update(crtc_change);
+                self.screens.update(&crtc_change);
+            }
+
+            if let Some(ref matching) = self.screen_matching {
+                self.screens.run_matching(matching);
             }
         }
     }

@@ -19,6 +19,7 @@ libc = "*"
 env_logger = "*"
 log = "*"
 xcb = { version = "0.7.5", features = ["xkb", "randr"] }
+# xcb = { git = "https://github.com/ibabushkin/rust-xcb/", branch = "experiment", features = ["xkb", "randr"] }
 
 [profile.release]
 opt-level = 3
