@@ -770,7 +770,7 @@ impl ScreenSet {
 
     /// Apply a screen matching to all screens (that is, CRTCs) that we know of.
     pub fn run_matching(&mut self, matching: &ScreenMatching) {
-        for (&crtc, screen) in self.screens.iter_mut() {
+        for (&crtc, screen) in &mut self.screens {
             let index = self.crtcs.iter().position(|c| *c == crtc).unwrap();
             info!("ran screen matching on CRTC {}", index);
             matching(screen, crtc, index);
