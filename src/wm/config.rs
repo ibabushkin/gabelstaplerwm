@@ -69,7 +69,7 @@ impl fmt::Display for Tag {
                 Tag::Chat => "chat",
                 Tag::Logs => "logs",
                 Tag::Mon => "mon",
-                _ => "",
+                _ => unreachable!(),
             })
         }
     }
