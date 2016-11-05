@@ -35,7 +35,7 @@ type AtomList<'a> = Vec<(xproto::Atom, &'a str)>;
 /// A value of `true` returned by the function as the second element of the
 /// tuple signifies an insertion as a slave window, a value of `false`
 /// indicates the window being inserted as a master window.
-pub type Matching = Box<Fn(&ClientProps) -> Option<(BTreeSet<Tag>, bool)>>;
+pub type Matching = Box<Fn(&ClientProps, &ScreenSet) -> Option<(BTreeSet<Tag>, bool)>>;
 
 /// Closure type of a callback function modifying screen areas to configure
 /// multimonitor setups and screen areas in general.
@@ -775,7 +775,7 @@ impl<'a> Wm<'a> {
             // compute tags of the new client
             let (tags, as_slave) = if let Some(res) = self.matching
                 .as_ref()
-                .and_then(|f| f(&props)) {
+                .and_then(|f| f(&props, &self.screens)) {
                 res
             } else if let Some(tagset) = self.screens.tag_stack().current() {
                 (tagset.tags.clone(), false)
