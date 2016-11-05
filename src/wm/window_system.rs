@@ -70,8 +70,6 @@ pub struct WmConfig {
     pub u_color: (u16, u16, u16),
     /// window border width
     pub border_width: u8,
-    /// screen parameters requested by user
-    pub screen: TilingArea,
 }
 
 /// A window manager master-structure.
