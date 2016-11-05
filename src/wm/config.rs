@@ -236,8 +236,12 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(32, modkey, Mode::Normal, |_, _| exec_script("org.sh", &[])),
         // spawn a weather notification - modkey+p
         bind!(33, modkey, Mode::Normal, |_, _| exec_script("weather.sh", &[])),
+        // spawn a pomodoro timer notification - modkey+[SHIFT,CTRL]+ü
+        bind!(34, modkey, Mode::Normal, |_, _| exec_script("pom.sh", &["-i"])),
+        bind!(34, modkey+SHIFT, Mode::Normal, |_, _| exec_script("pom.sh", &["-p"])),
+        bind!(34, modkey+CTRL, Mode::Normal, |_, _| exec_script("pom.sh", &["-t"])),
         // reset focus (in case bad things happened)
-        bind!(34, modkey, Mode::Normal, |_, _| WmCommand::Focus),
+        bind!(35, modkey, Mode::Normal, |_, _| WmCommand::Focus),
         // lock screen - modkey+s
         bind!(39, modkey, Mode::Normal, |_, _| exec_command("slock", &[])),
         // shutdown system - modkey+CTRL+s
