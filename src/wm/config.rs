@@ -21,7 +21,7 @@ use std::process::{Command, Stdio};
 use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
 use wm::kbd::*;
 
-use wm::layout::{TilingArea, LayoutMessage};
+use wm::layout::LayoutMessage;
 use wm::layout::monocle::Monocle;
 use wm::layout::stack::{HStack, VStack};
 
@@ -115,15 +115,6 @@ pub fn generate_config() -> WmConfig {
         f_color: (0x0000, 0x5555, 0x7777), // this is #005577 (dwm cyan)
         u_color: (0x0000, 0x0000, 0x0000), // and this is #000000 (black)
         border_width: 1,
-        // TODO: future configs should contain a closure (or define a function or w/e)
-        // that gets passed a vector of tiling areas (corresponding to monitors) and
-        // returns a vector of tiling areas to use.
-        screen: TilingArea {
-            offset_x: 0,
-            offset_y: 20,
-            width: 1366,
-            height: 768,
-        },
     }
 }
 
