@@ -384,20 +384,20 @@ pub fn setup_wm(wm: &mut Wm) {
     });
     // matching function deciding upon client placement
     wm.setup_matching(Box::new(
-        |props, _| if props.name == "Mozilla Firefox" {
+        |props, screens| if props.name == "Mozilla Firefox" {
             Some((set![Tag::Web], false))
         } else if props.class.contains(&String::from("uzbl-core")) {
-            Some((set![Tag::Web], false))
+            Some((set![Tag::Web], true))
         } else if props.class.contains(&String::from("Marks")) {
             Some((set![Tag::Marks], true))
         } else if props.class.contains(&String::from("Chat")) {
             Some((set![Tag::Chat], true))
         } else if props.class.contains(&String::from("mpv")) {
-            Some((set![Tag::Media], false))
+            Some((set![Tag::Media], true))
         } else if props.class.contains(&String::from("Mon")) {
-            Some((set![Tag::Mon], false))
+            Some((set![Tag::Mon], true))
         } else {
-            None
+            screens.tag_stack().current().map(|t| (t.tags.clone(), true))
         }
     ));
     // matching function deciding upon screen handling
