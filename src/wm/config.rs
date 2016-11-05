@@ -243,7 +243,7 @@ pub fn setup_wm(wm: &mut Wm) {
         // reset focus (in case bad things happened)
         bind!(35, modkey, Mode::Normal, |_, _| WmCommand::Focus),
         // lock screen - modkey+s
-        bind!(39, modkey, Mode::Normal, |_, _| exec_command("slock", &[])),
+        bind!(39, modkey, Mode::Normal, |_, _| exec_script("slock.sh", &[])),
         // shutdown system - modkey+CTRL+s
         bind!(39, modkey+CTRL, Mode::Normal, |_, _|
               exec_command("sudo", &["shutdown", "-h", "now"])),
