@@ -41,7 +41,9 @@ pub enum Tag {
     Marks,
     /// "unlimited" number of work tags
     Work(i8),
-    /// the media tag - movies, music apps etc. go here
+    /// the org tag - for todos and other organizational stuff
+    Org,
+    /// the media tag - for movies, music apps etc.
     Media,
     /// the chat tag - for IRC and IM
     Chat,
@@ -65,6 +67,7 @@ impl fmt::Display for Tag {
             write!(f, "{}", match *self {
                 Tag::Web => "web",
                 Tag::Marks => "marks",
+                Tag::Org => "org",
                 Tag::Media => "media",
                 Tag::Chat => "chat",
                 Tag::Logs => "logs",
@@ -139,16 +142,18 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(10, modkey, Mode::Toggle, toggle_tag!(Tag::Web)),
         bind!(11, modkey, Mode::Toggle, toggle_tag!(Tag::Marks)),
         bind!(12, modkey, Mode::Toggle, toggle_tag!(Tag::Chat)),
-        bind!(13, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
-        bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Logs)),
-        bind!(15, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
+        bind!(13, modkey, Mode::Toggle, toggle_tag!(Tag::Org)),
+        bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
+        bind!(15, modkey, Mode::Toggle, toggle_tag!(Tag::Logs)),
+        bind!(16, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
         // move client to tags - modkey+[1-6]
         bind!(10, modkey, Mode::Move, move_to_tag!(Tag::Web)),
         bind!(11, modkey, Mode::Move, move_to_tag!(Tag::Marks)),
         bind!(12, modkey, Mode::Move, move_to_tag!(Tag::Chat)),
-        bind!(13, modkey, Mode::Move, move_to_tag!(Tag::Media)),
-        bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Logs)),
-        bind!(15, modkey, Mode::Move, move_to_tag!(Tag::Mon)),
+        bind!(13, modkey, Mode::Move, move_to_tag!(Tag::Org)),
+        bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Media)),
+        bind!(15, modkey, Mode::Move, move_to_tag!(Tag::Logs)),
+        bind!(16, modkey, Mode::Move, move_to_tag!(Tag::Mon)),
         // toggle tags on current tagset - modkey+[1-6]
         bind!(10, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Web;; current_tagset)),
@@ -157,10 +162,12 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(12, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Chat;; current_tagset)),
         bind!(13, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Media;; current_tagset)),
+              toggle_show_tag!(Tag::Org;; current_tagset)),
         bind!(14, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Logs;; current_tagset)),
+              toggle_show_tag!(Tag::Media;; current_tagset)),
         bind!(15, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Logs;; current_tagset)),
+        bind!(16, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Mon;; current_tagset)),
         // quit the window manager - modkey+CTRL+q
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| {
@@ -377,6 +384,7 @@ pub fn setup_wm(wm: &mut Wm) {
                 inverted: true,
                 fixed: false,
             }),
+            TagSet::new(set![Tag::Org], VStack::default()),
             TagSet::new(set![Tag::Media], Monocle::default()),
             TagSet::new(set![Tag::Logs, Tag::Mon], HStack {
                 master_factor: 75,
@@ -396,6 +404,8 @@ pub fn setup_wm(wm: &mut Wm) {
             Some((set![Tag::Marks], true))
         } else if props.class.contains(&String::from("Chat")) {
             Some((set![Tag::Chat], true))
+        } else if props.class.contains(&String::from("Org")) {
+            Some((set![Tag::Org], true))
         } else if props.class.contains(&String::from("mpv")) {
             Some((set![Tag::Media], true))
         } else if props.class.contains(&String::from("Mon")) {
