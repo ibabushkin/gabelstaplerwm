@@ -549,10 +549,7 @@ impl<'a> Wm<'a> {
     /// A crtc has been changed, react accordingly.
     fn handle_crtc_notify(&mut self, ev: &randr::NotifyEvent) {
         if ev.sub_code() as u32 == randr::NOTIFY_CRTC_CHANGE {
-            let crtc_change: randr::CrtcChange = unsafe { // BOO!
-                use std::mem::transmute;
-                transmute(ev.u())
-            };
+            let crtc_change: randr::CrtcChange = ev.u().cc();
 
             if crtc_change.mode() == 0 {
                 self.screens.remove(crtc_change.crtc());
