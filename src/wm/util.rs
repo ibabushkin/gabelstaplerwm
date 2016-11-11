@@ -319,29 +319,15 @@ macro_rules! swap {
 #[macro_export]
 macro_rules! edit_layout {
     ($($cmd:expr),*;; $print:expr) => {
-        |c, s| s
-            .tag_stack_mut()
-            .current_mut()
-            .map_or(WmCommand::NoCommand, |t| {
-                if t.layout.edit_layout_retr(vec![$($cmd,)*]) {
-                    println!("{}", $print(c, s));
-                    WmCommand::Redraw
-                } else {
-                    WmCommand::NoCommand
-                }
-            })
+        |_, _| {
+            println!("{}", $print(c, s));
+            WmCommand::LayoutMsg(vec![$($cmd,)*])
+        }
     };
     ($($cmd:expr),* $(; $print:expr)*) => {
-        |_, s| s
-            .tag_stack_mut()
-            .current_mut()
-            .map_or(WmCommand::NoCommand, |t| {
-                if t.layout.edit_layout_retry(vec![$($cmd,)*]) {
-                    $( println!("{}", $print); )*
-                    WmCommand::Redraw
-                } else {
-                    WmCommand::NoCommand
-                }
-            })
+        |_, _| {
+            $( println!("{}", $print); )*
+            WmCommand::LayoutMsg(vec![$($cmd,)*])
+        }
     }
 }

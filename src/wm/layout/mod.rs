@@ -79,8 +79,7 @@ pub trait Layout {
     fn new_window_as_master(&self) -> bool;
     /// React to a `LayoutMessage`, returning true on change.
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool;
-    /// React to the first applicable `LayoutMessage`, returning true on
-    /// change.
+    /// React to the first applicable `LayoutMessage`, returning true on change.
     fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
         msgs.drain(..).any(|m| self.edit_layout(m))
     }
@@ -93,6 +92,7 @@ pub trait Layout {
 /// from keybindings and other code. Layout implementations can choose to react
 /// to any subset of the message variants below, or none at all.
 #[allow(dead_code)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LayoutMessage {
     /// Set absolute value of the master factor.
     MasterFactorAbs(u8),

@@ -55,6 +55,8 @@ pub enum WmCommand {
     Kill(xproto::Window),
     /// switch keyboard mode
     ModeSwitch(Mode),
+    /// change or replace the current tagset's layout
+    LayoutMsg(Vec<LayoutMessage>),
     /// quit window manager
     Quit,
     /// don't do anything, no action is needed
@@ -587,6 +589,13 @@ impl<'a> Wm<'a> {
             WmCommand::Focus => self.reset_focus(),
             WmCommand::Kill(win) => self.destroy_window(win),
             WmCommand::ModeSwitch(mode) => self.mode = mode,
+            WmCommand::LayoutMsg(msg) =>
+                if self.screens
+                    .tag_stack_mut()
+                    .current_mut()
+                    .map_or(false, |t| t.layout.edit_layout_retry(msg)) {
+                    self.arrange_windows();
+                },
             WmCommand::Quit => exit(0),
             WmCommand::NoCommand => (),
         };
