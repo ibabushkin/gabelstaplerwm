@@ -93,7 +93,7 @@ impl fmt::Display for Tag {
 pub enum Mode {
     /// normal mode doing normal stuff
     Normal,
-    /// setup mode to edit tagsets
+    /// setup mode to edit tagsets (unused in default config)
     Setup,
 }
 
