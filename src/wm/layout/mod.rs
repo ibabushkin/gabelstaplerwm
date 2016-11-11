@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 pub mod grid;
 pub mod monocle;
 pub mod spiral;
@@ -60,7 +62,7 @@ pub struct Geometry {
 /// Types that compute geometries for arbitrary amounts of windows.
 ///
 /// The only input such objects get are `TilingArea` and number of windows.
-pub trait Layout {
+pub trait Layout : Debug {
     /// Compute window geometries. 
     ///
     /// If a `None` is returned at a particular position, that window is not

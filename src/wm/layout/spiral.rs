@@ -2,6 +2,7 @@ use std::cmp;
 
 use wm::layout::*;
 
+#[derive(Debug)]
 pub struct Spiral {
     pub max_windows: u8
 }
