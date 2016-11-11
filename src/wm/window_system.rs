@@ -45,7 +45,7 @@ pub type ScreenMatching = Box<Fn(&mut Screen, randr::Crtc, usize)>;
 ///
 /// Being returned from a callback closure which modified internal structures,
 /// gets interpreted to take necessary actions.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum WmCommand {
     /// redraw everything
     Redraw,
@@ -55,6 +55,10 @@ pub enum WmCommand {
     Kill(xproto::Window),
     /// switch keyboard mode
     ModeSwitch(Mode),
+    /// change the current tagset's layout
+    LayoutMsg(Vec<LayoutMessage>),
+    /// replace the current tagset's layout
+    LayoutSwitch(Box<Layout>),
     /// quit window manager
     Quit,
     /// don't do anything, no action is needed
@@ -549,10 +553,7 @@ impl<'a> Wm<'a> {
     /// A crtc has been changed, react accordingly.
     fn handle_crtc_notify(&mut self, ev: &randr::NotifyEvent) {
         if ev.sub_code() as u32 == randr::NOTIFY_CRTC_CHANGE {
-            let crtc_change: randr::CrtcChange = unsafe { // BOO!
-                use std::mem::transmute;
-                transmute(ev.u())
-            };
+            let crtc_change: randr::CrtcChange = ev.u().cc();
 
             if crtc_change.mode() == 0 {
                 self.screens.remove(crtc_change.crtc());
@@ -590,6 +591,17 @@ impl<'a> Wm<'a> {
             WmCommand::Focus => self.reset_focus(),
             WmCommand::Kill(win) => self.destroy_window(win),
             WmCommand::ModeSwitch(mode) => self.mode = mode,
+            WmCommand::LayoutMsg(msg) =>
+                if self.screens
+                    .tag_stack_mut()
+                    .current_mut()
+                    .map_or(false, |t| t.layout.edit_layout_retry(msg)) {
+                    self.arrange_windows();
+                },
+            WmCommand::LayoutSwitch(layout) =>
+                if let Some(t) = self.screens.tag_stack_mut().current_mut() {
+                    t.layout = layout;
+                },
             WmCommand::Quit => exit(0),
             WmCommand::NoCommand => (),
         };

@@ -5,6 +5,7 @@ use wm::layout::*;
 /// Shows one window at a time, keeping offsets to the screen border.
 /// New clients are added as master, otherwise they would be invisible
 /// at first.
+#[derive(Debug)]
 pub struct Monocle {
     /// x offset of master window (symmetric)
     pub offset_x: u32,

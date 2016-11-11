@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 pub mod grid;
 pub mod monocle;
 pub mod spiral;
@@ -60,7 +62,7 @@ pub struct Geometry {
 /// Types that compute geometries for arbitrary amounts of windows.
 ///
 /// The only input such objects get are `TilingArea` and number of windows.
-pub trait Layout {
+pub trait Layout : Debug {
     /// Compute window geometries. 
     ///
     /// If a `None` is returned at a particular position, that window is not
@@ -79,8 +81,7 @@ pub trait Layout {
     fn new_window_as_master(&self) -> bool;
     /// React to a `LayoutMessage`, returning true on change.
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool;
-    /// React to the first applicable `LayoutMessage`, returning true on
-    /// change.
+    /// React to the first applicable `LayoutMessage`, returning true on change.
     fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
         msgs.drain(..).any(|m| self.edit_layout(m))
     }
@@ -93,6 +94,7 @@ pub trait Layout {
 /// from keybindings and other code. Layout implementations can choose to react
 /// to any subset of the message variants below, or none at all.
 #[allow(dead_code)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LayoutMessage {
     /// Set absolute value of the master factor.
     MasterFactorAbs(u8),

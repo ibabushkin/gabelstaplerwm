@@ -292,14 +292,16 @@ pub fn setup_wm(wm: &mut Wm) {
                     s.tags.remove(&Tag::Work(n));
                     s.tags.insert(Tag::Work(n.saturating_sub(1)));
                 });
+                true
+            } else {
+                false
+            };
+            if res {
+                println!("{}", current_tagset(c, s));
                 WmCommand::Redraw
             } else {
                 WmCommand::NoCommand
-            };
-            if res == WmCommand::Redraw {
-                println!("{}", current_tagset(c, s));
             }
-            res
         }),
         bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&Tag::Work(n)) =
@@ -308,14 +310,16 @@ pub fn setup_wm(wm: &mut Wm) {
                     s.tags.remove(&Tag::Work(n));
                     s.tags.insert(Tag::Work(n.saturating_add(1)));
                 });
+                true
+            } else {
+                false
+            };
+            if res {
+                println!("{}", current_tagset(c, s));
                 WmCommand::Redraw
             } else {
                 WmCommand::NoCommand
-            };
-            if res == WmCommand::Redraw {
-                println!("{}", current_tagset(c, s));
             }
-            res
         }),
         // move a client to an adjacent work tagset - modkey+CTRL+SHIFT+[hl]
         bind!(43, modkey+CTRL+SHIFT, Mode::Normal, |c, s|

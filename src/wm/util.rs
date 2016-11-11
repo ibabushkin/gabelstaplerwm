@@ -162,12 +162,11 @@ macro_rules! toggle_show_tag {
         |_, s| s
             .tag_stack_mut()
             .current_mut()
-            .map(|tagset| {
+            .map_or(WmCommand::NoCommand, |tagset| {
                 tagset.toggle_tag($tag);
                 $( println!("{}", $print); )*
                 WmCommand::Redraw
             })
-            .unwrap_or(WmCommand::NoCommand)
     }
 }
 
@@ -320,28 +319,15 @@ macro_rules! swap {
 #[macro_export]
 macro_rules! edit_layout {
     ($($cmd:expr),*;; $print:expr) => {
-        |c, s|
-            if s.tag_stack_mut()
-                .current_mut()
-                .map(|t| t.layout.edit_layout_retry(vec![$($cmd,)*]))
-                == Some(true) {
-                println!("{}", $print(c, s));
-                WmCommand::Redraw
-            } else {
-                WmCommand::NoCommand
-            }
+        |_, _| {
+            println!("{}", $print(c, s));
+            WmCommand::LayoutMsg(vec![$($cmd,)*])
+        }
     };
     ($($cmd:expr),* $(; $print:expr)*) => {
-        |_, s| s
-            .tag_stack_mut()
-            .current_mut()
-            .map_or(WmCommand::NoCommand, |t| {
-                if t.layout.edit_layout_retry(vec![$($cmd,)*]) {
-                    $( println!("{}", $print); )*
-                    WmCommand::Redraw
-                } else {
-                    WmCommand::NoCommand
-                }
-            })
+        |_, _| {
+            $( println!("{}", $print); )*
+            WmCommand::LayoutMsg(vec![$($cmd,)*])
+        }
     }
 }

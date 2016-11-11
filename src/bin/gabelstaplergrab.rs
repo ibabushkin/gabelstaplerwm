@@ -46,7 +46,7 @@ fn main() {
     }
     loop {
         con.flush();
-        if let Err(_) = con.has_error() {
+        if con.has_error().is_err() {
             error!("connection error");
             exit(4);
         }
