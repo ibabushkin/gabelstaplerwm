@@ -545,7 +545,7 @@ impl<'a> Wm<'a> {
     fn handle_screen_change_notify(&mut self, ev: &randr::ScreenChangeNotifyEvent) {
         if ev.root() == self.root && ev.rotation() as u32 &
             (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
-            info!("rotating all screen areas.");
+            info!("rotating all screen areas");
             self.screens.rotate();
         }
     }
@@ -557,12 +557,15 @@ impl<'a> Wm<'a> {
 
             if crtc_change.mode() == 0 {
                 self.screens.remove(crtc_change.crtc());
+                info!("a crtc/screen removed from the screen set");
             } else {
                 self.screens.update(&crtc_change);
+                info!("a crtc/screen from the screen set changed");
             }
 
             if let Some(ref matching) = self.screen_matching {
                 self.screens.run_matching(matching);
+                info!("running screen matching");
             }
         }
     }
