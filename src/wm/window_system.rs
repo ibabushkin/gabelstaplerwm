@@ -602,8 +602,14 @@ impl<'a> Wm<'a> {
                     self.arrange_windows();
                 },
             WmCommand::LayoutSwitch(layout) =>
-                if let Some(t) = self.screens.tag_stack_mut().current_mut() {
-                    t.layout = layout;
+                if self.screens
+                    .tag_stack_mut()
+                    .current_mut()
+                    .map_or(false, |t| {
+                        t.layout = layout;
+                        true
+                    }) {
+                    self.arrange_windows();
                 },
             WmCommand::Quit => exit(0),
             WmCommand::NoCommand => (),

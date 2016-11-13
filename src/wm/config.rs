@@ -173,6 +173,12 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(45, modkey+CTRL, Mode::Normal, edit_layout!(
                 LayoutMessage::MasterFactorRel(5),
                 LayoutMessage::ColumnRel(1))),
+        bind!(55, modkey, Mode::Normal, change_layout!(VStack::default())),
+        bind!(56, modkey, Mode::Normal, change_layout!(HStack::default())),
+        bind!(57, modkey, Mode::Normal, change_layout!(DStack::default())),
+        bind!(58, modkey, Mode::Normal, change_layout!(Grid::default())),
+        bind!(59, modkey, Mode::Normal, change_layout!(Spiral::default())),
+        bind!(60, modkey, Mode::Normal, change_layout!(Monocle::default())),
         // quit the window manager
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| WmCommand::Quit),
         // go back in tagset history

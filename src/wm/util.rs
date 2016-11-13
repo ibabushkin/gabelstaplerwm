@@ -319,7 +319,7 @@ macro_rules! swap {
 #[macro_export]
 macro_rules! edit_layout {
     ($($cmd:expr),*;; $print:expr) => {
-        |_, _| {
+        |c, s| {
             println!("{}", $print(c, s));
             WmCommand::LayoutMsg(vec![$($cmd,)*])
         }
@@ -330,4 +330,20 @@ macro_rules! edit_layout {
             WmCommand::LayoutMsg(vec![$($cmd,)*])
         }
     }
+}
+
+#[macro_export]
+macro_rules! change_layout {
+    ($layout:expr;; $print:expr) => {
+        |c, s| {
+            println!("{}", $print(c, s));
+            WmCommand::LayoutSwitch(Box::new($layout))
+        }
+    };
+    ($layout:expr $(; $print:expr)*) => {
+        |_, _| {
+            $( println!("{}", $print); )*
+            WmCommand::LayoutSwitch(Box::new($layout))
+        }
+    };
 }
