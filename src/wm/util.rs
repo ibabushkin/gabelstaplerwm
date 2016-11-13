@@ -306,13 +306,13 @@ macro_rules! swap {
 /// Returns a closure for use with `bind!`.
 ///
 /// # Usage
-/// The `edit_layout!` macro expects a `LayoutCommand` and passes it to the
-/// layout of the currently viewed tagset. This allows for modification of
-/// layout parameters from keybindings. However, there is no guarantee that
-/// a specific layout reacts to a specific `LayoutCommand`, as it may be
-/// meaningless in some contexts. For example, the `Monocle` layout doesn't
-/// have a notion of a master factor, so the corresponding `LayoutCommand`s
-/// have no effect on it.
+/// The `edit_layout!` macro expects one or more `LayoutCommand`s and passes
+/// them to the layout of the currently viewed tagset. This allows for
+/// modification of layout parameters from keybindings. However, there is no
+/// guarantee that a specific layout reacts to a specific `LayoutCommand`,
+/// as it may be meaningless in some contexts. For example, the `Monocle`
+/// layout doesn't have a notion of a master factor, so the corresponding
+/// `LayoutCommand`s have no effect on it.
 ///
 /// As always, the last parameter(s) specify objects to be printed after
 /// completion of the action.
@@ -332,6 +332,17 @@ macro_rules! edit_layout {
     }
 }
 
+/// Change the current layout ot something different.
+///
+/// Returns a closure for use with `bind!`.
+///
+/// # Usage
+/// The `change_layout!` macro expects an expression of a type implementing
+/// the `Layout` trait, which is then used to replace the layout of the
+/// currently viewed `TagSet`.
+///
+/// As always, the last parameter(s) specify objects to be printed after
+/// completion of the action.
 #[macro_export]
 macro_rules! change_layout {
     ($layout:expr;; $print:expr) => {
