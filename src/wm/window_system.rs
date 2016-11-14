@@ -601,16 +601,15 @@ impl<'a> Wm<'a> {
                     .map_or(false, |t| t.layout.edit_layout_retry(msg)) {
                     self.arrange_windows();
                 },
-            WmCommand::LayoutSwitch(layout) =>
+            WmCommand::LayoutSwitch(layout) => {
+                let matching = |t: &mut TagSet| { t.layout = layout; true };
                 if self.screens
                     .tag_stack_mut()
                     .current_mut()
-                    .map_or(false, |t| {
-                        t.layout = layout;
-                        true
-                    }) {
+                    .map_or(false, matching) {
                     self.arrange_windows();
-                },
+                }
+            },
             WmCommand::Quit => exit(0),
             WmCommand::NoCommand => (),
         };
