@@ -13,6 +13,7 @@ license = "BSD3"
 [features]
 default = ["parallel-resizing"]
 parallel-resizing = []
+no-xephyr = []
 
 [dependencies]
 libc = "*"

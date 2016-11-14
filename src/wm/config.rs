@@ -120,7 +120,7 @@ pub fn generate_config() -> WmConfig {
 /// This includes keybindings, default tag stack and matching.
 pub fn setup_wm(wm: &mut Wm) {
     // keybindings
-    let modkey = ALTGR;
+    let modkey = if cfg!(feature = "no-xephyr") { MOD4 } else { ALTGR };
     wm.setup_bindings(vec![
         // focus single-digit-tagset
         bind!(10, modkey, Mode::Normal, push_tagset!(0;; current_tagset)),
