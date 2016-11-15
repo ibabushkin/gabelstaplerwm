@@ -185,15 +185,14 @@ impl<'a> Wm<'a> {
             let screens = cookies
                 .iter()
                 .filter_map(|&(crtc, ref cookie)| if let Ok(r) = cookie.get_reply() {
-                    Some((*crtc, Screen {
-                        area: TilingArea {
+                    let tiling_area =
+                        TilingArea {
                             offset_x: r.x() as u32,
                             offset_y: r.y() as u32,
                             width: r.width() as u32,
                             height: r.height() as u32,
-                        },
-                        tag_stack: TagStack::new(),
-                    }))
+                        };
+                    Some((*crtc, Screen::new(tiling_area, TagStack::new())))
                 } else {
                     None
                 })

@@ -675,12 +675,34 @@ impl TagStack {
 /// A rectangular screen area displaying a `TagStack`.
 #[derive(Default)]
 pub struct Screen {
+    /// the tiling area associated with the screen
     pub area: TilingArea,
+    /// the tag stack associated with the screen
     pub tag_stack: TagStack,
-    //pub neighbours: (usize, usize, usize, usize),
+    /// the top neighbour, if any
+    pub top: Option<Crtc>,
+    /// the right neighbour, if any
+    pub right: Option<Crtc>,
+    /// the bottom neighbour, if any
+    pub bottom: Option<Crtc>,
+    /// the left neighbour, if any
+    pub left: Option<Crtc>,
 }
 
 impl Screen {
+    /// Build a new screen.
+    pub fn new(area: TilingArea, tag_stack: TagStack) -> Screen {
+        Screen {
+            area: area,
+            tag_stack: tag_stack,
+            top: None,
+            right: None,
+            bottom: None,
+            left: None,
+        }
+    }
+
+    /// Swap a screen's x and y axis.
     pub fn swap_dimensions(&mut self) {
         use std::mem::swap;
 
