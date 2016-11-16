@@ -192,7 +192,7 @@ impl<'a> Wm<'a> {
                             width: r.width() as u32,
                             height: r.height() as u32,
                         };
-                    Some((*crtc, Screen::new(tiling_area, TagStack::new())))
+                    Some((*crtc, Screen::new(tiling_area, TagStack::default())))
                 } else {
                     None
                 })
@@ -288,7 +288,6 @@ impl<'a> Wm<'a> {
     pub fn setup_screen_matching(&mut self, matching: ScreenMatching) {
         self.screens.run_matching(&matching);
         self.screen_matching = Some(matching);
-        info!("setup (and ran) screen matching");
     }
 
     /// Set up the tagset stack.
@@ -331,7 +330,9 @@ impl<'a> Wm<'a> {
     /// corresponding `WmCommand`.
     fn arrange_windows(&mut self) {
         // first, hide all visible windows ...
+        // TODO: account for current screen
         self.hide_windows(&self.visible_windows);
+        debug!("hidden windows: {:?}", self.visible_windows);
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
 
@@ -346,6 +347,7 @@ impl<'a> Wm<'a> {
 
         // get geometries ...
         let geometries = layout.arrange(clients.1.len(), self.screens.screen());
+        debug!("calculated geometries: {:?}", geometries);
         // ... and apply them if a window is to be displayed
         if cfg!(feature = "parallel-resizing") {
             let connection = self.con;

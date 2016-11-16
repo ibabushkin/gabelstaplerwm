@@ -575,11 +575,6 @@ pub struct TagStack {
 }
 
 impl TagStack {
-    /// Setup an empty tag stack.
-    pub fn new() -> TagStack {
-        TagStack::default()
-    }
-
     /// Setup a tag stack from a vector of tag sets and the index of the
     /// initially viewed tagset in the vector.
     pub fn from_presets(mut vec: Vec<TagSet>, viewed: u8) -> TagStack {
@@ -786,6 +781,20 @@ impl ScreenSet {
         }
     }
 
+    /// Select a screen by altering the current screen's index
+    pub fn change_screen<T>(&mut self, f: T) -> bool
+        where T: Fn(usize, usize) -> usize {
+        let len = self.screens.len();
+        let new = f(self.current_screen, len);
+        debug!("change_screen: cur={}, new={}, len={}", self.current_screen, new, len);
+        if new < len {
+            self.current_screen = new;
+            true
+        } else {
+            false
+        }
+    }
+
     /// Remove a CRTC from our list of screens.
     pub fn remove(&mut self, old_crtc: Crtc) {
         if let Some(&(crtc, _)) = self.screens.get(self.current_screen) {
@@ -804,6 +813,7 @@ impl ScreenSet {
         for (index, &mut (crtc, ref mut screen)) in self.screens.iter_mut().enumerate() {
             info!("ran screen matching on CRTC {}", index);
             matching(screen, crtc, index);
+            debug!("matching results: crtc={}, {:?}", crtc, screen.area);
         }
     }
 

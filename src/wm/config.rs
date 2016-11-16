@@ -179,6 +179,12 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(58, modkey, Mode::Normal, change_layout!(Grid::default())),
         bind!(59, modkey, Mode::Normal, change_layout!(Spiral::default())),
         bind!(60, modkey, Mode::Normal, change_layout!(Monocle::default())),
+        bind!(65, modkey, Mode::Normal, |_, s|
+            if s.change_screen(|cur, len| (cur + 1) % len) {
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            }),
         // quit the window manager
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| WmCommand::Quit),
         // go back in tagset history
@@ -229,7 +235,9 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(18, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Mon;; current_tagset)),
     ]);
+
     // default tag stack
+    // TODO: move
     wm.setup_tags({
         let tagsets = vec![
             TagSet::new(set![Tag::Web], DStack::default()),
@@ -257,6 +265,17 @@ pub fn setup_wm(wm: &mut Wm) {
         if index == 0 && screen.area.offset_y == 0 {
             screen.area.offset_y = 20;
             screen.area.height -= 20;
+        } else {
+            let tagsets = vec![
+                TagSet::new(set![Tag::Web], DStack::default()),
+                TagSet::new(set![Tag::Work2], VStack::default()),
+                TagSet::new(set![Tag::Work3], VStack::default()),
+                TagSet::new(set![Tag::Work4], Spiral::default()),
+                TagSet::new(set![Tag::Work5], Grid::default()),
+                TagSet::new(set![Tag::Logs], HStack::default()),
+                TagSet::new(set![Tag::Mon], HStack::default())
+            ];
+            screen.tag_stack = TagStack::from_presets(tagsets, 1);
         }
     }));
 }
