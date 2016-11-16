@@ -682,8 +682,16 @@ impl<'a> Wm<'a> {
                         self.con, window).get_reply() {
                         let width = geom.width() as u32;
                         let height = geom.height() as u32;
-                        x = (screen.width - width) / 2;
-                        y = (screen.height - height) / 2;
+                        x = if screen.width > width {
+                            (screen.width - width) / 2
+                        } else {
+                            0
+                        };
+                        y = if screen.height > height {
+                            (screen.height - height) / 2
+                        } else {
+                            0
+                        };
                     } else {
                         error!("could not get window geometry, \
                                expect ugly results");
