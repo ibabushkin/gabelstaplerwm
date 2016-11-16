@@ -197,7 +197,7 @@ impl<'a> Wm<'a> {
                     None
                 })
                 .collect();
-            if let Some(res) = ScreenSet::new(screens, crtcs.to_vec()) {
+            if let Some(res) = ScreenSet::new(screens) {
                 Ok(res)
             } else {
                 Err(WmError::BadCrtc)
@@ -563,8 +563,8 @@ impl<'a> Wm<'a> {
             }
 
             if let Some(ref matching) = self.screen_matching {
-                self.screens.run_matching(matching);
                 info!("running screen matching");
+                self.screens.run_matching(matching);
             }
         }
     }
