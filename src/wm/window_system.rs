@@ -964,6 +964,9 @@ impl<'a> Wm<'a> {
     }
 }
 
+/// Rearrange windows according to the geometries provided.
+///
+/// This is the parallel version running each request-reply in an interleaved fashion.
 #[cfg(feature = "parallel-resizing")]
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
@@ -1007,6 +1010,9 @@ fn arrange(con: &base::Connection,
     }
 }
 
+/// Rearrange windows according to the geometries provided.
+///
+/// This is the sequential version running each request-reply pair after the other.
 #[cfg(not(feature = "parallel-resizing"))]
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
