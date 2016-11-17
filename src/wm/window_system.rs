@@ -93,6 +93,8 @@ pub struct Wm<'a> {
     randr_base: u8,
     /// border width
     border_width: u8,
+    /// a coordinate which is not visible in the current configuration
+    safe_x: u32,
     /// colors used for window borders, first denotes focused windows
     border_colors: (u32, u32),
     /// all screen areas we tile windows on, and their tag stacks
@@ -134,6 +136,8 @@ impl<'a> Wm<'a> {
                         root: root,
                         randr_base: 0,
                         border_width: config.border_width,
+                        // TODO: remove this ugly hack
+                        safe_x: screen.width_in_pixels() as u32,
                         border_colors: colors,
                         screens: try!(Wm::setup_screens(con, root)),
                         clients: ClientSet::default(),
@@ -408,12 +412,11 @@ impl<'a> Wm<'a> {
 
     /// Hide some windows by moving them offscreen.
     fn hide_windows(&self, windows: &[xproto::Window]) {
-        let safe_x = self.screens.screen().width + 2;
         let cookies: Vec<_> = windows
             .iter()
             .map(|window| xproto::configure_window(
                  self.con, *window,
-                 &[(xproto::CONFIG_WINDOW_X as u16, safe_x),
+                 &[(xproto::CONFIG_WINDOW_X as u16, self.safe_x),
                    (xproto::CONFIG_WINDOW_Y as u16, 0)]
                 )
             )
@@ -544,11 +547,17 @@ impl<'a> Wm<'a> {
     /// This might need some update in case we need to change some offsets as well.
     /// However, this code isn't likely to be used often.
     fn handle_screen_change_notify(&mut self, ev: &randr::ScreenChangeNotifyEvent) {
-        if ev.root() == self.root && ev.rotation() as u32 &
+        if ev.root() != self.root {
+            return;
+        }
+
+        if ev.rotation() as u32 &
             (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
             info!("rotating all screen areas");
             self.screens.rotate();
         }
+
+        self.safe_x = ev.width() as u32 + 2;
     }
 
     /// A crtc has been changed, react accordingly.
