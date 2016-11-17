@@ -236,9 +236,22 @@ pub fn setup_wm(wm: &mut Wm) {
               toggle_show_tag!(Tag::Mon;; current_tagset)),
     ]);
 
-    // default tag stack
-    // TODO: move
-    wm.setup_tags({
+    // matching function deciding upon client placement
+    wm.setup_matching(Box::new(
+        |props, _| if props.name == "Mozilla Firefox" {
+            Some((set![Tag::Web], true))
+        } else {
+            None
+        }
+    ));
+
+    // matching function deciding upon screen handling
+    wm.setup_screen_matching(Box::new(|screen, _, index| {
+        if index == 0 && screen.area.offset_y == 0 {
+            screen.area.offset_y = 20;
+            screen.area.height -= 20;
+        }
+
         let tagsets = vec![
             TagSet::new(set![Tag::Web], DStack::default()),
             TagSet::new(set![Tag::Work2], VStack::default()),
@@ -250,32 +263,6 @@ pub fn setup_wm(wm: &mut Wm) {
             TagSet::new(set![Tag::Logs], HStack::default()),
             TagSet::new(set![Tag::Mon], HStack::default())
         ];
-        TagStack::from_presets(tagsets, 1)
-    });
-    // matching function deciding upon client placement
-    wm.setup_matching(Box::new(
-        |props, _| if props.name == "Mozilla Firefox" {
-            Some((set![Tag::Web], true))
-        } else {
-            None
-        }
-    ));
-    // matching function deciding upon screen handling
-    wm.setup_screen_matching(Box::new(|screen, _, index| {
-        if index == 0 && screen.area.offset_y == 0 {
-            screen.area.offset_y = 20;
-            screen.area.height -= 20;
-        } else {
-            let tagsets = vec![
-                TagSet::new(set![Tag::Web], DStack::default()),
-                TagSet::new(set![Tag::Work2], VStack::default()),
-                TagSet::new(set![Tag::Work3], VStack::default()),
-                TagSet::new(set![Tag::Work4], Spiral::default()),
-                TagSet::new(set![Tag::Work5], Grid::default()),
-                TagSet::new(set![Tag::Logs], HStack::default()),
-                TagSet::new(set![Tag::Mon], HStack::default())
-            ];
-            screen.tag_stack = TagStack::from_presets(tagsets, 1);
-        }
+        screen.tag_stack = TagStack::from_presets(tagsets, 1);
     }));
 }

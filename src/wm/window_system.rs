@@ -294,11 +294,6 @@ impl<'a> Wm<'a> {
         self.screen_matching = Some(matching);
     }
 
-    /// Set up the tagset stack.
-    pub fn setup_tags(&mut self, stack: TagStack) {
-        *self.screens.tag_stack_mut() = stack;
-    }
-
     /// Add all present clients to the datastructures on startup.
     pub fn setup_clients(&mut self) {
         if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
