@@ -731,6 +731,10 @@ impl ScreenSet {
         }
     }
 
+    pub fn screens(&self) -> &[(Crtc, Screen)] {
+        &self.screens
+    }
+
     /// Get a mutable reference to current screen's geometry and tag stack.
     pub fn current_mut(&mut self) -> &mut Screen {
         if let Some(&mut (_, ref mut res)) = self.screens.get_mut(self.current_screen) {

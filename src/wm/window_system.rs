@@ -334,15 +334,16 @@ impl<'a> Wm<'a> {
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
 
-        if let Some(tagset) = self.screens.tag_stack().current() {
-            // get client set and geometries...
-            let clients = self.clients.get_order_or_insert(&tagset.tags);
-            let geometries =
-                tagset.layout.arrange(clients.1.len(), self.screens.screen());
-            debug!("calculated geometries: {:?}", geometries);
+        for &(_, ref screen) in self.screens.screens() {
+            if let Some(tagset) = screen.tag_stack.current() {
+                // get client set and geometries...
+                let clients = self.clients.get_order_or_insert(&tagset.tags);
+                let geometries = tagset.layout.arrange(clients.1.len(), &screen.area);
+                debug!("calculated geometries: {:?}", geometries);
 
-            // ... and display windows accordingly
-            arrange(self.con, &mut self.visible_windows, clients, geometries);
+                // ... and display windows accordingly
+                arrange(self.con, &mut self.visible_windows, clients, geometries);
+            }
         }
     }
 
@@ -963,19 +964,6 @@ impl<'a> Wm<'a> {
     }
 }
 
-fn filter_visible<T>(set: &mut Vec<xproto::Window>, current: T) -> Vec<xproto::Window>
-    where T: Iterator<Item = xproto::Window> {
-    current
-        .filter_map(|win|
-            if !set.contains(&win) {
-                set.push(win);
-                Some(win)
-            } else {
-                None
-            })
-        .collect()
-}
-
 #[cfg(feature = "parallel-resizing")]
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
@@ -987,7 +975,12 @@ fn arrange(con: &base::Connection,
         .filter_map(|(client, geometry)| {
             if let (Some(ref cl), &Some(ref geom)) =
                 (client.upgrade(), geometry) {
-                Some((cl.borrow().window, geom))
+                let window = cl.borrow().window;
+                if !visible.contains(&window) {
+                    Some((window, geom))
+                } else {
+                    None
+                }
             } else {
                 None
             }
@@ -1020,22 +1013,23 @@ fn arrange(con: &base::Connection,
            clients: &OrderEntry,
            geometries: Vec<Option<Geometry>>) {
     for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
-        if let (Some(ref cl), &Some(ref geom))
-            = (client.upgrade(), geometry) {
+        if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
             let window = cl.borrow().window;
-            visible.push(window);
-            let cookie = xproto::configure_window(
-                con, window,
-                &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
-                  (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
-                  (xproto::CONFIG_WINDOW_WIDTH as u16,
-                   geom.width as u32),
-                  (xproto::CONFIG_WINDOW_HEIGHT as u16,
-                   geom.height as u32)
-                ]);
+            if !visible.contains(&window) {
+                visible.push(window);
+                let cookie = xproto::configure_window(
+                    con, window,
+                    &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
+                      (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
+                      (xproto::CONFIG_WINDOW_WIDTH as u16,
+                       geom.width as u32),
+                      (xproto::CONFIG_WINDOW_HEIGHT as u16,
+                       geom.height as u32)
+                    ]);
 
-            if cookie.request_check().is_err() {
-                error!("could not set window geometry");
+                if cookie.request_check().is_err() {
+                    error!("could not set window geometry");
+                }
             }
         }
     }
