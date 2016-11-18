@@ -575,11 +575,6 @@ pub struct TagStack {
 }
 
 impl TagStack {
-    /// Setup an empty tag stack.
-    pub fn new() -> TagStack {
-        TagStack::default()
-    }
-
     /// Setup a tag stack from a vector of tag sets and the index of the
     /// initially viewed tagset in the vector.
     pub fn from_presets(mut vec: Vec<TagSet>, viewed: u8) -> TagStack {
@@ -675,12 +670,34 @@ impl TagStack {
 /// A rectangular screen area displaying a `TagStack`.
 #[derive(Default)]
 pub struct Screen {
+    /// the tiling area associated with the screen
     pub area: TilingArea,
+    /// the tag stack associated with the screen
     pub tag_stack: TagStack,
-    //pub neighbours: (usize, usize, usize, usize),
+    /// the top neighbour, if any
+    pub top: Option<Crtc>,
+    /// the right neighbour, if any
+    pub right: Option<Crtc>,
+    /// the bottom neighbour, if any
+    pub bottom: Option<Crtc>,
+    /// the left neighbour, if any
+    pub left: Option<Crtc>,
 }
 
 impl Screen {
+    /// Build a new screen.
+    pub fn new(area: TilingArea, tag_stack: TagStack) -> Screen {
+        Screen {
+            area: area,
+            tag_stack: tag_stack,
+            top: None,
+            right: None,
+            bottom: None,
+            left: None,
+        }
+    }
+
+    /// Swap a screen's x and y axis.
     pub fn swap_dimensions(&mut self) {
         use std::mem::swap;
 
@@ -695,36 +712,45 @@ impl Screen {
 /// that is used to show a distinct set of tags associated with a
 /// `TagStack`. There is an active screen at all times.
 pub struct ScreenSet {
-    /// all screens known to man
-    screens: HashMap<Crtc, Screen>,
-    /// all CRTCs present, in order
-    crtcs: Vec<Crtc>,
-    /// the currently active screen's key
-    current_screen: Crtc,
+    /// all screens known to man, and their associated CRTCs
+    screens: Vec<(Crtc, Screen)>,
+    /// the currently active screen's index
+    current_screen: usize,
 }
 
 impl ScreenSet {
     /// Setup a new screen set.
-    pub fn new(screens: HashMap<Crtc, Screen>, crtcs: Vec<Crtc>) -> Option<ScreenSet> {
-        if let Some(&current) = crtcs.first() {
+    pub fn new(screens: Vec<(Crtc, Screen)>) -> Option<ScreenSet> {
+        if !screens.is_empty() {
             Some(ScreenSet {
                 screens: screens,
-                crtcs: crtcs,
-                current_screen: current,
+                current_screen: 0,
             })
         } else {
             None
         }
     }
 
+    pub fn screens(&self) -> &[(Crtc, Screen)] {
+        &self.screens
+    }
+
     /// Get a mutable reference to current screen's geometry and tag stack.
     pub fn current_mut(&mut self) -> &mut Screen {
-        self.screens.get_mut(&self.current_screen).unwrap()
+        if let Some(&mut (_, ref mut res)) = self.screens.get_mut(self.current_screen) {
+            res
+        } else {
+            panic!("logic error in ScreenSet :O");
+        }
     }
 
     /// Get an immutable reference to current screen's geometry and tag stack.
     pub fn current(&self) -> &Screen {
-        self.screens.get(&self.current_screen).unwrap()
+        if let Some(&(_, ref res)) = self.screens.get(self.current_screen) {
+            res
+        } else {
+            panic!("logic error in ScreenSet :O");
+        }
     }
 
     /// Get an immutable reference to current screen's geometry.
@@ -744,14 +770,28 @@ impl ScreenSet {
 
     /// Swap horizontal and vertical axes of all screens.
     pub fn rotate(&mut self) {
-        for (_, mut screen) in &mut self.screens {
+        for &mut (_, ref mut screen) in &mut self.screens {
             screen.swap_dimensions();
         }
     }
 
-    /// Select a screen by index.
-    pub fn select_screen(&mut self, new: Crtc) -> bool {
-        if self.screens.contains_key(&new) {
+    /// Select a screen by it's associated CRTC.
+    pub fn select_screen(&mut self, new_crtc: Crtc) -> bool {
+        if let Some(new) = self.screens.iter().position(|&(crtc, _)| crtc == new_crtc) {
+            self.current_screen = new;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Select a screen by altering the current screen's index
+    pub fn change_screen<T>(&mut self, f: T) -> bool
+        where T: Fn(usize, usize) -> usize {
+        let len = self.screens.len();
+        let new = f(self.current_screen, len);
+        debug!("change_screen: cur={}, new={}, len={}", self.current_screen, new, len);
+        if new < len {
             self.current_screen = new;
             true
         } else {
@@ -760,47 +800,50 @@ impl ScreenSet {
     }
 
     /// Remove a CRTC from our list of screens.
-    pub fn remove(&mut self, crtc: Crtc) {
-        self.screens.remove(&crtc);
-        self.crtcs.retain(|c| *c != crtc);
-        if self.current_screen == crtc {
-            self.current_screen = *self.crtcs.first().unwrap();
+    pub fn remove(&mut self, old_crtc: Crtc) {
+        if let Some(&(crtc, _)) = self.screens.get(self.current_screen) {
+            if crtc == old_crtc {
+                self.current_screen = 0;
+            }
+        } else {
+            panic!("logic error in ScreenSet :O");
         }
+
+        self.screens.retain(|&(crtc, _)| crtc != old_crtc);
     }
 
     /// Apply a screen matching to all screens (that is, CRTCs) that we know of.
     pub fn run_matching(&mut self, matching: &ScreenMatching) {
-        for (&crtc, screen) in &mut self.screens {
-            let index = self.crtcs.iter().position(|c| *c == crtc).unwrap();
+        for (index, &mut (crtc, ref mut screen)) in self.screens.iter_mut().enumerate() {
             info!("ran screen matching on CRTC {}", index);
             matching(screen, crtc, index);
+            debug!("matching results: crtc={}, {:?}", crtc, screen.area);
         }
     }
 
-    /// Update a screen associated with a CRTC or create
-    /// one if none is present.
+    /// Update a screen associated with a CRTC or create one if none is present.
     pub fn update(&mut self, change: &CrtcChange) {
-        let crtc = change.crtc();
-        let entry =
-            self.screens
-                .entry(crtc)
-                .or_insert_with(Screen::default);
+        let current_crtc = change.crtc();
 
-        // this will likely break ordering - we probably want to
-        // update the whole structure by calling get_screen_resources
-        // or something similar
-        if self.crtcs.iter().position(|c| *c == crtc).is_none() {
-            self.crtcs.push(crtc);
+        if self.screens.iter().find(|&&(crtc, _)| crtc == current_crtc).is_none() {
+            self.screens.push((current_crtc, Screen::default()));
         }
+        let &mut (_, ref mut screen) =
+            if let Some(entry) =
+                self.screens.iter_mut().find(|&&mut (crtc, _)| crtc == current_crtc) {
+                entry
+            } else {
+                panic!("logic error in ScreenSet :O");
+            };
 
-        entry.area.offset_x = change.x() as u32;
-        entry.area.offset_y = change.y() as u32;
-        entry.area.width = change.width() as u32;
-        entry.area.height = change.height() as u32;
+        screen.area.offset_x = change.x() as u32;
+        screen.area.offset_y = change.y() as u32;
+        screen.area.width = change.width() as u32;
+        screen.area.height = change.height() as u32;
 
         if change.rotation() as u32 &
             (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
-            entry.swap_dimensions();
+            screen.swap_dimensions();
         }
     }
 }

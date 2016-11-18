@@ -303,6 +303,12 @@ pub fn setup_wm(wm: &mut Wm) {
                 WmCommand::NoCommand
             }
         }),
+        bind!(65, modkey, Mode::Normal, |_, s|
+            if s.change_screen(|cur, len| (cur + 1) % len) {
+                WmCommand::Redraw
+            } else {
+                WmCommand::NoCommand
+            }),
         bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&Tag::Work(n)) =
                 s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
@@ -380,30 +386,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(233, 0, Mode::Normal, |_, _|
               exec_command("xbacklight", &["-inc", "5"])),
     ]);
-    // default tag stack
-    wm.setup_tags({
-        let tagsets = vec![
-            TagSet::new(set![Tag::Web, Tag::Marks], VStack {
-                master_factor: 75,
-                inverted: false,
-                fixed: true,
-            }),
-            TagSet::new(set![Tag::Work(0)], VStack::default()),
-            TagSet::new(set![Tag::Chat], HStack {
-                master_factor: 75,
-                inverted: true,
-                fixed: false,
-            }),
-            TagSet::new(set![Tag::Org], VStack::default()),
-            TagSet::new(set![Tag::Media], Monocle::default()),
-            TagSet::new(set![Tag::Logs, Tag::Mon], HStack {
-                master_factor: 75,
-                inverted: true,
-                fixed: false,
-            })
-        ];
-        TagStack::from_presets(tagsets, 1)
-    });
+
     // matching function deciding upon client placement
     wm.setup_matching(Box::new(
         |props, screens| if props.name == "Mozilla Firefox" {
@@ -424,12 +407,35 @@ pub fn setup_wm(wm: &mut Wm) {
             screens.tag_stack().current().map(|t| (t.tags.clone(), true))
         }
     ));
+
     // matching function deciding upon screen handling
     wm.setup_screen_matching(Box::new(|screen, _, index| {
         if index == 0 && screen.area.offset_y == 0 {
             screen.area.offset_y = 20;
             screen.area.height -= 20;
         }
+
+        let tagsets = vec![
+            TagSet::new(set![Tag::Web, Tag::Marks], VStack {
+                master_factor: 75,
+                inverted: false,
+                fixed: true,
+            }),
+            TagSet::new(set![Tag::Work(0)], VStack::default()),
+            TagSet::new(set![Tag::Chat], HStack {
+                master_factor: 75,
+                inverted: true,
+                fixed: false,
+            }),
+            TagSet::new(set![Tag::Org], VStack::default()),
+            TagSet::new(set![Tag::Media], Monocle::default()),
+            TagSet::new(set![Tag::Logs, Tag::Mon], HStack {
+                master_factor: 75,
+                inverted: true,
+                fixed: false,
+            })
+        ];
+        screen.tag_stack = TagStack::from_presets(tagsets, 1);
     }));
 }
 

@@ -1,4 +1,5 @@
 target
+wm_log
 *~
 *.swp
 Cargo.lock

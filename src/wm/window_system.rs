@@ -93,6 +93,8 @@ pub struct Wm<'a> {
     randr_base: u8,
     /// border width
     border_width: u8,
+    /// a coordinate which is not visible in the current configuration
+    safe_x: u32,
     /// colors used for window borders, first denotes focused windows
     border_colors: (u32, u32),
     /// all screen areas we tile windows on, and their tag stacks
@@ -134,6 +136,8 @@ impl<'a> Wm<'a> {
                         root: root,
                         randr_base: 0,
                         border_width: config.border_width,
+                        // TODO: remove this ugly hack
+                        safe_x: screen.width_in_pixels() as u32,
                         border_colors: colors,
                         screens: try!(Wm::setup_screens(con, root)),
                         clients: ClientSet::default(),
@@ -185,20 +189,19 @@ impl<'a> Wm<'a> {
             let screens = cookies
                 .iter()
                 .filter_map(|&(crtc, ref cookie)| if let Ok(r) = cookie.get_reply() {
-                    Some((*crtc, Screen {
-                        area: TilingArea {
+                    let tiling_area =
+                        TilingArea {
                             offset_x: r.x() as u32,
                             offset_y: r.y() as u32,
                             width: r.width() as u32,
                             height: r.height() as u32,
-                        },
-                        tag_stack: TagStack::new(),
-                    }))
+                        };
+                    Some((*crtc, Screen::new(tiling_area, TagStack::default())))
                 } else {
                     None
                 })
                 .collect();
-            if let Some(res) = ScreenSet::new(screens, crtcs.to_vec()) {
+            if let Some(res) = ScreenSet::new(screens) {
                 Ok(res)
             } else {
                 Err(WmError::BadCrtc)
@@ -289,12 +292,6 @@ impl<'a> Wm<'a> {
     pub fn setup_screen_matching(&mut self, matching: ScreenMatching) {
         self.screens.run_matching(&matching);
         self.screen_matching = Some(matching);
-        info!("setup (and ran) screen matching");
-    }
-
-    /// Set up the tagset stack.
-    pub fn setup_tags(&mut self, stack: TagStack) {
-        *self.screens.tag_stack_mut() = stack;
     }
 
     /// Add all present clients to the datastructures on startup.
@@ -333,86 +330,30 @@ impl<'a> Wm<'a> {
     fn arrange_windows(&mut self) {
         // first, hide all visible windows ...
         self.hide_windows(&self.visible_windows);
+        debug!("hidden windows: {:?}", self.visible_windows);
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
 
-        // setup current client list
-        let (clients, layout) = match self.screens.tag_stack().current() {
-            Some(tagset) => (
-                self.clients.get_order_or_insert(&tagset.tags),
-                &tagset.layout
-            ),
-            None => return, // nothing to do here - no current tagset
-        };
+        for &(_, ref screen) in self.screens.screens() {
+            if let Some(tagset) = screen.tag_stack.current() {
+                // get client set and geometries...
+                let clients = self.clients.get_order_or_insert(&tagset.tags);
+                let geometries = tagset.layout.arrange(clients.1.len(), &screen.area);
+                debug!("calculated geometries: {:?}", geometries);
 
-        // get geometries ...
-        let geometries = layout.arrange(clients.1.len(), self.screens.screen());
-        // ... and apply them if a window is to be displayed
-        if cfg!(feature = "parallel-resizing") {
-            let connection = self.con;
-            let cookies: Vec<_> = clients.1
-                .iter()
-                .zip(geometries.iter())
-                .filter_map(|(client, geometry)| {
-                    if let (Some(ref cl), &Some(ref geom)) =
-                        (client.upgrade(), geometry) {
-                        Some((cl.borrow().window, geom))
-                    } else {
-                        None
-                    }
-                })
-                .map(|(window, geometry)| {
-                    (xproto::configure_window(
-                        connection, window,
-                        &[(xproto::CONFIG_WINDOW_X as u16, geometry.x as u32),
-                          (xproto::CONFIG_WINDOW_Y as u16, geometry.y as u32),
-                          (xproto::CONFIG_WINDOW_WIDTH as u16,
-                           geometry.width as u32),
-                          (xproto::CONFIG_WINDOW_HEIGHT as u16,
-                           geometry.height as u32)
-                        ]), window)
-                })
-                .collect();
-
-            for (cookie, window) in cookies {
-                // we do this here to avoid ugly issues with lifetimes
-                self.visible_windows.push(window);
-                if cookie.request_check().is_err() {
-                    error!("could not set window geometry");
-                }
-            }
-        } else {
-            for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
-                if let (Some(ref cl), &Some(ref geom))
-                    = (client.upgrade(), geometry) {
-                    let window = cl.borrow().window;
-                    self.visible_windows.push(window);
-                    let cookie = xproto::configure_window(
-                        self.con, window,
-                        &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
-                          (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
-                          (xproto::CONFIG_WINDOW_WIDTH as u16,
-                           geom.width as u32),
-                          (xproto::CONFIG_WINDOW_HEIGHT as u16,
-                           geom.height as u32)
-                        ]);
-
-                    if cookie.request_check().is_err() {
-                        error!("could not set window geometry");
-                    }
-                }
+                // ... and display windows accordingly
+                arrange(self.con, &mut self.visible_windows, clients, geometries);
             }
         }
     }
 
     /// Hide some windows by moving them offscreen.
     fn hide_windows(&self, windows: &[xproto::Window]) {
-        let safe_x = self.screens.screen().width + 2;
         let cookies: Vec<_> = windows
             .iter()
             .map(|window| xproto::configure_window(
                  self.con, *window,
-                 &[(xproto::CONFIG_WINDOW_X as u16, safe_x),
+                 &[(xproto::CONFIG_WINDOW_X as u16, self.safe_x),
                    (xproto::CONFIG_WINDOW_Y as u16, 0)]
                 )
             )
@@ -543,11 +484,17 @@ impl<'a> Wm<'a> {
     /// This might need some update in case we need to change some offsets as well.
     /// However, this code isn't likely to be used often.
     fn handle_screen_change_notify(&mut self, ev: &randr::ScreenChangeNotifyEvent) {
-        if ev.root() == self.root && ev.rotation() as u32 &
+        if ev.root() != self.root {
+            return;
+        }
+
+        if ev.rotation() as u32 &
             (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
             info!("rotating all screen areas");
             self.screens.rotate();
         }
+
+        self.safe_x = ev.width() as u32 + 2;
     }
 
     /// A crtc has been changed, react accordingly.
@@ -564,8 +511,8 @@ impl<'a> Wm<'a> {
             }
 
             if let Some(ref matching) = self.screen_matching {
-                self.screens.run_matching(matching);
                 info!("running screen matching");
+                self.screens.run_matching(matching);
             }
         }
     }
@@ -601,16 +548,15 @@ impl<'a> Wm<'a> {
                     .map_or(false, |t| t.layout.edit_layout_retry(msg)) {
                     self.arrange_windows();
                 },
-            WmCommand::LayoutSwitch(layout) =>
+            WmCommand::LayoutSwitch(layout) => {
+                let matching = |t: &mut TagSet| { t.layout = layout; true };
                 if self.screens
                     .tag_stack_mut()
                     .current_mut()
-                    .map_or(false, |t| {
-                        t.layout = layout;
-                        true
-                    }) {
+                    .map_or(false, matching) {
                     self.arrange_windows();
-                },
+                }
+            },
             WmCommand::Quit => exit(0),
             WmCommand::NoCommand => (),
         };
@@ -684,8 +630,16 @@ impl<'a> Wm<'a> {
                         self.con, window).get_reply() {
                         let width = geom.width() as u32;
                         let height = geom.height() as u32;
-                        x = (screen.width - width) / 2;
-                        y = (screen.height - height) / 2;
+                        x = if screen.width > width {
+                            (screen.width - width) / 2
+                        } else {
+                            0
+                        };
+                        y = if screen.height > height {
+                            (screen.height - height) / 2
+                        } else {
+                            0
+                        };
                     } else {
                         error!("could not get window geometry, \
                                expect ugly results");
@@ -1007,5 +961,82 @@ impl<'a> Wm<'a> {
                            xproto::EVENT_MASK_NO_EVENT, &event)
             .request_check()
             .is_err()
+    }
+}
+
+/// Rearrange windows according to the geometries provided.
+///
+/// This is the parallel version running each request-reply in an interleaved fashion.
+#[cfg(feature = "parallel-resizing")]
+fn arrange(con: &base::Connection,
+           visible: &mut Vec<xproto::Window>,
+           clients: &OrderEntry,
+           geometries: Vec<Option<Geometry>>) {
+    let cookies: Vec<_> = clients.1
+        .iter()
+        .zip(geometries.iter())
+        .filter_map(|(client, geometry)| {
+            if let (Some(ref cl), &Some(ref geom)) =
+                (client.upgrade(), geometry) {
+                let window = cl.borrow().window;
+                if !visible.contains(&window) {
+                    Some((window, geom))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .map(|(window, geometry)| {
+            (xproto::configure_window(
+                con, window,
+                &[(xproto::CONFIG_WINDOW_X as u16, geometry.x as u32),
+                  (xproto::CONFIG_WINDOW_Y as u16, geometry.y as u32),
+                  (xproto::CONFIG_WINDOW_WIDTH as u16,
+                   geometry.width as u32),
+                  (xproto::CONFIG_WINDOW_HEIGHT as u16,
+                   geometry.height as u32)
+                ]), window)
+        })
+        .collect();
+
+    for (cookie, window) in cookies {
+        // we do this here to avoid ugly issues with lifetimes
+        visible.push(window);
+        if cookie.request_check().is_err() {
+            error!("could not set window geometry");
+        }
+    }
+}
+
+/// Rearrange windows according to the geometries provided.
+///
+/// This is the sequential version running each request-reply pair after the other.
+#[cfg(not(feature = "parallel-resizing"))]
+fn arrange(con: &base::Connection,
+           visible: &mut Vec<xproto::Window>,
+           clients: &OrderEntry,
+           geometries: Vec<Option<Geometry>>) {
+    for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
+        if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
+            let window = cl.borrow().window;
+            if !visible.contains(&window) {
+                visible.push(window);
+                let cookie = xproto::configure_window(
+                    con, window,
+                    &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
+                      (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
+                      (xproto::CONFIG_WINDOW_WIDTH as u16,
+                       geom.width as u32),
+                      (xproto::CONFIG_WINDOW_HEIGHT as u16,
+                       geom.height as u32)
+                    ]);
+
+                if cookie.request_check().is_err() {
+                    error!("could not set window geometry");
+                }
+            }
+        }
     }
 }

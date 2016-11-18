@@ -9,7 +9,7 @@ pub mod stack;
 ///
 /// Describes the area used for tiling windows. This allows to leave an open
 /// spot for desktop windows, bars and whatever else you might want.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct TilingArea {
     /// x offset of tiling area
     pub offset_x: u32,
@@ -47,7 +47,7 @@ impl TilingArea {
 }
 
 /// A window's geometry.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Geometry {
     /// x coordinate of window
     pub x: u32,
