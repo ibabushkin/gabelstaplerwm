@@ -848,5 +848,16 @@ impl ScreenSet {
 ///
 /// Takes two arguments to allow for usage in config macros.
 pub fn current_tagset(_: &ClientSet, s: &ScreenSet) -> String {
-    s.tag_stack().current().map_or("[]".to_string(), |t| format!("{}", t))
+    use std::fmt::Write;
+
+    s.screens()
+        .iter()
+        .fold(String::new(), |mut string, &(_, ref s)| {
+            if let Some(t) = s.tag_stack.current() {
+                let _ = string.write_fmt(format_args!("{}", t));
+            } else {
+                string.push_str("[]");
+            }
+            string
+        })
 }
