@@ -776,22 +776,13 @@ impl ScreenSet {
         }
     }
 
-    /// Select a screen by it's associated CRTC.
-    pub fn select_screen(&mut self, new_crtc: Crtc) -> bool {
-        if let Some(new) = self.screens.iter().position(|&(crtc, _)| crtc == new_crtc) {
-            self.current_screen = new;
-            true
-        } else {
-            false
-        }
-    }
-
     /// Select a screen by altering the current screen's index
     pub fn change_screen<T>(&mut self, f: T) -> bool
         where T: Fn(usize, usize) -> usize {
         let len = self.screens.len();
         let new = f(self.current_screen, len);
-        debug!("change_screen: cur={}, new={}, len={}", self.current_screen, new, len);
+        debug!("changed to screen: cur={}, new={}, len={}",
+               self.current_screen, new, len);
         if new < len {
             self.current_screen = new;
             true

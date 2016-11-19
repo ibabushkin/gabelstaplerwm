@@ -384,38 +384,42 @@ impl<'a> Wm<'a> {
     /// window as obtained from there. If an old window is present, uncolor
     /// it's border.
     fn reset_focus(&mut self) {
-        if let Some(new) = self
-            .screens
-            .tag_stack()
-            .current()
-            .and_then(|t| self.clients.get_focused_window(&t.tags)) {
-            if self.new_window_as_master() {
-               self.clients.swap_master(self.screens.tag_stack().current().unwrap());
-               self.arrange_windows();
-            }
-            if let Some(old_win) = self.focused_window {
-                self.set_border_color(old_win, self.border_colors.1);
-            }
+        let new =
+            self.screens
+                .tag_stack()
+                .current()
+                .and_then(|t| self.clients.get_focused_window(&t.tags))
+                .unwrap_or(self.root);
 
-            // TODO: decide whether we really need this
-            if self.send_event(new, "WM_TAKE_FOCUS") {
-                info!("client didn't acept WM_TAKE_FOCUS message");
-            }
-            if self.send_event(new, "_NET_WM_TAKE_FOCUS") {
-                info!("client didn't acept _NET_WM_TAKE_FOCUS message");
-            }
+        if self.new_window_as_master() {
+           self.clients.swap_master(self.screens.tag_stack().current().unwrap());
+           self.arrange_windows();
+        }
 
-            let cookie =
-                xproto::set_input_focus(self.con,
-                                        xproto::INPUT_FOCUS_POINTER_ROOT as u8,
-                                        new,
-                                        xproto::TIME_CURRENT_TIME);
-            self.set_border_color(new, self.border_colors.0);
-            if cookie.request_check().is_err() {
-                error!("could not focus window");
-            } else {
-                self.focused_window = Some(new);
-            }
+        if let Some(old_win) = self.focused_window {
+            self.set_border_color(old_win, self.border_colors.1);
+        }
+
+        // TODO: decide whether we really need this
+        if self.send_event(new, "WM_TAKE_FOCUS") {
+            info!("client didn't acept WM_TAKE_FOCUS message");
+        }
+        if self.send_event(new, "_NET_WM_TAKE_FOCUS") {
+            info!("client didn't acept _NET_WM_TAKE_FOCUS message");
+        }
+
+        let cookie =
+            xproto::set_input_focus(self.con,
+                                    xproto::INPUT_FOCUS_POINTER_ROOT as u8,
+                                    new,
+                                    xproto::TIME_CURRENT_TIME);
+
+        self.set_border_color(new, self.border_colors.0);
+
+        if cookie.request_check().is_err() {
+            error!("could not focus window");
+        } else {
+            self.focused_window = Some(new);
         }
     }
 
