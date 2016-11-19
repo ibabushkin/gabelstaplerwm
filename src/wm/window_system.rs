@@ -136,7 +136,6 @@ impl<'a> Wm<'a> {
                         root: root,
                         randr_base: 0,
                         border_width: config.border_width,
-                        // TODO: remove this ugly hack
                         safe_x: screen.width_in_pixels() as u32,
                         border_colors: colors,
                         screens: try!(Wm::setup_screens(con, root)),
@@ -503,8 +502,11 @@ impl<'a> Wm<'a> {
             let crtc_change: randr::CrtcChange = ev.u().cc();
 
             if crtc_change.mode() == 0 {
-                self.screens.remove(crtc_change.crtc());
                 info!("a crtc/screen removed from the screen set");
+                if self.screens.remove(crtc_change.crtc()) {
+                    self.arrange_windows();
+                    self.reset_focus();
+                }
             } else {
                 self.screens.update(&crtc_change);
                 info!("a crtc/screen from the screen set changed");

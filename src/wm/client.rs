@@ -731,6 +731,7 @@ impl ScreenSet {
         }
     }
 
+    /// Get an immutable reference to the set of screens.
     pub fn screens(&self) -> &[(Crtc, Screen)] {
         &self.screens
     }
@@ -799,17 +800,21 @@ impl ScreenSet {
         }
     }
 
-    /// Remove a CRTC from our list of screens.
-    pub fn remove(&mut self, old_crtc: Crtc) {
-        if let Some(&(crtc, _)) = self.screens.get(self.current_screen) {
+    /// Remove a CRTC from our list of screens and return whether a redraw is necessary.
+    pub fn remove(&mut self, old_crtc: Crtc) -> bool {
+        let ret = if let Some(&(crtc, _)) = self.screens.get(self.current_screen) {
             if crtc == old_crtc {
                 self.current_screen = 0;
+                true
+            } else {
+                false
             }
         } else {
             panic!("logic error in ScreenSet :O");
-        }
+        };
 
         self.screens.retain(|&(crtc, _)| crtc != old_crtc);
+        ret
     }
 
     /// Apply a screen matching to all screens (that is, CRTCs) that we know of.
