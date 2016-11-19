@@ -305,7 +305,7 @@ pub fn setup_wm(wm: &mut Wm) {
         }),
         bind!(65, modkey, Mode::Normal, |_, s|
             if s.change_screen(|cur, len| (cur + 1) % len) {
-                WmCommand::Redraw
+                WmCommand::Focus
             } else {
                 WmCommand::NoCommand
             }),
