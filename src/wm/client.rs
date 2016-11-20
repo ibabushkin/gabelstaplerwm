@@ -570,6 +570,8 @@ impl fmt::Display for TagSet {
 pub struct TagStack {
     /// all tagsets known to man
     tagsets: HashMap<u8, TagSet>,
+    /// the set of tags currently hidden (due to overlap with other tag stacks)
+    hidden: BTreeSet<Tag>,
     /// the last few tagsets shown
     history: Vec<u8>,
 }
@@ -590,6 +592,7 @@ impl TagStack {
         };
         TagStack {
             tagsets: tagsets,
+            hidden: BTreeSet::new(),
             history: history,
         }
     }
@@ -665,6 +668,24 @@ impl TagStack {
     pub fn view_prev(&mut self) -> bool {
         self.history.pop().is_some()
     }
+
+    /// Ensure a set of tags is set as hidden when present in the current tagset.
+    ///
+    /// If there is no current tagset, ensure the set of hidden tags to be empty.
+    pub fn set_hidden(&mut self, hide: &BTreeSet<Tag>) {
+        self.hidden = if let Some(t) = self.current() {
+            let tags = t.tags.intersection(hide).cloned().collect();
+            debug!("hidden tags set: {:?}", tags);
+            tags
+        } else {
+            BTreeSet::new()
+        };
+    }
+
+    /// Get an immutable reference to the set of currently hidden tags on this tag stack.
+    pub fn get_hidden(&self) -> &BTreeSet<Tag> {
+        &self.hidden
+    }
 }
 
 /// A rectangular screen area displaying a `TagStack`.
@@ -734,6 +755,11 @@ impl ScreenSet {
     /// Get an immutable reference to the set of screens.
     pub fn screens(&self) -> &[(Crtc, Screen)] {
         &self.screens
+    }
+
+    /// Get a mutable reference to the set of screens.
+    pub fn screens_mut(&mut self) -> &mut [(Crtc, Screen)] {
+        &mut self.screens
     }
 
     /// Get a mutable reference to current screen's geometry and tag stack.
@@ -858,6 +884,11 @@ pub fn current_tagset(_: &ClientSet, s: &ScreenSet) -> String {
             } else {
                 string.push_str("[]");
             }
+
+            if !s.tag_stack.hidden.is_empty() {
+                string.push('*');
+            }
+
             string
         })
 }
