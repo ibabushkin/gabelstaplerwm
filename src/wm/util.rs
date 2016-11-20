@@ -68,6 +68,16 @@ macro_rules! push_tagset {
         |c, s| {
             if !s.tag_stack().current_index().map_or(false, |i| *i == $index) {
                 s.tag_stack_mut().push($index);
+
+                let mut visible = BTreeSet::new();
+                for &mut (_, ref mut screen) in s.screens_mut() {
+                    screen.tag_stack.set_hidden(&visible);
+                    if let Some(tagset) = screen.tag_stack.current() {
+                        let mut tags = tagset.tags.difference(&visible).cloned().collect();
+                        visible.append(&mut tags);
+                    }
+                }
+
                 println!("{}", $print(c, s));
                 WmCommand::Redraw
             } else {
@@ -79,6 +89,16 @@ macro_rules! push_tagset {
         |_, s| {
             if !s.tag_stack().current_index().map_or(false, |i| *i == $index) {
                 s.tag_stack_mut().push($index);
+
+                let mut visible = BTreeSet::new();
+                for &mut (_, ref mut screen) in s.screens_mut() {
+                    screen.tag_stack.set_hidden(&visible);
+                    if let Some(tagset) = screen.tag_stack.current() {
+                        let mut tags = tagset.tags.difference(&visible).cloned().collect();
+                        visible.append(&mut tags);
+                    }
+                }
+
                 $( println!("{}", $print); )*
                 WmCommand::Redraw
             } else {

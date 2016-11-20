@@ -333,10 +333,16 @@ impl<'a> Wm<'a> {
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
 
-        for &(_, ref screen) in self.screens.screens() {
+        for &mut (_, ref mut screen) in self.screens.screens_mut() {
             if let Some(tagset) = screen.tag_stack.current() {
-                // get client set and geometries...
-                let clients = self.clients.get_order_or_insert(&tagset.tags);
+                // calculate next tag set ...
+                let hidden = screen.tag_stack.get_hidden();
+                let tags = tagset.tags.difference(hidden).cloned().collect();
+                debug!("next batch of tags: {:?} \\ {:?} = {:?}",
+                       tagset.tags, hidden, tags);
+
+                // ... get the corresponding client set and geometries ...
+                let clients = self.clients.get_order_or_insert(&tags);
                 let geometries = tagset.layout.arrange(clients.1.len(), &screen.area);
                 debug!("calculated geometries: {:?}", geometries);
 
@@ -981,9 +987,8 @@ fn arrange(con: &base::Connection,
     let cookies: Vec<_> = clients.1
         .iter()
         .zip(geometries.iter())
-        .filter_map(|(client, geometry)| {
-            if let (Some(ref cl), &Some(ref geom)) =
-                (client.upgrade(), geometry) {
+        .filter_map(|(client, geometry)|
+            if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
                 let window = cl.borrow().window;
                 if !visible.contains(&window) {
                     Some((window, geom))
@@ -993,8 +998,8 @@ fn arrange(con: &base::Connection,
             } else {
                 None
             }
-        })
-        .map(|(window, geometry)| {
+        )
+        .map(|(window, geometry)|
             (xproto::configure_window(
                 con, window,
                 &[(xproto::CONFIG_WINDOW_X as u16, geometry.x as u32),
@@ -1004,7 +1009,7 @@ fn arrange(con: &base::Connection,
                   (xproto::CONFIG_WINDOW_HEIGHT as u16,
                    geometry.height as u32)
                 ]), window)
-        })
+        )
         .collect();
 
     for (cookie, window) in cookies {
