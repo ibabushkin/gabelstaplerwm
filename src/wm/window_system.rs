@@ -989,12 +989,7 @@ fn arrange(con: &base::Connection,
         .zip(geometries.iter())
         .filter_map(|(client, geometry)|
             if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
-                let window = cl.borrow().window;
-                if !visible.contains(&window) {
-                    Some((window, geom))
-                } else {
-                    None
-                }
+                Some((cl.borrow().window, geom))
             } else {
                 None
             }
@@ -1032,21 +1027,19 @@ fn arrange(con: &base::Connection,
     for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
         if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
             let window = cl.borrow().window;
-            if !visible.contains(&window) {
-                visible.push(window);
-                let cookie = xproto::configure_window(
-                    con, window,
-                    &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
-                      (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
-                      (xproto::CONFIG_WINDOW_WIDTH as u16,
-                       geom.width as u32),
-                      (xproto::CONFIG_WINDOW_HEIGHT as u16,
-                       geom.height as u32)
-                    ]);
+            visible.push(window);
+            let cookie = xproto::configure_window(
+                con, window,
+                &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
+                  (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
+                  (xproto::CONFIG_WINDOW_WIDTH as u16,
+                   geom.width as u32),
+                  (xproto::CONFIG_WINDOW_HEIGHT as u16,
+                   geom.height as u32)
+                ]);
 
-                if cookie.request_check().is_err() {
-                    error!("could not set window geometry");
-                }
+            if cookie.request_check().is_err() {
+                error!("could not set window geometry");
             }
         }
     }
