@@ -235,7 +235,7 @@ impl<'a> Wm<'a> {
         }
     }
 
-    /// Initialize the RandR extension for multimonitor support
+    /// Initialize the RandR extension for multimonitor support.
     pub fn init_randr(&self) -> Result<(), WmError> {
         let values = randr::NOTIFY_MASK_CRTC_CHANGE
             | randr::NOTIFY_MASK_SCREEN_CHANGE;
@@ -246,40 +246,49 @@ impl<'a> Wm<'a> {
         if res.is_ok() { Ok(()) } else { Err(WmError::RandRSetupFailed) }
     }
 
-    /// Set up keybindings and necessary keygrabs.
-    pub fn setup_bindings(&mut self, mut keys: Vec<(KeyPress, KeyCallback)>) {
+    /// Grab the keys for the current mode.
+    fn grab_keys(&self) {
         // don't grab anything for now
-        xproto::ungrab_key(
-            self.con, xproto::GRAB_ANY as u8,
-            self.root, xproto::MOD_MASK_ANY as u16
-        );
+        if xproto::ungrab_key(self.con,
+                              xproto::GRAB_ANY as u8,
+                              self.root,
+                              xproto::MOD_MASK_ANY as u16)
+            .request_check().is_err() {
+            error!("could not ungrab keys");
+        }
 
-        // compile keyboard bindings
-        self.bindings = HashMap::with_capacity(keys.len());
-        let cookies: Vec<_> = keys
-            .drain(..)
-            .filter_map(|(key, callback)|
-                if self.bindings.insert(key, callback).is_some() {
-                    error!("overwriting bindings for a key!");
-                    None
-                } else {
-                    // register for the corresponding event
+        let cookies: Vec<_> =
+            self.bindings
+                .keys()
+                .filter_map(|key| if key.mode == self.mode {
                     Some(xproto::grab_key(
                         self.con, true, self.root,
                         key.mods as u16, key.code,
                         xproto::GRAB_MODE_ASYNC as u8,
-                        xproto::GRAB_MODE_ASYNC as u8
-                    ))
-                }
-            )
-            .collect();
+                        xproto::GRAB_MODE_ASYNC as u8))
+                } else {
+                    None
+                })
+                .collect();
 
         // check for errors
         for cookie in cookies {
             if cookie.request_check().is_err() {
-                error!("could not grab key!");
+                error!("could not grab key");
             }
         }
+    }
+
+    /// Set up keybindings and necessary keygrabs.
+    pub fn setup_bindings(&mut self, mut keys: Vec<(KeyPress, KeyCallback)>) {
+        // compile keyboard bindings
+        self.bindings = HashMap::with_capacity(keys.len());
+        for (key, callback) in keys.drain(..) {
+            if self.bindings.insert(key, callback).is_some() {
+                error!("overwriting bindings for a key");
+            }
+        }
+        self.grab_keys();
     }
 
     /// Set up client matching.
@@ -552,7 +561,10 @@ impl<'a> Wm<'a> {
             },
             WmCommand::Focus => self.reset_focus(),
             WmCommand::Kill(win) => self.destroy_window(win),
-            WmCommand::ModeSwitch(mode) => self.mode = mode,
+            WmCommand::ModeSwitch(mode) => {
+                self.mode = mode;
+                self.grab_keys();
+            },
             WmCommand::LayoutMsg(msg) =>
                 if self.screens
                     .tag_stack_mut()
