@@ -282,8 +282,7 @@ impl ClientSet {
     ///
     /// Maps the function and updates references as needed, returning a
     /// window manager command as returned by the passed closure.
-    pub fn update_client<F>(&mut self, window: Window, func: F)
-        -> Option<WmCommand>
+    pub fn update_client<F>(&mut self, window: Window, func: F) -> Option<WmCommand>
         where F: Fn(RefMut<Client>) -> WmCommand {
         let res = self
             .clients
@@ -298,8 +297,7 @@ impl ClientSet {
     }
 
     /// Get the currently focused window on a set of tags.
-    pub fn get_focused_window(&self, tags: &BTreeSet<Tag>)
-        -> Option<Window> {
+    pub fn get_focused_window(&self, tags: &BTreeSet<Tag>) -> Option<Window> {
         self.order
             .get(tags)
             .and_then(|t| t.0.clone())
@@ -384,8 +382,7 @@ impl ClientSet {
 
     /// Focus a window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
-    fn focus_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F)
-        -> bool
+    fn focus_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F) -> bool
         where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
             self.get_order_or_insert(tags);
@@ -413,8 +410,8 @@ impl ClientSet {
 
     /// Swap with window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
-    fn swap_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F)
-        -> bool where F: Fn(usize, usize) -> Option<usize> {
+    fn swap_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F) -> bool
+        where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(tags);
         if let Some(current_window) = current
@@ -540,7 +537,6 @@ impl TagSet {
     }
 
     /// Set a layout on the tagset.
-    #[allow(dead_code)]
     pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
         self.layout = Box::new(layout);
     }
@@ -637,7 +633,6 @@ impl TagStack {
     }
 
     /// Add a new tagset to the set.
-    #[allow(dead_code)]
     pub fn add(&mut self, index: u8, value: TagSet) -> bool {
         match self.tagsets.entry(index) {
             Entry::Occupied(_) => true,
@@ -649,7 +644,6 @@ impl TagStack {
     }
 
     /// Remove a tagset from the set.
-    #[allow(dead_code)]
     pub fn remove(&mut self, index: u8) -> bool {
         if self.tagsets.remove(&index).is_some() {
             self.history = self
