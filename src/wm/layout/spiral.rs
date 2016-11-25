@@ -14,8 +14,7 @@ impl Default for Spiral {
 }
 
 impl Layout for Spiral {
-    fn arrange(&self, num_windows: usize, screen: &TilingArea)
-        -> Vec<Option<Geometry>> {
+    fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>> {
         let mut east = true;
         let mut north = true;
         let mut cur_width = screen.width;
@@ -25,7 +24,9 @@ impl Layout for Spiral {
 
         let min = if num_windows != 0 {
             cmp::min(num_windows, self.max_windows as usize) - 1
-        } else { 0 };
+        } else {
+            0
+        };
 
         (0..num_windows)
             .map(|i| {

@@ -23,8 +23,7 @@ impl Default for Monocle {
 }
 
 impl Layout for Monocle {
-    fn arrange(&self, num_windows: usize, screen: &TilingArea)
-        -> Vec<Option<Geometry>> {
+    fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // master window is shown
         res.push(Some(Geometry {
@@ -64,12 +63,16 @@ impl Layout for Monocle {
             LayoutMessage::XOffRel(x) =>
                 self.offset_x = if x < 0 {
                     self.offset_x.saturating_sub(x.abs() as u32)
-                } else { self.offset_x.saturating_add(x.abs() as u32) },
+                } else {
+                    self.offset_x.saturating_add(x.abs() as u32)
+                },
             LayoutMessage::YOffAbs(y) => self.offset_y = y,
             LayoutMessage::YOffRel(y) =>
                 self.offset_y = if y < 0 {
                     self.offset_y.saturating_sub(y.abs() as u32)
-                } else { self.offset_y.saturating_add(y.abs() as u32) },
+                } else {
+                    self.offset_y.saturating_add(y.abs() as u32)
+                },
             _ => return false,
         };
         true

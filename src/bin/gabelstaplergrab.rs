@@ -39,8 +39,8 @@ fn main() {
         },
     };
     if xproto::change_window_attributes(
-        &con, root, &[(xproto::CW_EVENT_MASK, xproto::EVENT_MASK_KEY_PRESS)])
-        .request_check().is_err() {
+            &con, root, &[(xproto::CW_EVENT_MASK, xproto::EVENT_MASK_KEY_PRESS)])
+            .request_check().is_err() {
         error!("other window manager running");
         exit(3);
     }
@@ -64,8 +64,6 @@ fn main() {
 fn print_event(event: GenericEvent) {
     if event.response_type() == xkb::STATE_NOTIFY {
         let ev: &xkb::StateNotifyEvent = cast_event(&event);
-        println!("key pressed: code: {}, mods: {}",
-                 ev.xkb_type(),
-                 ev.keycode());
+        println!("key pressed: code: {}, mods: {}", ev.xkb_type(), ev.keycode());
     }
 }

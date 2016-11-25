@@ -415,6 +415,7 @@ pub fn setup_wm(wm: &mut Wm) {
             screen.area.height -= 20;
         }
 
+        // TODO: add a reasonable condition
         let tagsets = vec![
             TagSet::new(set![Tag::Web, Tag::Marks], VStack {
                 master_factor: 75,

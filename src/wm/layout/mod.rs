@@ -67,8 +67,7 @@ pub trait Layout : Debug {
     ///
     /// If a `None` is returned at a particular position, that window is not
     /// to be made visible.
-    fn arrange(&self, num_windows: usize, screen: &TilingArea)
-        -> Vec<Option<Geometry>>;
+    fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>>;
     /// Get the window to the right of the nth window.
     fn right_window(&self, index: usize, max: usize) -> Option<usize>;
     /// Get the window to the left of the nth window.
@@ -93,7 +92,6 @@ pub trait Layout : Debug {
 /// Introduced to allow for type- and implementation-independent layout editing
 /// from keybindings and other code. Layout implementations can choose to react
 /// to any subset of the message variants below, or none at all.
-#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum LayoutMessage {
     /// Set absolute value of the master factor.
