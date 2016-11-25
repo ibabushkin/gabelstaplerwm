@@ -32,10 +32,11 @@ impl Layout for Grid {
         if num_windows > 0 {
             let max_col = if self.max_col > 0 {
                 self.max_col
-            } else { self.max_col + 1 } as usize;
+            } else {
+                self.max_col + 1
+            } as usize;
             let width = screen.width / max_col as u32;
-            let height =
-                screen.height / (1 + ((num_windows - 1) / max_col)) as u32;
+            let height = screen.height / (1 + ((num_windows - 1) / max_col)) as u32;
             (0..num_windows)
                 .map(|i| {
                     let x = (width + 2) * (i % max_col) as u32;
@@ -72,7 +73,9 @@ impl Layout for Grid {
     fn top_window(&self, index: usize, _: usize) -> Option<usize> {
         let max_col = if self.max_col > 0 {
             self.max_col
-        } else { self.max_col + 1 } as usize;
+        } else {
+            self.max_col + 1
+        } as usize;
         if index >= max_col {
             Some(index - max_col)
         } else {
@@ -83,7 +86,9 @@ impl Layout for Grid {
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize> {
         let max_col = if self.max_col > 0 {
             self.max_col
-        } else { self.max_col + 1 } as usize;
+        } else {
+            self.max_col + 1
+        } as usize;
         if index < max - max_col {
             Some(index + max_col)
         } else {

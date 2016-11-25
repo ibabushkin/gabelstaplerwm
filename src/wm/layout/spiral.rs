@@ -24,7 +24,9 @@ impl Layout for Spiral {
 
         let min = if num_windows != 0 {
             cmp::min(num_windows, self.max_windows as usize) - 1
-        } else { 0 };
+        } else {
+            0
+        };
 
         (0..num_windows)
             .map(|i| {

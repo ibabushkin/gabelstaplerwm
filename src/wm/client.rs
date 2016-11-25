@@ -171,12 +171,12 @@ impl ClientSet {
     /// If not present, create it.
     pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>)
             -> &mut OrderEntry {
-        let clients: Vec<WeakClientRef> = self
-            .clients
-            .values()
-            .filter(|cl| cl.borrow().match_tags(tags))
-            .map(|r| Rc::downgrade(r))
-            .collect();
+        let clients: Vec<WeakClientRef> =
+            self.clients
+                .values()
+                .filter(|cl| cl.borrow().match_tags(tags))
+                .map(|r| Rc::downgrade(r))
+                .collect();
         let focused = clients.first().cloned();
         self.order.entry(tags.clone()).or_insert((focused, clients))
     }
@@ -283,7 +283,7 @@ impl ClientSet {
     /// Maps the function and updates references as needed, returning a
     /// window manager command as returned by the passed closure.
     pub fn update_client<F>(&mut self, window: Window, func: F) -> Option<WmCommand>
-        where F: Fn(RefMut<Client>) -> WmCommand {
+            where F: Fn(RefMut<Client>) -> WmCommand {
         let res = self
             .clients
             .get_mut(&window)
@@ -308,8 +308,7 @@ impl ClientSet {
     /// Focus a window on a set of tags relative to the current
     /// by index difference, returning whether changes have been made.
     fn focus_offset(&mut self, tags: &BTreeSet<Tag>, offset: isize) -> bool {
-        let &mut (ref mut current, ref clients) =
-            self.get_order_or_insert(tags);
+        let &mut (ref mut current, ref clients) = self.get_order_or_insert(tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -334,12 +333,11 @@ impl ClientSet {
     /// Swap with current window on a set of tags relative to the current
     /// by index difference, returning whether changes have been made.
     fn swap_offset(&mut self, tags: &BTreeSet<Tag>, offset: isize) -> bool {
-        let &mut (ref current, ref mut clients) =
-            self.get_order_or_insert(tags);
+        let &mut (ref current, ref mut clients) = self.get_order_or_insert(tags);
         if let Some(current_window) = current
-            .clone()
-            .and_then(|c| c.upgrade())
-            .map(|r| r.borrow().window) {
+                .clone()
+                .and_then(|c| c.upgrade())
+                .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
                 .position(|client| client
@@ -347,8 +345,7 @@ impl ClientSet {
                     .map_or(false, |r| r.borrow().window == current_window)
                 )
                 .unwrap();
-            let new_index =
-                (current_index as isize + offset) as usize % clients.len();
+            let new_index = (current_index as isize + offset) as usize % clients.len();
             if new_index != current_index {
                 clients.swap(current_index, new_index);
                 true
@@ -383,13 +380,13 @@ impl ClientSet {
     /// Focus a window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
     fn focus_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F) -> bool
-        where F: Fn(usize, usize) -> Option<usize> {
+            where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref mut current, ref mut clients) =
             self.get_order_or_insert(tags);
         if let Some(current_window) = current
-            .clone()
-            .and_then(|c| c.upgrade())
-            .map(|r| r.borrow().window) {
+                .clone()
+                .and_then(|c| c.upgrade())
+                .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
                 .position(|client| client
@@ -397,8 +394,7 @@ impl ClientSet {
                     .map_or(false, |r| r.borrow().window == current_window)
                 )
                 .unwrap();
-            if let Some(new_index) =
-                focus_func(current_index, clients.len() - 1) {
+            if let Some(new_index) = focus_func(current_index, clients.len() - 1) {
                 if let Some(new_client) = clients.get(new_index) {
                     *current = Some(new_client.clone());
                     return true;
@@ -411,7 +407,7 @@ impl ClientSet {
     /// Swap with window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
     fn swap_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F) -> bool
-        where F: Fn(usize, usize) -> Option<usize> {
+            where F: Fn(usize, usize) -> Option<usize> {
         let &mut (ref current, ref mut clients) =
             self.get_order_or_insert(tags);
         if let Some(current_window) = current
@@ -425,8 +421,7 @@ impl ClientSet {
                     .map_or(false, |r| r.borrow().window == current_window)
                 )
                 .unwrap();
-            if let Some(new_index) =
-                focus_func(current_index, clients.len() - 1) {
+            if let Some(new_index) = focus_func(current_index, clients.len() - 1) {
                 if new_index != current_index && new_index < clients.len() {
                     clients.swap(current_index, new_index);
                     return true;
@@ -439,55 +434,47 @@ impl ClientSet {
     /// Focus the window to the right, returning whether changes have been
     /// made.
     pub fn focus_right(&mut self, tagset: &TagSet) -> bool {
-        self.focus_direction(&tagset.tags,
-                             |i, m| tagset.layout.right_window(i, m))
+        self.focus_direction(&tagset.tags, |i, m| tagset.layout.right_window(i, m))
     }
 
     /// Swap with the window to the right, returning whether changes have been
     /// made.
     pub fn swap_right(&mut self, tagset: &TagSet) -> bool {
-        self.swap_direction(&tagset.tags,
-                            |i, m| tagset.layout.right_window(i, m))
+        self.swap_direction(&tagset.tags, |i, m| tagset.layout.right_window(i, m))
     }
 
     /// Focus the window to the left, returning whether changes have been made.
     pub fn focus_left(&mut self, tagset: &TagSet) -> bool {
-        self.focus_direction(&tagset.tags,
-                             |i, m| tagset.layout.left_window(i, m))
+        self.focus_direction(&tagset.tags, |i, m| tagset.layout.left_window(i, m))
     }
 
     /// Swap with the window to the left, returning whether changes have been
     /// made.
     pub fn swap_left(&mut self, tagset: &TagSet) -> bool {
-        self.swap_direction(&tagset.tags,
-                            |i, m| tagset.layout.left_window(i, m))
+        self.swap_direction(&tagset.tags, |i, m| tagset.layout.left_window(i, m))
     }
 
     /// Focus the window to the top, returning whether changes have been made.
     pub fn focus_top(&mut self, tagset: &TagSet) -> bool {
-        self.focus_direction(&tagset.tags,
-                             |i, m| tagset.layout.top_window(i, m))
+        self.focus_direction(&tagset.tags, |i, m| tagset.layout.top_window(i, m))
     }
 
     /// Swap with the window to the left, returning whether changes have been
     /// made.
     pub fn swap_top(&mut self, tagset: &TagSet) -> bool {
-        self.swap_direction(&tagset.tags,
-                            |i, m| tagset.layout.top_window(i, m))
+        self.swap_direction(&tagset.tags, |i, m| tagset.layout.top_window(i, m))
     }
 
     /// Focus the window to the bottom, returning whether changes have been
     /// made.
     pub fn focus_bottom(&mut self, tagset: &TagSet) -> bool {
-        self.focus_direction(&tagset.tags,
-                             |i, m| tagset.layout.bottom_window(i, m))
+        self.focus_direction(&tagset.tags, |i, m| tagset.layout.bottom_window(i, m))
     }
 
     /// Swap with the window to the left, returning whether changes have been
     /// made.
     pub fn swap_bottom(&mut self, tagset: &TagSet) -> bool {
-        self.swap_direction(&tagset.tags,
-                            |i, m| tagset.layout.bottom_window(i, m))
+        self.swap_direction(&tagset.tags, |i, m| tagset.layout.bottom_window(i, m))
     }
 
     /// Swap with the master window, returning whether changes have been made.
@@ -586,6 +573,7 @@ impl TagStack {
         } else {
             Vec::new()
         };
+
         TagStack {
             tagsets: tagsets,
             hidden: BTreeSet::new(),
@@ -613,8 +601,7 @@ impl TagStack {
     ///
     /// Returns `None` if the history stack is empty
     pub fn current_mut(&mut self) -> Option<&mut TagSet> {
-        let index = self.history.last();
-        if let Some(i) = index {
+        if let Some(i) = self.history.last() {
             self.tagsets.get_mut(i)
         } else {
             None

@@ -121,8 +121,7 @@ impl<'a> Wm<'a> {
     /// Wrap a connection to initialize a window manager.
     pub fn new(con: &'a base::Connection, screen_num: i32, config: WmConfig)
             -> Result<Wm<'a>, WmError> {
-        if let Some(screen) =
-            con.get_setup().roots().nth(screen_num as usize) {
+        if let Some(screen) = con.get_setup().roots().nth(screen_num as usize) {
             let root = screen.root();
             let colormap = screen.default_colormap();
             let colors = try!(init_colors(con, colormap, config.f_color, config.u_color));
@@ -159,7 +158,11 @@ impl<'a> Wm<'a> {
         let res = randr::select_input(self.con, self.root, values as u16)
             .request_check();
 
-        if res.is_ok() { Ok(()) } else { Err(WmError::RandRSetupFailed) }
+        if res.is_ok() {
+            Ok(())
+        } else {
+            Err(WmError::RandRSetupFailed)
+        }
     }
 
     /// Add all present clients to the datastructures on startup.
@@ -211,6 +214,8 @@ impl<'a> Wm<'a> {
                 error!("overwriting bindings for a key");
             }
         }
+
+        // minimize size of the bindings hashmap
         self.bindings.shrink_to_fit();
 
         // grab keys for the current mode
@@ -224,7 +229,7 @@ impl<'a> Wm<'a> {
                               xproto::GRAB_ANY as u8,
                               self.root,
                               xproto::MOD_MASK_ANY as u16)
-            .request_check().is_err() {
+                .request_check().is_err() {
             error!("could not ungrab keys");
         }
 
@@ -385,8 +390,10 @@ impl<'a> Wm<'a> {
 
     /// Color the borders of a window.
     fn set_border_color(&self, window: xproto::Window, color: u32) {
-        let cookie = xproto::change_window_attributes(
-            self.con, window, &[(xproto::CW_BORDER_PIXEL, color)]);
+        let cookie =
+            xproto::change_window_attributes(self.con, window,
+                                             &[(xproto::CW_BORDER_PIXEL, color)]);
+
         if cookie.request_check().is_err() {
             error!("could not set window border color");
         }
@@ -452,7 +459,7 @@ impl<'a> Wm<'a> {
         }
 
         if ev.rotation() as u32 &
-            (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
+                (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
             info!("rotating all screen areas");
             self.screens.rotate();
         }
@@ -539,22 +546,22 @@ impl<'a> Wm<'a> {
         let window = ev.window();
         if self.clients.remove(window) {
             if let Some(index) = self
-                .visible_windows
-                .iter()
-                .position(|win| *win == window) {
+                    .visible_windows
+                    .iter()
+                    .position(|win| *win == window) {
                 self.visible_windows.swap_remove(index);
                 self.arrange_windows();
             }
         } else if let Some(index) = self
-            .unmanaged_windows
-            .iter()
-            .position(|win| *win == window) {
+                .unmanaged_windows
+                .iter()
+                .position(|win| *win == window) {
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
         }
         // we reset the focus no matter what - since destroyed windows
-        // were often focused without our knowledge or otherwise lead to
-        // unexpected behaviour when destroyed.
+        // were often focused without our knowledge or could lead to other
+        // unexpected behaviours.
         self.reset_focus();
     }
 
@@ -565,13 +572,13 @@ impl<'a> Wm<'a> {
     fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() &&
-            self.get_properties(window).window_type !=
-            self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
+                self.get_properties(window).window_type !=
+                self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
             let value_mask = ev.value_mask();
             let screen = self.screens.screen();
             let cookie =
                 if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&
-                    value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 {
+                        value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 {
                     let width = ev.width() as u32;
                     let height = ev.height() as u32;
 
@@ -595,8 +602,8 @@ impl<'a> Wm<'a> {
                     let mut x: u32 = 0;
                     let mut y: u32 = 0;
 
-                    if let Ok(geom) = xproto::get_geometry(
-                        self.con, window).get_reply() {
+                    if let Ok(geom) =
+                            xproto::get_geometry(self.con, window).get_reply() {
                         let width = geom.width() as u32;
                         let height = geom.height() as u32;
                         x = if screen.width > width {
@@ -610,8 +617,7 @@ impl<'a> Wm<'a> {
                             0
                         };
                     } else {
-                        error!("could not get window geometry, \
-                               expect ugly results");
+                        error!("could not get window geometry, expect ugly results");
                     }
 
                     let cookie = xproto::configure_window(
@@ -620,8 +626,7 @@ impl<'a> Wm<'a> {
                           (xproto::CONFIG_WINDOW_Y as u16, y),
                         ]);
 
-                    info!("changing window geometry upon request: x={} y={}",
-                          x, y);
+                    info!("changing window geometry upon request: x={} y={}", x, y);
 
                     cookie
                 };
@@ -714,19 +719,21 @@ impl<'a> Wm<'a> {
         info!("props of new window: {:?}", props);
 
         if props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) &&
-            props.name != "" && props.window_type ==
-            self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
+                props.name != "" &&
+                props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
             // compute tags of the new client
             let (tags, as_slave) = if let Some(res) = self.matching
-                .as_ref()
-                .and_then(|f| f(&props, &self.screens)) {
+                    .as_ref()
+                    .and_then(|f| f(&props, &self.screens)) {
                 res
             } else if let Some(tagset) = self.screens.tag_stack().current() {
                 (tagset.tags.clone(), false)
             } else {
                 (set![Tag::default()], false)
             };
+
             info!("client added on tags: {:?}", tags);
+
             Ok((Client::new(window, tags, props), as_slave))
         } else {
             Err(props)
@@ -771,44 +778,43 @@ impl<'a> Wm<'a> {
 
         cookies
             .iter()
-            .map(|cookie|
-                if let Ok(reply) = cookie.get_reply() {
-                    match reply.type_() {
-                        xproto::ATOM_ATOM => {
-                            let atoms: &[xproto::Atom] = reply.value();
-                            if atoms.len() == 0 {
-                                ClientProp::NoProp
-                            } else {
-                                ClientProp::PropAtom(atoms[0])
-                            }
-                        },
-                        xproto::ATOM_STRING => {
-                            let raw: &[c_char] = reply.value();
-                            let mut res = Vec::new();
-                            debug!("raw property data: {:?}, length: {}",
-                                   raw, reply.value_len());
-                            for c in raw.split(|ch| *ch == 0) {
-                                if c.len() > 0 {
-                                    unsafe {
-                                        if let Ok(cl) =
-                                            str::from_utf8(CStr::from_ptr(
-                                                    c.as_ptr()).to_bytes()) {
-                                            res.push(cl.to_owned());
-                                        } else {
-                                            error!("decoding utf-8 from \
-                                                   property failed");
-                                        }
+            .map(|cookie| if let Ok(reply) = cookie.get_reply() {
+                match reply.type_() {
+                    xproto::ATOM_ATOM => {
+                        let atoms: &[xproto::Atom] = reply.value();
+                        if atoms.len() == 0 {
+                            ClientProp::NoProp
+                        } else {
+                            ClientProp::PropAtom(atoms[0])
+                        }
+                    },
+                    xproto::ATOM_STRING => {
+                        let raw: &[c_char] = reply.value();
+                        let mut res = Vec::new();
+                        debug!("raw property data: {:?}, length: {}",
+                               raw, reply.value_len());
+                        for c in raw.split(|ch| *ch == 0) {
+                            if c.len() > 0 {
+                                unsafe {
+                                    if let Ok(cl) =
+                                        str::from_utf8(CStr::from_ptr(
+                                                c.as_ptr()).to_bytes()) {
+                                        res.push(cl.to_owned());
+                                    } else {
+                                        error!("decoding utf-8 from \
+                                               property failed");
                                     }
                                 }
                             }
-                            ClientProp::PropString(res)
-                        },
-                        _ => ClientProp::NoProp,
-                    }
-                } else {
-                    error!("could not look up property");
-                    ClientProp::NoProp
-                })
+                        }
+                        ClientProp::PropString(res)
+                    },
+                    _ => ClientProp::NoProp,
+                }
+            } else {
+                error!("could not look up property");
+                ClientProp::NoProp
+            })
             .collect()
     }
 
@@ -917,10 +923,8 @@ fn init_colors(con: &base::Connection, colormap: xproto::Colormap,
                f_color: (u16, u16, u16), u_color: (u16, u16, u16))
         -> Result<(u32, u32), WmError> {
     // request color pixels
-    let f_cookie = xproto::alloc_color(
-        con, colormap, f_color.0, f_color.1, f_color.2);
-    let u_cookie = xproto::alloc_color(
-        con, colormap, u_color.0, u_color.1, u_color.2);
+    let f_cookie = xproto::alloc_color(con, colormap, f_color.0, f_color.1, f_color.2);
+    let u_cookie = xproto::alloc_color(con, colormap, u_color.0, u_color.1, u_color.2);
 
     // get the replies
     match (f_cookie.get_reply(), u_cookie.get_reply()) {
