@@ -83,7 +83,7 @@ impl Client {
     /// Setup a new client for a specific window, on a set of tags
     /// and with given properties.
     pub fn new(window: Window, tags: BTreeSet<Tag>, props: ClientProps)
-        -> Client {
+            -> Client {
         Client {
             window: window,
             props: props,
@@ -162,7 +162,7 @@ pub struct ClientSet {
 impl ClientSet {
     /// Get a client that corresponds to a given window.
     pub fn get_client_by_window(&self, window: Window)
-        -> Option<&ClientRef> {
+            -> Option<&ClientRef> {
         self.clients.get(&window)
     }
 
@@ -170,7 +170,7 @@ impl ClientSet {
     ///
     /// If not present, create it.
     pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>)
-        -> &mut OrderEntry {
+            -> &mut OrderEntry {
         let clients: Vec<WeakClientRef> = self
             .clients
             .values()

@@ -31,8 +31,7 @@ impl Default for DStack {
 }
 
 impl Layout for DStack {
-    fn arrange(&self, num_windows: usize, screen: &TilingArea)
-        -> Vec<Option<Geometry>> {
+    fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // set master window width, capping factor
         let master_width = if self.master_factor >= 100 {

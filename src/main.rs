@@ -105,7 +105,7 @@ fn main() {
     setup_wm(&mut wm);
 
     // find all clients present
-    wm.setup_clients();
+    wm.init_clients();
 
     // main loop
     if let Err(e) = wm.run() {

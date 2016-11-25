@@ -120,92 +120,59 @@ pub struct Wm<'a> {
 impl<'a> Wm<'a> {
     /// Wrap a connection to initialize a window manager.
     pub fn new(con: &'a base::Connection, screen_num: i32, config: WmConfig)
-        -> Result<Wm<'a>, WmError> {
+            -> Result<Wm<'a>, WmError> {
         if let Some(screen) =
             con.get_setup().roots().nth(screen_num as usize) {
             let root = screen.root();
             let colormap = screen.default_colormap();
-            let colors =
-                try!(Wm::setup_colors(con, colormap, config.f_color, config.u_color));
+            let colors = try!(init_colors(con, colormap, config.f_color, config.u_color));
+            let atoms = try!(get_atoms(con, &ATOM_VEC));
 
-            match Wm::get_atoms(con, &ATOM_VEC) {
-                Ok(atoms) => {
-                    Ok(Wm {
-                        con: con,
-                        atoms: atoms,
-                        root: root,
-                        randr_base: 0,
-                        border_width: config.border_width,
-                        safe_x: screen.width_in_pixels() as u32,
-                        border_colors: colors,
-                        screens: try!(Wm::setup_screens(con, root)),
-                        clients: ClientSet::default(),
-                        visible_windows: Vec::new(),
-                        unmanaged_windows: Vec::new(),
-                        focused_window: None,
-                        mode: Mode::default(),
-                        bindings: HashMap::new(),
-                        matching: None,
-                        screen_matching: None,
-                    })
-                }
-                Err(e) => Err(e),
-            }
+            Ok(Wm {
+                con: con,
+                atoms: atoms,
+                root: root,
+                randr_base: 0,
+                border_width: config.border_width,
+                safe_x: screen.width_in_pixels() as u32,
+                border_colors: colors,
+                screens: try!(init_screens(con, root)),
+                clients: ClientSet::default(),
+                visible_windows: Vec::new(),
+                unmanaged_windows: Vec::new(),
+                focused_window: None,
+                mode: Mode::default(),
+                bindings: HashMap::new(),
+                matching: None,
+                screen_matching: None,
+            })
         } else {
             Err(WmError::CouldNotAcquireScreen)
         }
     }
 
-    /// Allocate colors needed for border drawing.
-    fn setup_colors(con: &'a base::Connection,
-                    colormap: xproto::Colormap,
-                    f_color: (u16, u16, u16),
-                    u_color: (u16, u16, u16))
-        -> Result<(u32, u32), WmError> {
-        // request color pixels
-        let f_cookie = xproto::alloc_color(
-            con, colormap, f_color.0, f_color.1, f_color.2);
-        let u_cookie = xproto::alloc_color(
-            con, colormap, u_color.0, u_color.1, u_color.2);
+    /// Initialize the RandR extension for multimonitor support.
+    pub fn init_randr(&self) -> Result<(), WmError> {
+        let values = randr::NOTIFY_MASK_CRTC_CHANGE
+            | randr::NOTIFY_MASK_SCREEN_CHANGE;
 
-        // get the replies
-        match (f_cookie.get_reply(), u_cookie.get_reply()) {
-            (Ok(f_reply), Ok(u_reply)) => Ok((f_reply.pixel(), u_reply.pixel())),
-            _ => Err(WmError::CouldNotAllocateColors),
-        }
+        let res = randr::select_input(self.con, self.root, values as u16)
+            .request_check();
+
+        if res.is_ok() { Ok(()) } else { Err(WmError::RandRSetupFailed) }
     }
 
-    // Get info on all outputs and register them in a `ScreenSet`.
-    fn setup_screens(con: &'a base::Connection, root: xproto::Window)
-        -> Result<ScreenSet, WmError> {
-        if let Ok(reply) = randr::get_screen_resources(con, root).get_reply() {
-            let cfg = reply.config_timestamp();
-            let cookies: Vec<_> = reply.crtcs()
-                .iter()
-                .map(|crtc| (crtc, randr::get_crtc_info(con, *crtc, cfg)))
-                .collect();
-            let screens = cookies
-                .iter()
-                .filter_map(|&(crtc, ref cookie)| if let Ok(r) = cookie.get_reply() {
-                    let tiling_area =
-                        TilingArea {
-                            offset_x: r.x() as u32,
-                            offset_y: r.y() as u32,
-                            width: r.width() as u32,
-                            height: r.height() as u32,
-                        };
-                    Some((*crtc, Screen::new(tiling_area, TagStack::default())))
-                } else {
-                    None
-                })
-                .collect();
-            if let Some(res) = ScreenSet::new(screens) {
-                Ok(res)
-            } else {
-                Err(WmError::BadCrtc)
+    /// Add all present clients to the datastructures on startup.
+    pub fn init_clients(&mut self) {
+        if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
+            for window in root.children() {
+                if let Ok((client, slave)) = self.construct_client(*window) {
+                    self.add_client(client, slave);
+                    self.visible_windows.push(*window);
+                }
             }
-        } else {
-            Err(WmError::CouldNotGetScreenResources)
+            self.arrange_windows();
+            self.reset_focus();
         }
     }
 
@@ -214,6 +181,7 @@ impl<'a> Wm<'a> {
     /// Issues substructure redirects for the root window and registers for
     /// all events we are interested in.
     pub fn register(&mut self) -> Result<(), WmError> {
+        // FIXME: why the fsck do we do randr stuff *here*?
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY;
         let cookie = xproto::change_window_attributes(
@@ -234,15 +202,19 @@ impl<'a> Wm<'a> {
         }
     }
 
-    /// Initialize the RandR extension for multimonitor support.
-    pub fn init_randr(&self) -> Result<(), WmError> {
-        let values = randr::NOTIFY_MASK_CRTC_CHANGE
-            | randr::NOTIFY_MASK_SCREEN_CHANGE;
+    /// Set up keybindings and necessary keygrabs.
+    pub fn setup_bindings(&mut self, mut keys: Vec<(KeyPress, KeyCallback)>) {
+        // compile keyboard bindings
+        self.bindings.reserve(keys.len());
+        for (key, callback) in keys.drain(..) {
+            if self.bindings.insert(key, callback).is_some() {
+                error!("overwriting bindings for a key");
+            }
+        }
+        self.bindings.shrink_to_fit();
 
-        let res = randr::select_input(self.con, self.root, values as u16)
-            .request_check();
-
-        if res.is_ok() { Ok(()) } else { Err(WmError::RandRSetupFailed) }
+        // grab keys for the current mode
+        self.grab_keys();
     }
 
     /// Grab the keys for the current mode.
@@ -278,21 +250,6 @@ impl<'a> Wm<'a> {
         }
     }
 
-    /// Set up keybindings and necessary keygrabs.
-    pub fn setup_bindings(&mut self, mut keys: Vec<(KeyPress, KeyCallback)>) {
-        // compile keyboard bindings
-        self.bindings.reserve(keys.len());
-        for (key, callback) in keys.drain(..) {
-            if self.bindings.insert(key, callback).is_some() {
-                error!("overwriting bindings for a key");
-            }
-        }
-        self.bindings.shrink_to_fit();
-
-        // grab keys for the current mode
-        self.grab_keys();
-    }
-
     /// Set up client matching.
     pub fn setup_matching(&mut self, matching: Matching) {
         self.matching = Some(matching);
@@ -302,20 +259,6 @@ impl<'a> Wm<'a> {
     pub fn setup_screen_matching(&mut self, matching: ScreenMatching) {
         self.screens.run_matching(&matching);
         self.screen_matching = Some(matching);
-    }
-
-    /// Add all present clients to the datastructures on startup.
-    pub fn setup_clients(&mut self) {
-        if let Ok(root) = xproto::query_tree(self.con, self.root).get_reply() {
-            for window in root.children() {
-                if let Ok((client, slave)) = self.construct_client(*window) {
-                    self.add_client(client, slave);
-                    self.visible_windows.push(*window);
-                }
-            }
-            self.arrange_windows();
-            self.reset_focus();
-        }
     }
 
     /// Check whether we currently create new clients as masters or slaves.
@@ -735,13 +678,13 @@ impl<'a> Wm<'a> {
                         error!("could not set border width");
                     }
                 }, // it's a window we don't care about
-                Err(_) => self.init_unmanaged_window(window),
+                Err(_) => self.register_unmanaged_window(window),
             }
         }
     }
 
     /// Initialize the state of a window we won't manage.
-    fn init_unmanaged_window(&mut self, window: xproto::Window) {
+    fn register_unmanaged_window(&mut self, window: xproto::Window) {
         let cookie1 = xproto::map_window(self.con, window);
         let cookie2 = xproto::set_input_focus(
             self.con,
@@ -766,7 +709,7 @@ impl<'a> Wm<'a> {
     /// it's state to `_NET_WM_STATE_ABOVE`, generate a client structure for it
     /// and return it, otherwise don't.
     fn construct_client(&self, window: xproto::Window)
-        -> Result<(Client, bool), ClientProps> {
+            -> Result<(Client, bool), ClientProps> {
         let props = self.get_properties(window);
         info!("props of new window: {:?}", props);
 
@@ -803,28 +746,6 @@ impl<'a> Wm<'a> {
         }
     }
 
-    /// Register and get back atoms, return an error on failure.
-    fn get_atoms(con: &base::Connection, names: &[&'a str])
-        -> Result<Vec<(xproto::Atom, &'a str)>, WmError> {
-        let len = names.len();
-        let mut cookies = Vec::with_capacity(len);
-        for name in names {
-            cookies.push((xproto::intern_atom(con, false, name), *name));
-        }
-
-        let mut res = Vec::with_capacity(len);
-        for (cookie, name) in cookies {
-            match cookie.get_reply() {
-                Ok(r) => res.push((r.atom(), name)),
-                Err(_) => {
-                    return Err(WmError::CouldNotRegisterAtom(name.to_string()))
-                }
-            }
-        }
-
-        Ok(res)
-    }
-
     /// Get an atom by name.
     fn lookup_atom(&self, name: &str) -> xproto::Atom {
         self.atoms[
@@ -838,7 +759,7 @@ impl<'a> Wm<'a> {
     /// get a set of properties for a window, in parallel
     fn get_property_set(&self, window: xproto::Window,
                         atom_response_pairs: Vec<(xproto::Atom, xproto::Atom)>)
-        -> Vec<ClientProp> {
+            -> Vec<ClientProp> {
         let cookies: Vec<_> = atom_response_pairs
             .iter()
             .map(|&(atom, response_type)|
@@ -892,7 +813,7 @@ impl<'a> Wm<'a> {
     }
 
     /// Get a window's properties (like window type and such), if possible.
-    pub fn get_properties(&self, window: xproto::Window) -> ClientProps {
+    fn get_properties(&self, window: xproto::Window) -> ClientProps {
         let mut properties = self.get_property_set(window, vec![
             (self.lookup_atom("_NET_WM_WINDOW_TYPE"), xproto::ATOM_ATOM),
             (self.lookup_atom("_NET_WM_STATE"), xproto::ATOM_ATOM),
@@ -989,6 +910,79 @@ impl<'a> Wm<'a> {
             .request_check()
             .is_err()
     }
+}
+
+/// Allocate colors needed for border drawing.
+fn init_colors(con: &base::Connection, colormap: xproto::Colormap,
+               f_color: (u16, u16, u16), u_color: (u16, u16, u16))
+        -> Result<(u32, u32), WmError> {
+    // request color pixels
+    let f_cookie = xproto::alloc_color(
+        con, colormap, f_color.0, f_color.1, f_color.2);
+    let u_cookie = xproto::alloc_color(
+        con, colormap, u_color.0, u_color.1, u_color.2);
+
+    // get the replies
+    match (f_cookie.get_reply(), u_cookie.get_reply()) {
+        (Ok(f_reply), Ok(u_reply)) => Ok((f_reply.pixel(), u_reply.pixel())),
+        _ => Err(WmError::CouldNotAllocateColors),
+    }
+}
+
+// Get info on all outputs and register them in a `ScreenSet`.
+fn init_screens(con: &base::Connection, root: xproto::Window)
+        -> Result<ScreenSet, WmError> {
+    if let Ok(reply) = randr::get_screen_resources(con, root).get_reply() {
+        let cfg = reply.config_timestamp();
+        let cookies: Vec<_> = reply.crtcs()
+            .iter()
+            .map(|crtc| (crtc, randr::get_crtc_info(con, *crtc, cfg)))
+            .collect();
+        let screens = cookies
+            .iter()
+            .filter_map(|&(crtc, ref cookie)| if let Ok(r) = cookie.get_reply() {
+                let tiling_area =
+                    TilingArea {
+                        offset_x: r.x() as u32,
+                        offset_y: r.y() as u32,
+                        width: r.width() as u32,
+                        height: r.height() as u32,
+                    };
+                Some((*crtc, Screen::new(tiling_area, TagStack::default())))
+            } else {
+                None
+            })
+            .collect();
+        if let Some(res) = ScreenSet::new(screens) {
+            Ok(res)
+        } else {
+            Err(WmError::BadCrtc)
+        }
+    } else {
+        Err(WmError::CouldNotGetScreenResources)
+    }
+}
+
+/// Register and get back atoms, return an error on failure.
+fn get_atoms<'a>(con: &base::Connection, names: &[&'a str])
+        -> Result<Vec<(xproto::Atom, &'a str)>, WmError> {
+    let len = names.len();
+    let mut cookies = Vec::with_capacity(len);
+    for name in names {
+        cookies.push((xproto::intern_atom(con, false, name), *name));
+    }
+
+    let mut res = Vec::with_capacity(len);
+    for (cookie, name) in cookies {
+        match cookie.get_reply() {
+            Ok(r) => res.push((r.atom(), name)),
+            Err(_) => {
+                return Err(WmError::CouldNotRegisterAtom(name.to_string()))
+            }
+        }
+    }
+
+    Ok(res)
 }
 
 /// Rearrange windows according to the geometries provided.
