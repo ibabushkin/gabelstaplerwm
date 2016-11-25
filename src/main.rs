@@ -104,7 +104,7 @@ fn main() {
     // user-defined setup
     setup_wm(&mut wm);
 
-    // find all clients present 
+    // find all clients present
     wm.setup_clients();
 
     // main loop

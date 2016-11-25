@@ -180,8 +180,7 @@ impl<'a> Wm<'a> {
         -> Result<ScreenSet, WmError> {
         if let Ok(reply) = randr::get_screen_resources(con, root).get_reply() {
             let cfg = reply.config_timestamp();
-            let crtcs = reply.crtcs();
-            let cookies: Vec<_> = crtcs
+            let cookies: Vec<_> = reply.crtcs()
                 .iter()
                 .map(|crtc| (crtc, randr::get_crtc_info(con, *crtc, cfg)))
                 .collect();
@@ -282,12 +281,15 @@ impl<'a> Wm<'a> {
     /// Set up keybindings and necessary keygrabs.
     pub fn setup_bindings(&mut self, mut keys: Vec<(KeyPress, KeyCallback)>) {
         // compile keyboard bindings
-        self.bindings = HashMap::with_capacity(keys.len());
+        self.bindings.reserve(keys.len());
         for (key, callback) in keys.drain(..) {
             if self.bindings.insert(key, callback).is_some() {
                 error!("overwriting bindings for a key");
             }
         }
+        self.bindings.shrink_to_fit();
+
+        // grab keys for the current mode
         self.grab_keys();
     }
 
@@ -804,12 +806,13 @@ impl<'a> Wm<'a> {
     /// Register and get back atoms, return an error on failure.
     fn get_atoms(con: &base::Connection, names: &[&'a str])
         -> Result<Vec<(xproto::Atom, &'a str)>, WmError> {
-        let mut cookies = Vec::with_capacity(names.len());
+        let len = names.len();
+        let mut cookies = Vec::with_capacity(len);
         for name in names {
             cookies.push((xproto::intern_atom(con, false, name), *name));
         }
 
-        let mut res = Vec::with_capacity(names.len());
+        let mut res = Vec::with_capacity(len);
         for (cookie, name) in cookies {
             match cookie.get_reply() {
                 Ok(r) => res.push((r.atom(), name)),
