@@ -37,8 +37,6 @@ use wm::window_system::{Wm, WmConfig, WmCommand};
 pub enum Tag {
     /// the web tag - for browsers and stuff
     Web,
-    /// the bookmarks tag
-    Marks,
     /// "unlimited" number of work tags
     Work(i8),
     /// the org tag - for todos and other organizational stuff
@@ -66,7 +64,6 @@ impl fmt::Display for Tag {
         } else {
             write!(f, "{}", match *self {
                 Tag::Web => "web",
-                Tag::Marks => "marks",
                 Tag::Org => "org",
                 Tag::Media => "media",
                 Tag::Chat => "chat",
@@ -140,7 +137,6 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(18, modkey, Mode::Normal, push_tagset!(8;; current_tagset)),
         // toggle tags on current client - modkey+[1-6]
         bind!(10, modkey, Mode::Toggle, toggle_tag!(Tag::Web)),
-        bind!(11, modkey, Mode::Toggle, toggle_tag!(Tag::Marks)),
         bind!(12, modkey, Mode::Toggle, toggle_tag!(Tag::Chat)),
         bind!(13, modkey, Mode::Toggle, toggle_tag!(Tag::Org)),
         bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
@@ -148,7 +144,6 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(16, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
         // move client to tags - modkey+[1-6]
         bind!(10, modkey, Mode::Move, move_to_tag!(Tag::Web)),
-        bind!(11, modkey, Mode::Move, move_to_tag!(Tag::Marks)),
         bind!(12, modkey, Mode::Move, move_to_tag!(Tag::Chat)),
         bind!(13, modkey, Mode::Move, move_to_tag!(Tag::Org)),
         bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Media)),
@@ -157,8 +152,6 @@ pub fn setup_wm(wm: &mut Wm) {
         // toggle tags on current tagset - modkey+[1-6]
         bind!(10, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Web;; current_tagset)),
-        bind!(11, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Marks;; current_tagset)),
         bind!(12, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Chat;; current_tagset)),
         bind!(13, modkey, Mode::Setup,
@@ -393,8 +386,6 @@ pub fn setup_wm(wm: &mut Wm) {
             Some((set![Tag::Web], false))
         } else if props.class.contains(&String::from("uzbl-core")) {
             Some((set![Tag::Web], true))
-        } else if props.class.contains(&String::from("Marks")) {
-            Some((set![Tag::Marks], true))
         } else if props.class.contains(&String::from("Chat")) {
             Some((set![Tag::Chat], true))
         } else if props.class.contains(&String::from("Org")) {
@@ -417,7 +408,7 @@ pub fn setup_wm(wm: &mut Wm) {
 
         // TODO: add a reasonable condition
         let tagsets = vec![
-            TagSet::new(set![Tag::Web, Tag::Marks], VStack {
+            TagSet::new(set![Tag::Web], VStack {
                 master_factor: 75,
                 inverted: false,
                 fixed: true,
@@ -428,7 +419,11 @@ pub fn setup_wm(wm: &mut Wm) {
                 inverted: true,
                 fixed: false,
             }),
-            TagSet::new(set![Tag::Org], VStack::default()),
+            TagSet::new(set![Tag::Org], VStack {
+                master_factor: 75,
+                inverted: false,
+                fixed: false
+            }),
             TagSet::new(set![Tag::Media], Monocle::default()),
             TagSet::new(set![Tag::Logs, Tag::Mon], HStack {
                 master_factor: 75,
