@@ -419,7 +419,7 @@ pub fn setup_wm(wm: &mut Wm) {
                 inverted: true,
                 fixed: false,
             }),
-            TagSet::new(set![Tag::Org], VStack {
+            TagSet::new(set![Tag::Org], HStack {
                 master_factor: 75,
                 inverted: false,
                 fixed: false
