@@ -175,7 +175,7 @@ impl<'a> Wm<'a> {
                 }
             }
             self.arrange_windows();
-            self.reset_focus();
+            self.reset_focus(true);
         }
     }
 
@@ -348,7 +348,7 @@ impl<'a> Wm<'a> {
     /// The datastructures have been altered, we need to focus the appropriate
     /// window as obtained from there. If an old window is present, uncolor
     /// it's border.
-    fn reset_focus(&mut self) {
+    fn reset_focus(&mut self, draw_borders: bool) {
         let new =
             self.screens
                 .tag_stack()
@@ -356,13 +356,15 @@ impl<'a> Wm<'a> {
                 .and_then(|t| self.clients.get_focused_window(&t.tags))
                 .unwrap_or(self.root);
 
-        if self.new_window_as_master() {
+        if self.new_window_as_master() && draw_borders {
            self.clients.swap_master(self.screens.tag_stack().current().unwrap());
            self.arrange_windows();
         }
 
-        if let Some(old_win) = self.focused_window {
-            self.set_border_color(old_win, self.border_colors.1);
+        if draw_borders {
+            if let Some(old_win) = self.focused_window {
+                self.set_border_color(old_win, self.border_colors.1);
+            }
         }
 
         // TODO: decide whether we really need this
@@ -379,7 +381,9 @@ impl<'a> Wm<'a> {
                                     new,
                                     xproto::TIME_CURRENT_TIME);
 
-        self.set_border_color(new, self.border_colors.0);
+        if draw_borders {
+            self.set_border_color(new, self.border_colors.0);
+        }
 
         if cookie.request_check().is_err() {
             error!("could not focus window");
@@ -476,7 +480,7 @@ impl<'a> Wm<'a> {
                 info!("a crtc/screen removed from the screen set");
                 if self.screens.remove(crtc_change.crtc()) {
                     self.arrange_windows();
-                    self.reset_focus();
+                    self.reset_focus(true);
                 }
             } else {
                 self.screens.update(&crtc_change);
@@ -509,9 +513,9 @@ impl<'a> Wm<'a> {
         match command {
             WmCommand::Redraw => {
                 self.arrange_windows();
-                self.reset_focus();
+                self.reset_focus(true);
             },
-            WmCommand::Focus => self.reset_focus(),
+            WmCommand::Focus => self.reset_focus(true),
             WmCommand::Kill(win) => self.destroy_window(win),
             WmCommand::ModeSwitch(mode) => {
                 self.mode = mode;
@@ -562,7 +566,7 @@ impl<'a> Wm<'a> {
         // we reset the focus no matter what - since destroyed windows
         // were often focused without our knowledge or could lead to other
         // unexpected behaviours.
-        self.reset_focus();
+        self.reset_focus(false);
     }
 
     /// A window wants to get a new geometry, react accordingly.
@@ -673,7 +677,7 @@ impl<'a> Wm<'a> {
                     if visible {
                         self.visible_windows.push(window);
                         self.arrange_windows();
-                        self.reset_focus();
+                        self.reset_focus(true);
                     }
 
                     if cookie.request_check().is_err() {
