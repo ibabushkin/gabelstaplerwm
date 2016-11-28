@@ -33,7 +33,6 @@ extern fn sigchld_action(_: libc::c_int) {
             if pid <= 0 {
                 return;
             }
-            info!("reaped child pid {}", pid);
         }
     }
 }
