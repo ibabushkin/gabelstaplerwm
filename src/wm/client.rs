@@ -290,7 +290,7 @@ impl ClientSet {
             .map(|c| func(c.borrow_mut()));
 
         if res.is_some() {
-            let client = self.clients.get(&window).unwrap().clone();
+            let client = self.clients[&window].clone();
             self.fix_references(client);
         }
         res
