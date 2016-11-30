@@ -949,14 +949,20 @@ fn init_screens(con: &base::Connection, root: xproto::Window)
         let screens = cookies
             .iter()
             .filter_map(|&(crtc, ref cookie)| if let Ok(r) = cookie.get_reply() {
-                let tiling_area =
-                    TilingArea {
-                        offset_x: r.x() as u32,
-                        offset_y: r.y() as u32,
-                        width: r.width() as u32,
-                        height: r.height() as u32,
-                    };
-                Some((*crtc, Screen::new(tiling_area, TagStack::default())))
+                let width = r.width() as u32;
+                let height = r.height() as u32;
+                if width > 0 && height > 0 {
+                    let tiling_area =
+                        TilingArea {
+                            offset_x: r.x() as u32,
+                            offset_y: r.y() as u32,
+                            width: width,
+                            height: height,
+                        };
+                    Some((*crtc, Screen::new(tiling_area, TagStack::default())))
+                } else {
+                    None
+                }
             } else {
                 None
             })
