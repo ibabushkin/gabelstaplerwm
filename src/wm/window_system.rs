@@ -555,6 +555,9 @@ impl<'a> Wm<'a> {
                     .position(|win| *win == window) {
                 self.visible_windows.swap_remove(index);
                 self.arrange_windows();
+                self.reset_focus(true);
+            } else {
+                self.reset_focus(true);
             }
         } else if let Some(index) = self
                 .unmanaged_windows
@@ -562,11 +565,8 @@ impl<'a> Wm<'a> {
                 .position(|win| *win == window) {
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
+            self.reset_focus(false);
         }
-        // we reset the focus no matter what - since destroyed windows
-        // were often focused without our knowledge or could lead to other
-        // unexpected behaviours.
-        self.reset_focus(false);
     }
 
     /// A window wants to get a new geometry, react accordingly.
