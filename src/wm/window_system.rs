@@ -151,17 +151,24 @@ impl<'a> Wm<'a> {
     }
 
     /// Initialize the RandR extension for multimonitor support.
-    pub fn init_randr(&self) -> Result<(), WmError> {
+    pub fn init_randr(&mut self) -> Result<(), WmError> {
         let values = randr::NOTIFY_MASK_CRTC_CHANGE
             | randr::NOTIFY_MASK_SCREEN_CHANGE;
+        let cookie = randr::select_input(self.con, self.root, values as u16);
+        let cookie2 = randr::query_version(self.con, 1, 2);
+        let randr_query = self.con.get_extension_data(&mut randr::id());
 
-        let res = randr::select_input(self.con, self.root, values as u16)
-            .request_check();
-
-        if res.is_ok() {
-            Ok(())
-        } else {
-            Err(WmError::RandRSetupFailed)
+        match (cookie.request_check(), cookie2.get_reply(), randr_query) {
+            (Ok(()), Ok(ref r), Some(ref res)) =>
+                if r.major_version() == 1 && r.minor_version() >= 2 {
+                    self.randr_base = res.first_event();
+                    info!("got RANDR base: {}", self.randr_base);
+                    Ok(())
+                } else {
+                    Err(WmError::RandRVersionMismatch)
+                },
+            (Err(_), _, _) => Err(WmError::RandRSetupFailed),
+            (_, Err(_), _) | (_, _, None) => Err(WmError::RandRVersionMismatch),
         }
     }
 
@@ -184,24 +191,15 @@ impl<'a> Wm<'a> {
     /// Issues substructure redirects for the root window and registers for
     /// all events we are interested in.
     pub fn register(&mut self) -> Result<(), WmError> {
-        // FIXME: why the fsck do we do randr stuff *here*?
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
             | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY;
         let cookie = xproto::change_window_attributes(
             self.con, self.root, &[(xproto::CW_EVENT_MASK, values)]);
-        let cookie2 = randr::query_version(self.con, 1, 2);
-        let randr_query = self.con.get_extension_data(&mut randr::id());
-        match (cookie.request_check(), cookie2.get_reply(), randr_query) {
-            (Ok(()), Ok(ref r), Some(ref res)) =>
-                if r.major_version() == 1 && r.minor_version() >= 2 {
-                    self.randr_base = res.first_event();
-                    info!("got RANDR base: {}", self.randr_base);
-                    Ok(())
-                } else {
-                    Err(WmError::RandRVersionMismatch)
-                },
-            (_, Err(_), _) | (_, _, None) => Err(WmError::RandRVersionMismatch),
-            (Err(_), _, _) => Err(WmError::OtherWmRunning),
+
+        if cookie.request_check().is_ok() {
+            Ok(())
+        } else {
+            Err(WmError::OtherWmRunning)
         }
     }
 
