@@ -553,16 +553,16 @@ impl<'a> Wm<'a> {
                     .position(|win| *win == window) {
                 self.visible_windows.swap_remove(index);
                 self.arrange_windows();
-                self.reset_focus(true);
-            } else {
-                self.reset_focus(true);
             }
+            self.reset_focus(true);
         } else if let Some(index) = self
                 .unmanaged_windows
                 .iter()
                 .position(|win| *win == window) {
             self.unmanaged_windows.swap_remove(index);
             info!("unregistered unmanaged window");
+            self.reset_focus(false);
+        } else {
             self.reset_focus(false);
         }
     }
