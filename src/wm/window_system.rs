@@ -9,7 +9,6 @@ use xcb::base;
 use xcb::randr;
 use xcb::xkb;
 use xcb::xproto;
-use xcb::ffi::xcb_client_message_data_t;
 
 use wm::client::*;
 use wm::config::{Tag, Mode};
@@ -333,7 +332,7 @@ impl<'a> Wm<'a> {
     /// Send a client message and kill the client the hard and merciless way
     /// if that fails, for instance if the client ignores such messages.
     fn destroy_window(&self, window: xproto::Window) {
-        if self.send_event(window, "WM_DELETE_WINDOW") {
+        if !self.send_event(window, "WM_DELETE_WINDOW") {
             info!("client didn't accept WM_DELETE_WINDOW message");
             if xproto::kill_client(self.con, window).request_check().is_err() {
                 error!("could not kill client");
@@ -366,10 +365,10 @@ impl<'a> Wm<'a> {
         }
 
         // TODO: decide whether we really need this
-        if self.send_event(new, "WM_TAKE_FOCUS") {
+        if !self.send_event(new, "WM_TAKE_FOCUS") {
             info!("client didn't acept WM_TAKE_FOCUS message");
         }
-        if self.send_event(new, "_NET_WM_TAKE_FOCUS") {
+        if !self.send_event(new, "_NET_WM_TAKE_FOCUS") {
             info!("client didn't acept _NET_WM_TAKE_FOCUS message");
         }
 
@@ -906,9 +905,11 @@ impl<'a> Wm<'a> {
     }
 
     /// Send an atomic event to a client specified by a window.
+    ///
+    /// Returns the error status of the event sent.
     fn send_event(&self, window: xproto::Window, atom: &'static str) -> bool {
         let data = [self.lookup_atom(atom), 0, 0, 0, 0].as_ptr()
-            as *const xcb_client_message_data_t;
+            as *const xproto::ClientMessageData;
         let event = unsafe {
             xproto::ClientMessageEvent::new(
                 32, window, self.lookup_atom("WM_PROTOCOLS"), *data)
@@ -916,7 +917,7 @@ impl<'a> Wm<'a> {
         xproto::send_event(self.con, false, window,
                            xproto::EVENT_MASK_NO_EVENT, &event)
             .request_check()
-            .is_err()
+            .is_ok()
     }
 }
 
