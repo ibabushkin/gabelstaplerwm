@@ -17,9 +17,9 @@ use wm::kbd::*;
 use wm::layout::*;
 
 /// Atoms we register with the X server for partial EWMH compliance.
-static ATOM_VEC: [&'static str; 11] =
+static ATOM_VEC: [&'static str; 10] =
     ["WM_PROTOCOLS", "WM_DELETE_WINDOW", "_NET_WM_STATE",
-     "WM_TAKE_FOCUS", "_NET_WM_TAKE_FOCUS", "_NET_WM_NAME", "_NET_WM_CLASS",
+     "WM_TAKE_FOCUS", "_NET_WM_NAME", "_NET_WM_CLASS",
      "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_NORMAL",
      "_NET_WM_WINDOW_TYPE_DOCK", "_NET_WM_STATE_ABOVE"];
 
@@ -364,12 +364,8 @@ impl<'a> Wm<'a> {
             }
         }
 
-        // TODO: decide whether we really need this
         if !self.send_event(new, "WM_TAKE_FOCUS") {
             info!("client didn't acept WM_TAKE_FOCUS message");
-        }
-        if !self.send_event(new, "_NET_WM_TAKE_FOCUS") {
-            info!("client didn't acept _NET_WM_TAKE_FOCUS message");
         }
 
         let cookie =
@@ -672,6 +668,7 @@ impl<'a> Wm<'a> {
 
                     // redraw currently visible clients if necessary
                     if visible {
+                        debug!("new client is visible, arranging windows");
                         self.visible_windows.push(window);
                         self.arrange_windows();
                         self.reset_focus(true);
