@@ -122,18 +122,17 @@ impl<'a> Wm<'a> {
             -> Result<Wm<'a>, WmError> {
         if let Some(screen) = con.get_setup().roots().nth(screen_num as usize) {
             let root = screen.root();
-            let colormap = screen.default_colormap();
-            let colors = try!(init_colors(con, colormap, config.f_color, config.u_color));
-            let atoms = try!(get_atoms(con, &ATOM_VEC));
 
             Ok(Wm {
                 con: con,
-                atoms: atoms,
+                atoms: try!(get_atoms(con, &ATOM_VEC)),
                 root: root,
                 randr_base: 0,
                 border_width: config.border_width,
                 safe_x: screen.width_in_pixels() as u32,
-                border_colors: colors,
+                border_colors: try!(init_colors(con,
+                                                screen.default_colormap(),
+                                                config.f_color, config.u_color)),
                 screens: try!(init_screens(con, root)),
                 clients: ClientSet::default(),
                 visible_windows: Vec::new(),
@@ -180,6 +179,7 @@ impl<'a> Wm<'a> {
                     self.visible_windows.push(*window);
                 }
             }
+
             self.arrange_windows();
             self.reset_focus(true);
         }
@@ -269,10 +269,10 @@ impl<'a> Wm<'a> {
     /// For instance, the `Monocle` layout only shows the master window,
     /// rendering client creation as a slave useless and unergonomic.
     fn new_window_as_master(&self) -> bool {
-        match self.screens.tag_stack().current() {
-            Some(tagset) => tagset.layout.new_window_as_master(),
-            _ => false,
-        }
+        self.screens
+            .tag_stack()
+            .current()
+            .map_or(false, |tagset| tagset.layout.new_window_as_master())
     }
 
     /// Using the current layout, arrange all visible windows.
@@ -378,10 +378,10 @@ impl<'a> Wm<'a> {
             self.set_border_color(new, self.border_colors.0);
         }
 
-        if cookie.request_check().is_err() {
-            error!("could not focus window");
-        } else {
+        if cookie.request_check().is_ok() {
             self.focused_window = Some(new);
+        } else {
+            error!("could not focus window");
         }
     }
 
@@ -550,14 +550,14 @@ impl<'a> Wm<'a> {
                 self.arrange_windows();
             }
             self.reset_focus(true);
-        } else if let Some(index) = self
-                .unmanaged_windows
-                .iter()
-                .position(|win| *win == window) {
-            self.unmanaged_windows.swap_remove(index);
-            info!("unregistered unmanaged window");
-            self.reset_focus(false);
         } else {
+            if let Some(index) = self
+                    .unmanaged_windows
+                    .iter()
+                    .position(|win| *win == window) {
+                self.unmanaged_windows.swap_remove(index);
+                info!("unregistered unmanaged window");
+            }
             self.reset_focus(false);
         }
     }
@@ -656,12 +656,11 @@ impl<'a> Wm<'a> {
                         ]);
 
                     // decide whether the client will be immediately visible
-                    let visible = if let Some(tags) =
-                        self.screens.tag_stack().current().map(|t| &t.tags) {
-                            client.match_tags(tags)
-                        } else {
-                            false
-                        };
+                    let visible =
+                        self.screens
+                            .tag_stack()
+                            .current()
+                            .map_or(false, |t| client.match_tags(&t.tags));
 
                     // add client to the necessary datastructures
                     self.add_client(client, slave);
@@ -744,6 +743,7 @@ impl<'a> Wm<'a> {
     /// currenlty used layout dictates it.
     fn add_client(&mut self, client: Client, as_slave: bool) {
         self.clients.add(client, as_slave);
+
         if let Some(tagset) = self.screens.tag_stack().current() {
             if self.new_window_as_master() {
                 self.clients.swap_master(tagset);
@@ -753,12 +753,13 @@ impl<'a> Wm<'a> {
 
     /// Get an atom by name.
     fn lookup_atom(&self, name: &str) -> xproto::Atom {
-        self.atoms[
+        let index =
             self.atoms
                 .iter()
                 .position(|&(_, n)| n == name)
-                .expect("unregistered atom used!")
-        ].0
+                .expect("unregistered atom used!");
+
+        self.atoms[index].0
     }
 
     /// get a set of properties for a window, in parallel
@@ -794,13 +795,11 @@ impl<'a> Wm<'a> {
                         for c in raw.split(|ch| *ch == 0) {
                             if c.len() > 0 {
                                 unsafe {
-                                    if let Ok(cl) =
-                                        str::from_utf8(CStr::from_ptr(
-                                                c.as_ptr()).to_bytes()) {
+                                    if let Ok(cl) = str::from_utf8(CStr::from_ptr(
+                                            c.as_ptr()).to_bytes()) {
                                         res.push(cl.to_owned());
                                     } else {
-                                        error!("decoding utf-8 from \
-                                               property failed");
+                                        error!("decoding utf-8 from property failed");
                                     }
                                 }
                             }
@@ -831,21 +830,20 @@ impl<'a> Wm<'a> {
         let window_type = if let Some(ClientProp::PropAtom(t)) = props.next() {
             t
         } else { // assume reasonable default
-            info!("_NET_WM_WINDOW_TYPE: not set, \
-                  assuming _NET_WM_WINDOW_TYPE_NORMAL");
+            info!("_NET_WM_WINDOW_TYPE: not set, assuming _NET_WM_WINDOW_TYPE_NORMAL");
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
         };
 
-        let state_iter = props.next();
-        let state = if let Some(ClientProp::PropAtom(s)) = state_iter {
-            Some(s)
-        } else {
-            if state_iter == Some(ClientProp::NoProp) {
+        let state = match props.next() {
+            Some(ClientProp::PropAtom(s)) => Some(s),
+            Some(ClientProp::NoProp) => {
                 info!("_NET_WM_STATE: not set");
-            } else {
+                None
+            },
+            _ => {
                 error!("_NET_WM_STATE: unexpected response type");
-            }
-            None
+                None
+            },
         };
 
         let name = if let Some(ClientProp::PropString(mut n)) = props.next() {
@@ -879,16 +877,16 @@ impl<'a> Wm<'a> {
             Vec::new()
         };
 
-        let class2_iter = props.next();
-        let class2 = if let Some(ClientProp::PropString(c)) = class2_iter {
-            c
-        } else {
-            if class2_iter == Some(ClientProp::NoProp) {
+        let class2 = match props.next() {
+            Some(ClientProp::PropString(c)) => c,
+            Some(ClientProp::NoProp) => {
                 info!("_NET_WM_CLASS: not set");
-            } else {
+                Vec::new()
+            },
+            _ => {
                 error!("_NET_WM_CLASS: unexpected response type");
-            }
-            Vec::new()
+                Vec::new()
+            },
         };
 
         class.extend(class2);
@@ -896,7 +894,7 @@ impl<'a> Wm<'a> {
         ClientProps {
             window_type: window_type,
             state: state,
-            name: if name2 == "" { name } else { name2 },
+            name: if name2.is_empty() { name } else { name2 },
             class: class,
         }
     }
@@ -911,6 +909,7 @@ impl<'a> Wm<'a> {
             xproto::ClientMessageEvent::new(
                 32, window, self.lookup_atom("WM_PROTOCOLS"), *data)
         };
+
         xproto::send_event(self.con, false, window,
                            xproto::EVENT_MASK_NO_EVENT, &event)
             .request_check()
@@ -963,6 +962,7 @@ fn init_screens(con: &base::Connection, root: xproto::Window)
                 None
             })
             .collect();
+
         if let Some(res) = ScreenSet::new(screens) {
             Ok(res)
         } else {
@@ -977,10 +977,10 @@ fn init_screens(con: &base::Connection, root: xproto::Window)
 fn get_atoms<'a>(con: &base::Connection, names: &[&'a str])
         -> Result<Vec<(xproto::Atom, &'a str)>, WmError> {
     let len = names.len();
-    let mut cookies = Vec::with_capacity(len);
-    for name in names {
-        cookies.push((xproto::intern_atom(con, false, name), *name));
-    }
+    let cookies: Vec<_> = names
+        .iter()
+        .map(|name| (xproto::intern_atom(con, false, name), *name))
+        .collect();
 
     let mut res = Vec::with_capacity(len);
     for (cookie, name) in cookies {
