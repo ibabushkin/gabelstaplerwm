@@ -74,7 +74,7 @@ pub struct Client {
     /// the window (a direct child of root)
     pub window: Window,
     /// client properties
-    props: ClientProps,
+    pub props: ClientProps,
     /// all tags this client is visible on, in no particular order
     tags: BTreeSet<Tag>,
 }
