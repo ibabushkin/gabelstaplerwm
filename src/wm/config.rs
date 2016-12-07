@@ -434,8 +434,13 @@ pub fn setup_wm(wm: &mut Wm) {
         screen.tag_stack = TagStack::from_presets(tagsets, 1);
     }));
 
-    wm.setup_urgency_callback(Box::new(|_| {
-        info!("this the default urgency callback.");
+    wm.setup_urgency_callback(Box::new(|client| {
+        let tags = set!(Tag::Chat);
+        if client.match_tags(&tags) {
+            let _ = Command::new("notify-send")
+                .args(&["-a", "urgecy set on tag", "chat"])
+                .spawn();
+        }
     }));
 }
 
