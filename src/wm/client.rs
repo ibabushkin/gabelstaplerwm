@@ -36,7 +36,7 @@ macro_rules! set_from_slice {
 }
 
 /// Client property, as returned from a call.
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ClientProp {
     /// Property lookup returned an atom.
     PropAtom(Atom),
@@ -161,16 +161,14 @@ pub struct ClientSet {
 
 impl ClientSet {
     /// Get a client that corresponds to a given window.
-    pub fn get_client_by_window(&self, window: Window)
-            -> Option<&ClientRef> {
+    pub fn get_client_by_window(&self, window: Window) -> Option<&ClientRef> {
         self.clients.get(&window)
     }
 
     /// Get the order entry for a set of tags.
     ///
     /// If not present, create it.
-    pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>)
-            -> &mut OrderEntry {
+    pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>) -> &mut OrderEntry {
         let clients: Vec<WeakClientRef> =
             self.clients
                 .values()
