@@ -266,4 +266,8 @@ pub fn setup_wm(wm: &mut Wm) {
         ];
         screen.tag_stack = TagStack::from_presets(tagsets, 1);
     }));
+
+    wm.setup_urgency_callback(Box::new(|_| {
+        info!("this the default urgency callback.");
+    }));
 }

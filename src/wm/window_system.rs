@@ -40,6 +40,9 @@ pub type Matching = Box<Fn(&ClientProps, &ScreenSet) -> Option<(BTreeSet<Tag>, b
 /// multimonitor setups and screen areas in general.
 pub type ScreenMatching = Box<Fn(&mut Screen, randr::Crtc, usize)>;
 
+/// Closure type of a callback function being called when a client sets it's urgent hint.
+pub type UrgencyCallback = Box<Fn(&Client)>;
+
 /// Enumeration type of commands executed by the window manager.
 ///
 /// Being returned from a callback closure which modified internal structures,
@@ -114,6 +117,8 @@ pub struct Wm<'a> {
     matching: Option<Matching>,
     /// matching function for screen editing
     screen_matching: Option<ScreenMatching>,
+    /// callback function for urgency handling
+    urgency_callback: Option<UrgencyCallback>,
 }
 
 impl<'a> Wm<'a> {
@@ -142,6 +147,7 @@ impl<'a> Wm<'a> {
                 bindings: HashMap::new(),
                 matching: None,
                 screen_matching: None,
+                urgency_callback: None,
             })
         } else {
             Err(WmError::CouldNotAcquireScreen)
@@ -261,6 +267,11 @@ impl<'a> Wm<'a> {
     pub fn setup_screen_matching(&mut self, matching: ScreenMatching) {
         self.screens.run_matching(&matching);
         self.screen_matching = Some(matching);
+    }
+
+    /// Set up urgency callback.
+    pub fn setup_urgency_callback(&mut self, callback: UrgencyCallback) {
+        self.urgency_callback = Some(callback);
     }
 
     /// Check whether we currently create new clients as masters or slaves.
@@ -569,17 +580,22 @@ impl<'a> Wm<'a> {
     ///
     /// If said property was WM_HINTS, react to an urgency hint that is possibly set.
     fn handle_property_notify(&self, ev: &xproto::PropertyNotifyEvent) {
+        use std::ops::Deref;
         if ev.atom() == xproto::ATOM_WM_HINTS {
             let window = ev.window();
-            if let Some(_) = self.clients.get_client_by_window(window) {
+            if let Some(client) = self
+                    .clients
+                    .get_client_by_window(window)
+                    .and_then(|r| r.deref().try_borrow().ok()) {
                 let hints = self.get_property_set(
                         window, vec![(xproto::ATOM_WM_HINTS, xproto::ATOM_WM_HINTS)]);
                 if let Some(&ClientProp::PropAtom(res)) = hints.first() {
-                    if res & 0x100 != 0 { // don't have the appropriate mask at hand
+                    if res & 0x100 != 0 { // we don't have the appropriate mask at hand
                         info!("a client set it's urgency flag");
+                        if let Some(ref callback) = self.urgency_callback {
+                            callback(client.deref());
+                        }
                     }
-                } else {
-                    info!("hints: {:?}", hints);
                 }
             }
         }
