@@ -422,6 +422,9 @@ impl<'a> Wm<'a> {
                 info!("received event: DESTROY_NOTIFY");
                 self.handle_destroy_notify(base::cast_event(&event));
             },
+            xproto::PROPERTY_NOTIFY => {
+                self.handle_property_notify(base::cast_event(&event));
+            },
             xproto::CONFIGURE_REQUEST => {
                 info!("received event: CONFIGURE_REQUEST");
                 self.handle_configure_request(base::cast_event(&event));
@@ -562,6 +565,26 @@ impl<'a> Wm<'a> {
         }
     }
 
+    /// A window updated some property, react accordingly.
+    ///
+    /// If said property was WM_HINTS, react to an urgency hint that is possibly set.
+    fn handle_property_notify(&self, ev: &xproto::PropertyNotifyEvent) {
+        if ev.atom() == xproto::ATOM_WM_HINTS {
+            let window = ev.window();
+            if let Some(_) = self.clients.get_client_by_window(window) {
+                let hints = self.get_property_set(
+                        window, vec![(xproto::ATOM_WM_HINTS, xproto::ATOM_WM_HINTS)]);
+                if let Some(&ClientProp::PropAtom(res)) = hints.first() {
+                    if res & 0x100 != 0 { // don't have the appropriate mask at hand
+                        info!("a client set it's urgency flag");
+                    }
+                } else {
+                    info!("hints: {:?}", hints);
+                }
+            }
+        }
+    }
+
     /// A window wants to get a new geometry, react accordingly.
     ///
     /// If the window is managed (i.e. has a client), ignore the request.
@@ -654,6 +677,9 @@ impl<'a> Wm<'a> {
                           (xproto::CONFIG_WINDOW_X as u16, safe_x),
                           (xproto::CONFIG_WINDOW_Y as u16, 0)
                         ]);
+                    let values = xproto::EVENT_MASK_PROPERTY_CHANGE;
+                    let cookie3 = xproto::change_window_attributes(
+                        self.con, window, &[(xproto::CW_EVENT_MASK, values)]);
 
                     // decide whether the client will be immediately visible
                     let visible =
@@ -678,6 +704,9 @@ impl<'a> Wm<'a> {
                     }
                     if cookie2.request_check().is_err() {
                         error!("could not set border width");
+                    }
+                    if cookie3.request_check().is_err() {
+                        error!("could not register for client-specific events");
                     }
                 }, // it's a window we don't care about
                 Err(_) => self.register_unmanaged_window(window),
@@ -785,6 +814,14 @@ impl<'a> Wm<'a> {
                             ClientProp::NoProp
                         } else {
                             ClientProp::PropAtom(atoms[0])
+                        }
+                    },
+                    xproto::ATOM_WM_HINTS => {
+                        let words: &[u32] = reply.value();
+                        if words.len() == 0 {
+                            ClientProp::NoProp
+                        } else {
+                            ClientProp::PropAtom(words[0])
                         }
                     },
                     xproto::ATOM_STRING => {

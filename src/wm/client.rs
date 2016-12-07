@@ -36,7 +36,7 @@ macro_rules! set_from_slice {
 }
 
 /// Client property, as returned from a call.
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ClientProp {
     /// Property lookup returned an atom.
     PropAtom(Atom),
