@@ -18,7 +18,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::process::{Command, Stdio};
 
-use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
+use wm::client::{TagSet, ClientSet, current_tagset};
 use wm::kbd::*;
 
 use wm::layout::LayoutMessage;
@@ -406,32 +406,33 @@ pub fn setup_wm(wm: &mut Wm) {
             screen.area.height -= 20;
         }
 
-        // TODO: add a reasonable condition
-        let tagsets = vec![
-            TagSet::new(set![Tag::Web], VStack {
-                master_factor: 75,
-                inverted: false,
-                fixed: true,
-            }),
-            TagSet::new(set![Tag::Work(0)], VStack::default()),
-            TagSet::new(set![Tag::Chat], HStack {
-                master_factor: 75,
-                inverted: true,
-                fixed: false,
-            }),
-            TagSet::new(set![Tag::Org], HStack {
-                master_factor: 75,
-                inverted: false,
-                fixed: false
-            }),
-            TagSet::new(set![Tag::Media], Monocle::default()),
-            TagSet::new(set![Tag::Logs, Tag::Mon], HStack {
-                master_factor: 75,
-                inverted: true,
-                fixed: false,
-            })
-        ];
-        screen.tag_stack = TagStack::from_presets(tagsets, 1);
+        if screen.tag_stack.is_clean() {
+            let tagsets = vec![
+                TagSet::new(set![Tag::Web], VStack {
+                    master_factor: 75,
+                    inverted: false,
+                    fixed: true,
+                }),
+                TagSet::new(set![Tag::Work(0)], VStack::default()),
+                TagSet::new(set![Tag::Chat], HStack {
+                    master_factor: 75,
+                    inverted: true,
+                    fixed: false,
+                }),
+                TagSet::new(set![Tag::Org], HStack {
+                    master_factor: 75,
+                    inverted: false,
+                    fixed: false
+                }),
+                TagSet::new(set![Tag::Media], Monocle::default()),
+                TagSet::new(set![Tag::Logs, Tag::Mon], HStack {
+                    master_factor: 75,
+                    inverted: true,
+                    fixed: false,
+                })
+            ];
+            screen.tag_stack.setup(tagsets, 1);
+        }
     }));
 
     wm.setup_urgency_callback(Box::new(|client| {

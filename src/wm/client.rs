@@ -560,23 +560,23 @@ pub struct TagStack {
 impl TagStack {
     /// Setup a tag stack from a vector of tag sets and the index of the
     /// initially viewed tagset in the vector.
-    pub fn from_presets(mut vec: Vec<TagSet>, viewed: u8) -> TagStack {
-        let tagsets: HashMap<_, _> = vec
-            .drain(..)
-            .enumerate()
-            .map(|(i, val)| (i as u8, val))
-            .collect();
-        let history = if tagsets.contains_key(&viewed) {
-            vec![viewed]
-        } else {
-            Vec::new()
-        };
+    pub fn setup(&mut self, mut vec: Vec<TagSet>, viewed: u8) {
+        self.hidden.clear();
+        self.history.clear();
+        self.tagsets.clear();
 
-        TagStack {
-            tagsets: tagsets,
-            hidden: BTreeSet::new(),
-            history: history,
+        for (i, val) in vec.drain(..).enumerate() {
+            self.tagsets.insert(i as u8, val);
         }
+
+        if self.tagsets.contains_key(&viewed) {
+            self.history.push(viewed);
+        }
+    }
+
+    /// Check whether the `TagStack` is in a default state.
+    pub fn is_clean(&self) -> bool {
+        self.tagsets.is_empty() && self.hidden.is_empty() && self.history.is_empty()
     }
 
     /// Get the current tag set's index
