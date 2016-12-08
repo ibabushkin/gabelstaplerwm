@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::process::Command;
 
-use wm::client::{TagSet, TagStack, ClientSet, current_tagset};
+use wm::client::{TagSet, ClientSet, current_tagset};
 use wm::kbd::*;
 
 use wm::layout::LayoutMessage;
@@ -252,19 +252,20 @@ pub fn setup_wm(wm: &mut Wm) {
             screen.area.height -= 20;
         }
 
-        // TODO: add a reasonable condition
-        let tagsets = vec![
-            TagSet::new(set![Tag::Web], DStack::default()),
-            TagSet::new(set![Tag::Work2], VStack::default()),
-            TagSet::new(set![Tag::Work3], VStack::default()),
-            TagSet::new(set![Tag::Work4], Spiral::default()),
-            TagSet::new(set![Tag::Work5], Grid::default()),
-            TagSet::new(set![Tag::Media], Monocle::default()),
-            TagSet::new(set![Tag::Chat], HStack::default()),
-            TagSet::new(set![Tag::Logs], HStack::default()),
-            TagSet::new(set![Tag::Mon], HStack::default())
-        ];
-        screen.tag_stack = TagStack::from_presets(tagsets, 1);
+        if screen.tag_stack.is_clean() {
+            let tagsets = vec![
+                TagSet::new(set![Tag::Web], DStack::default()),
+                TagSet::new(set![Tag::Work2], VStack::default()),
+                TagSet::new(set![Tag::Work3], VStack::default()),
+                TagSet::new(set![Tag::Work4], Spiral::default()),
+                TagSet::new(set![Tag::Work5], Grid::default()),
+                TagSet::new(set![Tag::Media], Monocle::default()),
+                TagSet::new(set![Tag::Chat], HStack::default()),
+                TagSet::new(set![Tag::Logs], HStack::default()),
+                TagSet::new(set![Tag::Mon], HStack::default())
+            ];
+            screen.tag_stack.setup(tagsets, 1);
+        }
     }));
 
     wm.setup_urgency_callback(Box::new(|_| {
