@@ -766,7 +766,8 @@ impl<'a> Wm<'a> {
 
         let atom = self.lookup_atom("_NET_WM_STATE_ABOVE");
         if !props.state.iter().any(|s| *s == atom) &&
-                props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
+                props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") &&
+                (!props.name.is_empty() || !props.class.is_empty()) {
             // compute tags of the new client
             let (tags, as_slave) = if let Some(res) = self.matching
                     .as_ref()
