@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use xcb::xkb;
 
 use wm::client::{ClientSet, ScreenSet};
-use wm::config::Mode;
+use wm::config::{Mode, IGNORED_MODS_VEC};
 use wm::window_system::WmCommand;
 
 // constants for easier modifier handling
@@ -12,17 +12,11 @@ use wm::window_system::WmCommand;
 pub const NO_MODIFIER: u8 = 0;
 /// Symbolic constant: shift modifier pressed.
 pub const SHIFT: u8 = 1;
-#[allow(dead_code)]
-/// Symbolic constant: capslock modifier activated.
-pub const CAPSLOCK: u8 = 2;
 /// Symbolic constant: control modifier pressed.
 pub const CTRL: u8 = 4;
 #[allow(dead_code)]
 /// Symbolic constant: alt modifier pressed.
 pub const ALT: u8 = 8;
-#[allow(dead_code)]
-/// Symbolic constant: numlock modifier activated.
-pub const NUMLOCK: u8 = 16;
 #[allow(dead_code)]
 /// Symbolic constant: windows/mod4 modifier pressed.
 pub const MOD4: u8 = 64;
@@ -47,9 +41,11 @@ pub struct KeyPress {
 
 /// Get a `KeyPress` struct from a `StateNotifyEvent`
 pub fn from_key(event: &xkb::StateNotifyEvent, mode: Mode) -> KeyPress {
+    let ignore_mask: u8 = !IGNORED_MODS_VEC.iter().fold(0, |a, b| a | *b as u8);
+    info!("ignore_mask: {}", ignore_mask);
     KeyPress {
         code: event.xkb_type(),
-        mods: event.keycode(),
+        mods: event.keycode() & ignore_mask,
         mode: mode,
     }
 }

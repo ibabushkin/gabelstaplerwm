@@ -27,6 +27,14 @@ use wm::layout::stack::{HStack, VStack};
 
 use wm::window_system::{Wm, WmConfig, WmCommand};
 
+use xcb::xproto::{MOD_MASK_LOCK, MOD_MASK_2};
+
+/// All modifier combinations ignored while grabbing keys.
+///
+/// Each modifier mask listed here will be grabbed as if it was the empty mask, and
+/// handled as such when dispatching key presses to callback actions.
+pub static IGNORED_MODS_VEC: [u16; 3] = [0, MOD_MASK_LOCK as u16, MOD_MASK_2 as u16];
+
 /// All tags used by `gabelstaplerwm`
 ///
 /// Tags are symbolic identifiers by which you can classify your clients.
