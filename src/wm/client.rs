@@ -38,11 +38,11 @@ macro_rules! set_from_slice {
 /// Client property, as returned from a call.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ClientProp {
-    /// Property lookup returned an atom.
-    PropAtom(Atom),
-    /// Property lookup returned at least one string.
+    /// Property lookup returned at least one atom
+    PropAtom(Vec<Atom>),
+    /// Property lookup returned at least one string
     PropString(Vec<String>),
-    /// No property was returned.
+    /// No property was returned
     NoProp,
 }
 
@@ -52,7 +52,7 @@ pub struct ClientProps {
     /// client/window type
     pub window_type: Atom,
     /// window state
-    pub state: Option<Atom>,
+    pub state: Vec<Atom>,
     /// the client's title
     pub name: String,
     /// the client's class(es)

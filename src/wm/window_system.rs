@@ -589,12 +589,15 @@ impl<'a> Wm<'a> {
                     .and_then(|r| r.deref().try_borrow().ok()) {
                 let hints = self.get_property_set(
                         window, vec![(xproto::ATOM_WM_HINTS, xproto::ATOM_WM_HINTS)]);
-                if let Some(&ClientProp::PropAtom(res)) = hints.first() {
-                    if res & 0x100 != 0 { // we don't have the appropriate mask at hand
-                        info!("a client set it's urgency flag");
-                        if let Some(ref callback) = self.urgency_callback {
-                            callback(client.deref());
-                        }
+                if let Some(&ClientProp::PropAtom(ref res)) = hints.first() {
+                    match res.first() {
+                        Some(res) if res & 0x100 != 0 => {
+                            info!("a client set it's urgency flag");
+                            if let Some(ref callback) = self.urgency_callback {
+                                callback(client.deref());
+                            }
+                        },
+                        _ => (),
                     }
                 }
             }
@@ -612,11 +615,12 @@ impl<'a> Wm<'a> {
                 self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
             let value_mask = ev.value_mask();
             let screen = self.screens.screen();
+            let width = ev.width() as u32;
+            let height = ev.height() as u32;
             let cookie =
                 if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&
-                        value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 {
-                    let width = ev.width() as u32;
-                    let height = ev.height() as u32;
+                        value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 &&
+                        screen.width > width && screen.height > height {
 
                     let x = (screen.width - width) / 2;
                     let y = (screen.height - height) / 2;
@@ -760,8 +764,8 @@ impl<'a> Wm<'a> {
         let props = self.get_properties(window);
         info!("props of new window: {:?}", props);
 
-        if props.state != Some(self.lookup_atom("_NET_WM_STATE_ABOVE")) &&
-                props.name != "" &&
+        let atom = self.lookup_atom("_NET_WM_STATE_ABOVE");
+        if !props.state.iter().any(|s| *s == atom) &&
                 props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
             // compute tags of the new client
             let (tags, as_slave) = if let Some(res) = self.matching
@@ -829,7 +833,7 @@ impl<'a> Wm<'a> {
                         if atoms.len() == 0 {
                             ClientProp::NoProp
                         } else {
-                            ClientProp::PropAtom(atoms[0])
+                            ClientProp::PropAtom(atoms.to_owned())
                         }
                     },
                     xproto::ATOM_WM_HINTS => {
@@ -837,7 +841,7 @@ impl<'a> Wm<'a> {
                         if words.len() == 0 {
                             ClientProp::NoProp
                         } else {
-                            ClientProp::PropAtom(words[0])
+                            ClientProp::PropAtom(words.to_owned())
                         }
                     },
                     xproto::ATOM_STRING => {
@@ -880,22 +884,22 @@ impl<'a> Wm<'a> {
         ]);
         let mut props = properties.drain(..);
 
-        let window_type = if let Some(ClientProp::PropAtom(t)) = props.next() {
-            t
+        let window_type = if let Some(ClientProp::PropAtom(mut t)) = props.next() {
+            t.drain(..).next().unwrap_or(self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL"))
         } else { // assume reasonable default
             info!("_NET_WM_WINDOW_TYPE: not set, assuming _NET_WM_WINDOW_TYPE_NORMAL");
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
         };
 
         let state = match props.next() {
-            Some(ClientProp::PropAtom(s)) => Some(s),
+            Some(ClientProp::PropAtom(s)) => s,
             Some(ClientProp::NoProp) => {
                 info!("_NET_WM_STATE: not set");
-                None
+                Vec::new()
             },
             _ => {
                 error!("_NET_WM_STATE: unexpected response type");
-                None
+                Vec::new()
             },
         };
 
