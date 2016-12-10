@@ -11,7 +11,7 @@ use xcb::xkb;
 use xcb::xproto;
 
 use wm::client::*;
-use wm::config::{Tag, Mode};
+use wm::config::{Tag, Mode, IGNORED_MODS_VEC};
 use wm::err::*;
 use wm::kbd::*;
 use wm::layout::*;
@@ -228,10 +228,8 @@ impl<'a> Wm<'a> {
     /// Grab the keys for the current mode.
     fn grab_keys(&self) {
         // don't grab anything for now
-        if xproto::ungrab_key(self.con,
-                              xproto::GRAB_ANY as u8,
-                              self.root,
-                              xproto::MOD_MASK_ANY as u16)
+        if xproto::ungrab_key(self.con, xproto::GRAB_ANY as u8,
+                              self.root, xproto::MOD_MASK_ANY as u16)
                 .request_check().is_err() {
             error!("could not ungrab keys");
         }
@@ -239,15 +237,19 @@ impl<'a> Wm<'a> {
         let cookies: Vec<_> =
             self.bindings
                 .keys()
-                .filter_map(|key| if key.mode == self.mode {
-                    Some(xproto::grab_key(
-                        self.con, true, self.root,
-                        key.mods as u16, key.code,
-                        xproto::GRAB_MODE_ASYNC as u8,
-                        xproto::GRAB_MODE_ASYNC as u8))
-                } else {
-                    None
-                })
+                .filter(|key| key.mode == self.mode)
+                .flat_map(|key|
+                    IGNORED_MODS_VEC
+                        .iter()
+                        .map(|modifier|
+                            xproto::grab_key(
+                                self.con, true, self.root,
+                                *modifier | key.mods as u16, key.code,
+                                xproto::GRAB_MODE_ASYNC as u8,
+                                xproto::GRAB_MODE_ASYNC as u8)
+                        )
+                        .collect::<Vec<_>>()
+                )
                 .collect();
 
         // check for errors
