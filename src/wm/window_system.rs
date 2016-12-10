@@ -615,11 +615,12 @@ impl<'a> Wm<'a> {
                 self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
             let value_mask = ev.value_mask();
             let screen = self.screens.screen();
+            let width = ev.width() as u32;
+            let height = ev.height() as u32;
             let cookie =
                 if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&
-                        value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 {
-                    let width = ev.width() as u32;
-                    let height = ev.height() as u32;
+                        value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 &&
+                        screen.width > width && screen.height > height {
 
                     let x = (screen.width - width) / 2;
                     let y = (screen.height - height) / 2;
@@ -764,7 +765,7 @@ impl<'a> Wm<'a> {
         info!("props of new window: {:?}", props);
 
         let atom = self.lookup_atom("_NET_WM_STATE_ABOVE");
-        if !props.state.iter().any(|s| *s == atom) && props.name != "" &&
+        if !props.state.iter().any(|s| *s == atom) &&
                 props.window_type == self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL") {
             // compute tags of the new client
             let (tags, as_slave) = if let Some(res) = self.matching
