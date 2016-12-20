@@ -25,7 +25,7 @@ impl TilingArea {
     /// Create a new `TilingArea` object.
     ///
     /// Uses a `TilingArea` that represents the user's wishes to get something
-    /// that is actually possible.
+    /// that is actually possible. Offsets, however are honored.
     pub fn new(old: &TilingArea, width: u32, height: u32) -> TilingArea {
         let new_width = if old.width + old.offset_x < width {
             old.width - old.offset_x
@@ -62,25 +62,37 @@ pub struct Geometry {
 /// Types that compute geometries for arbitrary amounts of windows.
 ///
 /// The only input such objects get are `TilingArea` and number of windows.
+/// The trait inherits from `Debug` for purely practical reasons: some types
+/// we want to output (`WmCommand` in particular) rely on derived `Debug`
+/// instances and all types implementing `Layout` implement `Debug` anyway.
 pub trait Layout : Debug {
     /// Compute window geometries. 
     ///
     /// If a `None` is returned at a particular position, that window is not
     /// to be made visible.
     fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>>;
-    /// Get the window to the right of the nth window.
+
+    /// Get the index of the window to the right of the nth window.
     fn right_window(&self, index: usize, max: usize) -> Option<usize>;
-    /// Get the window to the left of the nth window.
+
+    /// Get the index of the window to the left of the nth window.
     fn left_window(&self, index: usize, max: usize) -> Option<usize>;
-    /// Get the window to the top of the nth window.
+
+    /// Get the index of the window to the top of the nth window.
     fn top_window(&self, index: usize, max: usize) -> Option<usize>;
-    /// Get the window to the bottom of the nth window.
+
+    /// Get the index of the window to the bottom of the nth window.
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize>;
+
     /// Decide whether to insert new windows as master.
     fn new_window_as_master(&self) -> bool;
+
     /// React to a `LayoutMessage`, returning true on change.
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool;
-    /// React to the first applicable `LayoutMessage`, returning true on change.
+
+    /// React to the first applicable `LayoutMessage`.
+    ///
+    /// If any reaction is triggered, return `true`, else `false`.
     fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
         msgs.drain(..).any(|m| self.edit_layout(m))
     }
