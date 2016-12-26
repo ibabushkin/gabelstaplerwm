@@ -398,7 +398,8 @@ pub fn setup_wm(wm: &mut Wm) {
             Some((set![Tag::Chat], true))
         } else if props.class.contains(&String::from("Org")) {
             Some((set![Tag::Org], true))
-        } else if props.class.contains(&String::from("mpv")) {
+        } else if props.class.contains(&String::from("mpv")) ||
+                props.class.contains(&String::from("Media")) {
             Some((set![Tag::Media], true))
         } else if props.class.contains(&String::from("Mon")) {
             Some((set![Tag::Mon], true))
