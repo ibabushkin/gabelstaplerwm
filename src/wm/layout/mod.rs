@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
+use std::hash::Hash;
 
 pub mod grid;
 pub mod monocle;
@@ -57,6 +59,29 @@ pub struct Geometry {
     pub width: u32,
     /// height of window
     pub height: u32,
+}
+
+impl Geometry {
+    /// Check whether a geometry contains a point.
+    pub fn match_coords(&self, x: u32, y: u32) -> bool {
+        self.x <= x && self.x + self.width > x &&
+            self.y <= y && self.y + self.height > y
+    }
+}
+
+/// A set of geometries, allowing for queries for points and matching geometries.
+pub struct GeometrySet<A: Hash + Eq> {
+    geometries: HashMap<A, Geometry>,
+}
+
+impl<A: Hash + Eq> GeometrySet<A> {
+    /// Find the item registered with a matching geometry, given a point.
+    pub fn match_geometry(&self, x: u32, y: u32) -> Option<&A> {
+        self.geometries
+            .iter()
+            .find(|&(_, geom)| geom.match_coords(x, y))
+            .map(|(key, _)| key)
+    }
 }
 
 /// Types that compute geometries for arbitrary amounts of windows.
