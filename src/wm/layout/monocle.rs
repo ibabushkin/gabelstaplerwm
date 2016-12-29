@@ -2,9 +2,8 @@ use wm::layout::*;
 
 /// Monocle layout with offset.
 ///
-/// Shows one window at a time, keeping offsets to the screen border.
-/// New clients are added as master, otherwise they would be invisible
-/// at first.
+/// Shows one window at a time, keeping offsets to the screen borders.
+/// New clients are added as master, otherwise they would be invisible at first.
 #[derive(Debug)]
 pub struct Monocle {
     /// x offset of master window (symmetric)
