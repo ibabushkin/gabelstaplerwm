@@ -1,6 +1,4 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::Hash;
 
 pub mod grid;
 pub mod monocle;
@@ -67,20 +65,10 @@ impl Geometry {
         self.x <= x && self.x + self.width > x &&
             self.y <= y && self.y + self.height > y
     }
-}
 
-/// A set of geometries, allowing for queries for points and matching geometries.
-pub struct GeometrySet<A: Hash + Eq> {
-    geometries: HashMap<A, Geometry>,
-}
-
-impl<A: Hash + Eq> GeometrySet<A> {
-    /// Find the item registered with a matching geometry, given a point.
-    pub fn match_geometry(&self, x: u32, y: u32) -> Option<&A> {
-        self.geometries
-            .iter()
-            .find(|&(_, geom)| geom.match_coords(x, y))
-            .map(|(key, _)| key)
+    /// Check whether two `Geometry`s overlap.
+    pub fn match_overlap(&self, other: &Geometry) -> bool {
+        self.match_coords(other.x, other.y) || other.match_coords(self.x, self.y)
     }
 }
 
