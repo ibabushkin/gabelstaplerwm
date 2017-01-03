@@ -592,8 +592,15 @@ impl<'a> Wm<'a> {
                 let hints = self.get_property_set(
                         window, vec![(xproto::ATOM_WM_HINTS, xproto::ATOM_WM_HINTS)]);
                 if let Some(&ClientProp::PropAtom(ref res)) = hints.first() {
+                    let not_focused =
+                        self.screens
+                            .current()
+                            .tag_stack
+                            .current()
+                            .and_then(|tags| self.clients.get_focused_window(&tags.tags))
+                            .map_or(false, |win| win != window);
                     match res.first() {
-                        Some(res) if res & 0x100 != 0 => {
+                        Some(res) if res & 0x100 != 0 && not_focused => {
                             info!("a client set it's urgency flag");
                             if let Some(ref callback) = self.urgency_callback {
                                 callback(client.deref());
