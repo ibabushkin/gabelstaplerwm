@@ -53,7 +53,7 @@ And never *will* be.
 If you need it, implement it, and use it to your liking, or use a different piece
 of software. Extensibility is one of the main goals, compiling in additional crates
 with extended features is being worked on, so this should be possible (if you deem it
-worth you time).
+worth your time).
 
 ## Configuration and Installation
 Simple as the source itself:

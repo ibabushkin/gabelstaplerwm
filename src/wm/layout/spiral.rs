@@ -2,6 +2,15 @@ use std::cmp;
 
 use wm::layout::*;
 
+/// Spiral layout.
+///
+/// ```plaintext
+/// +--+----+
+/// |  |____|
+/// |  |__| |
+/// |  |  | |
+/// +--+--+-+
+/// ```
 #[derive(Debug)]
 pub struct Spiral {
     pub max_windows: u8

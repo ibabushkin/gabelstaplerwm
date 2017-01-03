@@ -10,9 +10,9 @@ use wm::layout::*;
 /// +-+---+-+
 /// ```
 /// Places windows in a grid with a fixed number of columns, adding new lines
-/// as necessary. Number of columns is configurable.
-/// If the amount of windows present isn't evenly divisible by the number of
-/// columns, the leftover slots are left empty.
+/// as necessary. Number of columns is configurable. If the amount of windows
+/// present isn't evenly divisible by the number of columns, the leftover slots
+/// are left empty.
 #[derive(Debug)]
 pub struct Grid {
     /// Maximum number of columns.

@@ -59,6 +59,19 @@ pub struct Geometry {
     pub height: u32,
 }
 
+impl Geometry {
+    /// Check whether a geometry contains a point.
+    pub fn match_coords(&self, x: u32, y: u32) -> bool {
+        self.x <= x && self.x + self.width > x &&
+            self.y <= y && self.y + self.height > y
+    }
+
+    /// Check whether two `Geometry`s overlap.
+    pub fn match_overlap(&self, other: &Geometry) -> bool {
+        self.match_coords(other.x, other.y) || other.match_coords(self.x, self.y)
+    }
+}
+
 /// Types that compute geometries for arbitrary amounts of windows.
 ///
 /// The only input such objects get are `TilingArea` and number of windows.
