@@ -370,12 +370,13 @@ pub fn setup_wm(wm: &mut Wm) {
             .map(WmCommand::Kill)
             .unwrap_or(WmCommand::NoCommand)
         ),
-        /*bind!(55, modkey, Mode::Normal, change_layout!(VStack::default())),
-        bind!(56, modkey, Mode::Normal, change_layout!(HStack::default())),
-        bind!(57, modkey, Mode::Normal, change_layout!(DStack::default())),
-        bind!(58, modkey, Mode::Normal, change_layout!(Grid::default())),
-        bind!(59, modkey, Mode::Normal, change_layout!(Spiral::default())),
-        bind!(60, modkey, Mode::Normal, change_layout!(Monocle::default())),*/
+        /* bind!(55, modkey, Mode::Normal, change_layout!(VStack::default())),
+         * bind!(56, modkey, Mode::Normal, change_layout!(HStack::default())),
+         * bind!(57, modkey, Mode::Normal, change_layout!(DStack::default())),
+         * bind!(58, modkey, Mode::Normal, change_layout!(Grid::default())),
+         * bind!(59, modkey, Mode::Normal, change_layout!(Spiral::default())),
+         * bind!(60, modkey, Mode::Normal, change_layout!(Monocle::default())),
+         */
         // volume controls - XF86Audio{Mute,{Raise,Lower}Volume}
         bind!(121, 0, Mode::Normal, |_, _|
               exec_script("volume.sh", &["toggle"])),
