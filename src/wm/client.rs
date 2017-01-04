@@ -163,9 +163,10 @@ impl OrderedSubset {
     /// Build an ordered subset of weak client references.
     ///
     /// Construct a tree with a default layout, parametrized over the main split
-    /// direction. TODO: this should be parametrized over a layout's tree construction.
+    /// direction.
     pub fn new<T>(primary_split: SplitDirection, mut clients: Peekable<T>)
             -> OrderedSubset where T: Iterator<Item=WeakClientRef> {
+        // TODO: this should be parametrized over a layout's tree construction.
         let mut tree = tree::Arena::new();
         let secondary_split = primary_split.flip();
         let root = tree.new_node(SubsetEntry::Split(primary_split));
@@ -351,14 +352,12 @@ impl ClientSet {
     /// Removes the client objects and cleans all weak references to it,
     /// returning whether a client has actually been removed
     pub fn remove(&mut self, window: Window) -> bool {
-        // TODO
-        /*if self.clients.remove(&window).is_some() {
+        if self.clients.remove(&window).is_some() {
             self.clean();
             true
         } else {
             false
-        }*/
-        false
+        }
     }
 
     /// Apply a function to the client corresponding to a window.
