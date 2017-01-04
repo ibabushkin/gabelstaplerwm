@@ -140,8 +140,11 @@ pub type WeakClientRef = Weak<RefCell<Client>>;
 /// for weak references to exist.
 pub type ClientRef = Rc<RefCell<Client>>;
 
+/// Different kinds of nodes in our client subset tree.
 pub enum SubsetEntry {
+    /// A split, that is, a rectangular area split along one axis in `n` parts.
     Split(SplitDirection),
+    /// A client.
     Client(WeakClientRef),
 }
 
