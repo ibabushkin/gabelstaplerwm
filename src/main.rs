@@ -7,15 +7,14 @@
 
 #![feature(slice_patterns)]
 
-extern crate libc;
-extern crate xcb;
-
 extern crate env_logger;
+extern crate indextree;
+extern crate libc;
 #[macro_use]
 extern crate log;
+extern crate xcb;
 
 use std::env::remove_var;
-
 use std::mem::{transmute, uninitialized};
 
 pub mod wm;

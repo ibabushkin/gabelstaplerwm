@@ -72,6 +72,24 @@ impl Geometry {
     }
 }
 
+/// A split direction.
+#[derive(Debug)]
+pub enum SplitDirection {
+    /// Horizontal split.
+    Horizontal,
+    /// Vertical split.
+    Vertical,
+}
+
+impl SplitDirection {
+    pub fn flip(&self) -> SplitDirection {
+        match *self {
+            SplitDirection::Horizontal => SplitDirection::Vertical,
+            SplitDirection::Vertical => SplitDirection::Horizontal,
+        }
+    }
+}
+
 /// Types that compute geometries for arbitrary amounts of windows.
 ///
 /// The only input such objects get are `TilingArea` and number of windows.

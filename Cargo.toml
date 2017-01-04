@@ -16,8 +16,9 @@ parallel-resizing = []
 no-xephyr = []
 
 [dependencies]
-libc = "*"
 env_logger = "*"
+indextree = "^1.0.0"
+libc = "*"
 log = "*"
 xcb = { version = "0.7.6", features = ["xkb", "randr"] }
 

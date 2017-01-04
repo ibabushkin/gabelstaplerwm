@@ -312,11 +312,12 @@ impl<'a> Wm<'a> {
 
                 // ... get the corresponding client set and geometries ...
                 let clients = self.clients.get_order_or_insert(&tags);
-                let geometries = tagset.layout.arrange(clients.1.len(), &screen.area);
-                debug!("calculated geometries: {:?}", geometries);
+                // TODO
+                //let geometries = tagset.layout.arrange(clients.1.len(), &screen.area);
+                //debug!("calculated geometries: {:?}", geometries);
 
                 // ... and display windows accordingly
-                arrange(self.con, &mut self.visible_windows, clients, geometries);
+                //arrange(self.con, &mut self.visible_windows, clients, geometries);
             }
         }
     }
@@ -1068,9 +1069,10 @@ fn get_atoms<'a>(con: &base::Connection, names: &[&'a str])
 #[cfg(feature = "parallel-resizing")]
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
-           clients: &OrderEntry,
+           clients: &OrderedSubset,
            geometries: Vec<Option<Geometry>>) {
-    let cookies: Vec<_> = clients.1
+    // TODO
+    /*let cookies: Vec<_> = clients.1
         .iter()
         .zip(geometries.iter())
         .filter_map(|(client, geometry)|
@@ -1099,7 +1101,7 @@ fn arrange(con: &base::Connection,
         if cookie.request_check().is_err() {
             error!("could not set window geometry");
         }
-    }
+    }*/
 }
 
 /// Rearrange windows according to the geometries provided.

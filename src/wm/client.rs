@@ -1,7 +1,10 @@
+use indextree as tree;
+
 use std::cell::{RefCell, RefMut};
 use std::collections::{HashMap, BTreeSet};
 use std::collections::hash_map::Entry;
 use std::fmt;
+use std::iter::Peekable;
 use std::rc::{Rc, Weak};
 
 use xcb::xproto::{Atom, Window};
@@ -9,7 +12,7 @@ use xcb::randr;
 use xcb::randr::{Crtc, CrtcChange};
 
 use wm::config::Tag;
-use wm::layout::{Layout, TilingArea};
+use wm::layout::{Layout, TilingArea, SplitDirection};
 use wm::window_system::{ScreenMatching, WmCommand};
 
 /// Construct a Set of... things, like you would use `vec!`.
@@ -137,12 +140,95 @@ pub type WeakClientRef = Weak<RefCell<Client>>;
 /// for weak references to exist.
 pub type ClientRef = Rc<RefCell<Client>>;
 
+pub enum SubsetEntry {
+    Split(SplitDirection),
+    Client(WeakClientRef),
+}
+
 /// An entry in the `order` `HashMap` of a `ClientSet`.
 ///
-/// Contains a weak reference to the optionally present focused client on that
-/// tagset, as well as an ordered sequence of weak references of all clients on
-/// the tagset given.
-pub type OrderEntry = (Option<WeakClientRef>, Vec<WeakClientRef>);
+/// Represents the tree of clients and splits on a specific set of tags.
+/// Combined with a `Layout`, this allows for unambiguous tiling per-tagset,
+/// while preserving tagset-specific ordering, or rather, structure.
+pub struct OrderedSubset {
+    /// The root of the tree. 
+    root: tree::NodeId,
+    /// The currently focused client, if any.
+    focused: Option<tree::NodeId>,
+    /// The tree of clients.
+    tree: tree::Arena<SubsetEntry>,
+}
+
+impl OrderedSubset {
+    /// Build an ordered subset of weak client references.
+    ///
+    /// Construct a tree with a default layout, parametrized over the main split
+    /// direction. TODO: this should be parametrized over a layout's tree construction.
+    pub fn new<T>(primary_split: SplitDirection, mut clients: Peekable<T>)
+            -> OrderedSubset where T: Iterator<Item=WeakClientRef> {
+        let mut tree = tree::Arena::new();
+        let secondary_split = primary_split.flip();
+        let root = tree.new_node(SubsetEntry::Split(primary_split));
+        let focused = if let Some(master) = clients.next() {
+            let master = tree.new_node(SubsetEntry::Client(master));
+            root.append(master, &mut tree);
+
+            if clients.peek().is_some() {
+                let secondary = tree.new_node(SubsetEntry::Split(secondary_split));
+                root.append(secondary, &mut tree);
+
+                for client in clients {
+                    let node = tree.new_node(SubsetEntry::Client(client));
+                    secondary.append(node, &mut tree);
+                }
+            }
+
+            Some(master)
+        } else {
+            None
+        };
+
+        OrderedSubset {
+            root: root,
+            focused: focused,
+            tree: tree,
+        }
+    }
+
+    /// Remove all invalidated weak references in the tree.
+    pub fn clean(&mut self) {
+        let mut dead_nodes: Vec<_> =
+            self.root
+                .descendants(&self.tree)
+                .filter(|child| match self.tree[*child].data {
+                    SubsetEntry::Client(ref r) => r.upgrade().is_none(),
+                    SubsetEntry::Split(_) => child.children(&self.tree).next().is_none(),
+                })
+                .collect();
+
+        self.clean_focus();
+
+        for id in &dead_nodes {
+            id.detach(&mut self.tree);
+        }
+    }
+
+    /// Calculate a new node to focus.
+    ///
+    /// Do it assuming the currently focused one is being destroyed.
+    fn clean_focus(&mut self) {
+        // TODO: prevent terrible things from happening
+        if let Some(focused) = self.focused {
+            if let Some(new) = focused.following_siblings(&self.tree).next() {
+                self.focused = Some(new);
+            } else if let Some(new) = focused.preceding_siblings(&self.tree).next() {
+                self.focused = Some(new);
+            } else if let Some(new) = focused.ancestors(&self.tree).skip(1).next() {
+                self.focused = Some(new);
+            }
+        }
+    }
+}
 
 /// A client set.
 ///
@@ -156,7 +242,7 @@ pub struct ClientSet {
     /// All clients.
     clients: HashMap<Window, ClientRef>,
     /// Ordered subsets of clients associated with sets of tags.
-    order: HashMap<BTreeSet<Tag>, OrderEntry>,
+    order: HashMap<BTreeSet<Tag>, OrderedSubset>,
 }
 
 impl ClientSet {
@@ -168,15 +254,16 @@ impl ClientSet {
     /// Get the order entry for a set of tags.
     ///
     /// If not present, create it.
-    pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>) -> &mut OrderEntry {
-        let clients: Vec<WeakClientRef> =
+    pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>) -> &mut OrderedSubset {
+        let clients =
             self.clients
                 .values()
                 .filter(|cl| cl.borrow().match_tags(tags))
                 .map(|r| Rc::downgrade(r))
-                .collect();
-        let focused = clients.first().cloned();
-        self.order.entry(tags.clone()).or_insert((focused, clients))
+                .peekable();
+        self.order
+            .entry(tags.clone())
+            .or_insert(OrderedSubset::new(SplitDirection::Vertical, clients))
     }
 
     /// Clean client store from invalidated weak references.
@@ -185,19 +272,14 @@ impl ClientSet {
     /// clients. When these objects get deallocated, we clean up.
     fn clean(&mut self) {
         for entry in self.order.values_mut() {
-            entry.1 = entry.1
-                .iter()
-                .filter_map(|c| c.upgrade().map(|_| c.clone()))
-                .collect();
-            if entry.0.clone().and_then(|r| r.upgrade()).is_none() {
-                entry.0 = entry.1.first().cloned();
-            }
+            entry.clean();
         }
     }
 
     /// Update all order entries to account for changes in a given client.
     fn fix_references(&mut self, target_client: ClientRef) {
-        for (tags, entry) in &mut self.order {
+        // TODO
+        /*for (tags, entry) in &mut self.order {
             if !target_client.borrow().match_tags(tags) {
                 // filter tagset's client references
                 entry.1 = entry.1
@@ -236,7 +318,7 @@ impl ClientSet {
                     .next()
                     .or(entry.1.first().cloned());
             }
-        }
+        }*/
     }
 
     /// Add a new client to the client store.
@@ -244,7 +326,8 @@ impl ClientSet {
     /// Adds client object to master `HashMap` and creates references to
     /// on the tagsets the client is visible on.
     pub fn add(&mut self, client: Client, as_slave: bool) {
-        let window = client.window;
+        // TODO
+        /*let window = client.window;
         let dummy_client = client.clone();
         let wrapped_client = Rc::new(RefCell::new(client));
         let weak = Rc::downgrade(&wrapped_client);
@@ -260,7 +343,7 @@ impl ClientSet {
                 }
                 *cur = Some(weak.clone());
             }
-        }
+        }*/
     }
 
     /// Remove the client corresponding to a window.
@@ -268,12 +351,14 @@ impl ClientSet {
     /// Removes the client objects and cleans all weak references to it,
     /// returning whether a client has actually been removed
     pub fn remove(&mut self, window: Window) -> bool {
-        if self.clients.remove(&window).is_some() {
+        // TODO
+        /*if self.clients.remove(&window).is_some() {
             self.clean();
             true
         } else {
             false
-        }
+        }*/
+        false
     }
 
     /// Apply a function to the client corresponding to a window.
@@ -282,7 +367,8 @@ impl ClientSet {
     /// window manager command as returned by the passed closure.
     pub fn update_client<F>(&mut self, window: Window, func: F) -> Option<WmCommand>
             where F: Fn(RefMut<Client>) -> WmCommand {
-        let res = self
+        // TODO
+        /*let res = self
             .clients
             .get_mut(&window)
             .map(|c| func(c.borrow_mut()));
@@ -291,22 +377,26 @@ impl ClientSet {
             let client = self.clients[&window].clone();
             self.fix_references(client);
         }
-        res
+        res*/
+        None
     }
 
     /// Get the currently focused window on a set of tags.
     pub fn get_focused_window(&self, tags: &BTreeSet<Tag>) -> Option<Window> {
-        self.order
+        // TODO
+        /*self.order
             .get(tags)
             .and_then(|t| t.0.clone())
             .and_then(|r| r.upgrade())
-            .map(|r| r.borrow().window)
+            .map(|r| r.borrow().window)*/
+        None
     }
 
     /// Focus a window on a set of tags relative to the current
     /// by index difference, returning whether changes have been made.
     fn focus_offset(&mut self, tags: &BTreeSet<Tag>, offset: isize) -> bool {
-        let &mut (ref mut current, ref clients) = self.get_order_or_insert(tags);
+        // TODO
+        /*let &mut (ref mut current, ref clients) = self.get_order_or_insert(tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -324,14 +414,15 @@ impl ClientSet {
                 *current = Some(new_client.clone());
                 return true;
             }
-        }
+        }*/
         false
     }
 
     /// Swap with current window on a set of tags relative to the current
     /// by index difference, returning whether changes have been made.
     fn swap_offset(&mut self, tags: &BTreeSet<Tag>, offset: isize) -> bool {
-        let &mut (ref current, ref mut clients) = self.get_order_or_insert(tags);
+        // TODO
+        /*let &mut (ref current, ref mut clients) = self.get_order_or_insert(tags);
         if let Some(current_window) = current
                 .clone()
                 .and_then(|c| c.upgrade())
@@ -352,7 +443,8 @@ impl ClientSet {
             }
         } else {
             false
-        }
+        }*/
+        false
     }
 
     /// Focus next window, returning whether changes have been made.
@@ -379,8 +471,8 @@ impl ClientSet {
     /// returning whether changes have been made.
     fn focus_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F) -> bool
             where F: Fn(usize, usize) -> Option<usize> {
-        let &mut (ref mut current, ref mut clients) =
-            self.get_order_or_insert(tags);
+        // TODO
+        /* let &mut (ref mut current, ref mut clients) = self.get_order_or_insert(tags);
         if let Some(current_window) = current
                 .clone()
                 .and_then(|c| c.upgrade())
@@ -398,7 +490,7 @@ impl ClientSet {
                     return true;
                 }
             }
-        }
+        }*/
         false
     }
 
@@ -406,8 +498,8 @@ impl ClientSet {
     /// returning whether changes have been made.
     fn swap_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F) -> bool
             where F: Fn(usize, usize) -> Option<usize> {
-        let &mut (ref current, ref mut clients) =
-            self.get_order_or_insert(tags);
+        // TODO
+        /* let &mut (ref current, ref mut clients) = self.get_order_or_insert(tags);
         if let Some(current_window) = current
             .clone()
             .and_then(|c| c.upgrade())
@@ -425,7 +517,7 @@ impl ClientSet {
                     return true;
                 }
             }
-        }
+        }*/
         false
     }
 
