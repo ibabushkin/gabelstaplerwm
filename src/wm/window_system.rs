@@ -197,7 +197,9 @@ impl<'a> Wm<'a> {
     /// all events we are interested in.
     pub fn register(&mut self) -> Result<(), WmError> {
         let values = xproto::EVENT_MASK_SUBSTRUCTURE_REDIRECT
-            | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY;
+            | xproto::EVENT_MASK_SUBSTRUCTURE_NOTIFY
+            | xproto::EVENT_MASK_LEAVE_WINDOW
+            | xproto::EVENT_MASK_ENTER_WINDOW;
         let cookie = xproto::change_window_attributes(
             self.con, self.root, &[(xproto::CW_EVENT_MASK, values)]);
 
@@ -437,6 +439,10 @@ impl<'a> Wm<'a> {
             },
             xproto::PROPERTY_NOTIFY => {
                 self.handle_property_notify(base::cast_event(&event));
+            },
+            xproto::LEAVE_NOTIFY | xproto::ENTER_NOTIFY => {
+                info!("received event: LEAVE_NOTIFY/ENTER_NOTIFY");
+                self.reset_focus(false);
             },
             xproto::CONFIGURE_REQUEST => {
                 info!("received event: CONFIGURE_REQUEST");
