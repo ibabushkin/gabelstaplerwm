@@ -73,7 +73,7 @@ impl Geometry {
 }
 
 /// A split direction.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SplitDirection {
     /// Horizontal split.
     Horizontal,

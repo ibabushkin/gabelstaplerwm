@@ -141,11 +141,12 @@ pub type WeakClientRef = Weak<RefCell<Client>>;
 pub type ClientRef = Rc<RefCell<Client>>;
 
 /// Different kinds of nodes in our client subset tree.
+#[derive(PartialEq, Eq)]
 pub enum SubsetEntry {
     /// A split, that is, a rectangular area split along one axis in `n` parts.
     Split(SplitDirection),
     /// A client.
-    Client(WeakClientRef),
+    Client(Window),
 }
 
 /// An entry in the `order` `HashMap` of a `ClientSet`.
@@ -154,7 +155,7 @@ pub enum SubsetEntry {
 /// Combined with a `Layout`, this allows for unambiguous tiling per-tagset,
 /// while preserving tagset-specific ordering, or rather, structure.
 pub struct OrderedSubset {
-    /// The root of the tree. 
+    /// The root of the tree.
     root: tree::NodeId,
     /// The currently focused client, if any.
     focused: Option<tree::NodeId>,
@@ -168,7 +169,7 @@ impl OrderedSubset {
     /// Construct a tree with a default layout, parametrized over the main split
     /// direction.
     pub fn new<T>(primary_split: SplitDirection, mut clients: Peekable<T>)
-            -> OrderedSubset where T: Iterator<Item=WeakClientRef> {
+            -> OrderedSubset where T: Iterator<Item=Window> {
         // TODO: this should be parametrized over a layout's tree construction.
         let mut tree = tree::Arena::new();
         let secondary_split = primary_split.flip();
@@ -199,38 +200,49 @@ impl OrderedSubset {
         }
     }
 
-    /// Remove all invalidated weak references in the tree.
-    pub fn clean(&mut self) {
-        let mut dead_nodes: Vec<_> =
-            self.root
-                .descendants(&self.tree)
-                .filter(|child| match self.tree[*child].data {
-                    SubsetEntry::Client(ref r) => r.upgrade().is_none(),
-                    SubsetEntry::Split(_) => child.children(&self.tree).next().is_none(),
-                })
-                .collect();
+    /// Given a window, get the `NodeId` corresponding to it, if any.
+    fn get_id(&self, window: Window) -> Option<tree::NodeId> {
+        let res = SubsetEntry::Client(window);
+        self.root.descendants(&self.tree).find(|node| self.tree[*node].data == res)
+    }
 
-        self.clean_focus();
+    /// Ensure a window is not present in the subset and return whether a change has
+    /// been made.
+    pub fn remove(&mut self, window: Window) -> bool {
+        let id = self.get_id(window);
+        match id {
+            Some(node_id) => {
+                if id == self.focused {
+                    self.focus_fallback(node_id);
+                }
+                self.remove_from_nodes(node_id);
+                true
+            },
+            _ => false,
 
-        for id in &dead_nodes {
-            id.detach(&mut self.tree);
         }
     }
 
-    /// Calculate a new node to focus.
-    ///
-    /// Do it assuming the currently focused one is being destroyed.
-    fn clean_focus(&mut self) {
-        // TODO: prevent terrible things from happening
-        if let Some(focused) = self.focused {
-            if let Some(new) = focused.following_siblings(&self.tree).next() {
-                self.focused = Some(new);
-            } else if let Some(new) = focused.preceding_siblings(&self.tree).next() {
-                self.focused = Some(new);
-            } else if let Some(new) = focused.ancestors(&self.tree).skip(1).next() {
-                self.focused = Some(new);
+    /// Focus a fallback node, starting at the node given.
+    fn focus_fallback(&mut self, node: tree::NodeId) {
+        if let Some(new) = node.following_siblings(&self.tree).next() {
+            self.focused = Some(new);
+        } else if let Some(new) = node.preceding_siblings(&self.tree).next() {
+            self.focused = Some(new);
+        } else if let Some(new) = node.ancestors(&self.tree).nth(1) {
+            self.focused = Some(new);
+        }
+    }
+
+    /// Remove a node and possibly it's parents turning to leaves.
+    fn remove_from_nodes(&mut self, node_id: tree::NodeId) {
+        if let Some(parent) = self.tree[node_id].parent() {
+            if self.tree[node_id].previous_sibling().is_none() &&
+                    self.tree[node_id].next_sibling().is_none() {
+                self.remove_from_nodes(parent);
             }
         }
+        node_id.detach(&mut self.tree);
     }
 }
 
@@ -263,11 +275,11 @@ impl ClientSet {
             self.clients
                 .values()
                 .filter(|cl| cl.borrow().match_tags(tags))
-                .map(|r| Rc::downgrade(r))
+                .map(|r| r.borrow().window)
                 .peekable();
         self.order
             .entry(tags.clone())
-            .or_insert(OrderedSubset::new(SplitDirection::Vertical, clients))
+            .or_insert_with(|| OrderedSubset::new(SplitDirection::Vertical, clients))
     }
 
     /// Clean client store from invalidated weak references.
@@ -275,8 +287,9 @@ impl ClientSet {
     /// This need arises from the fact that we store weak references to
     /// clients. When these objects get deallocated, we clean up.
     fn clean(&mut self) {
+        // TODO
         for entry in self.order.values_mut() {
-            entry.clean();
+            //entry.clean();
         }
     }
 

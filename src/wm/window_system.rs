@@ -896,7 +896,9 @@ impl<'a> Wm<'a> {
         let mut props = properties.drain(..);
 
         let window_type = if let Some(ClientProp::PropAtom(mut t)) = props.next() {
-            t.drain(..).next().unwrap_or(self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL"))
+            t.drain(..)
+                .next()
+                .unwrap_or_else(|| self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL"))
         } else { // assume reasonable default
             info!("_NET_WM_WINDOW_TYPE: not set, assuming _NET_WM_WINDOW_TYPE_NORMAL");
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
