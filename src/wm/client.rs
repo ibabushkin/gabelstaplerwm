@@ -200,10 +200,25 @@ impl OrderedSubset {
         }
     }
 
-    /// Given a window, get the `NodeId` corresponding to it, if any.
-    fn get_id(&self, window: Window) -> Option<tree::NodeId> {
-        let res = SubsetEntry::Client(window);
-        self.root.descendants(&self.tree).find(|node| self.tree[*node].data == res)
+    /// Ensure a window is present in the subset and return whether a change has
+    /// been made.
+    pub fn add(&mut self, window: Window, focus: bool) -> bool {
+        match self.get_id(window) {
+            Some(_) => false,
+            None => {
+                let new = self.tree.new_node(SubsetEntry::Client(window));
+                if let Some(focused) = self.focused {
+                    focused.insert_after(new, &mut self.tree);
+                } else {
+                    self.root.append(new, &mut self.tree);
+                }
+
+                if focus || self.focused.is_none() {
+                    self.focused = Some(new);
+                }
+                true
+            },
+        }
     }
 
     /// Ensure a window is not present in the subset and return whether a change has
@@ -221,6 +236,12 @@ impl OrderedSubset {
             _ => false,
 
         }
+    }
+
+    /// Given a window, get the `NodeId` corresponding to it, if any.
+    fn get_id(&self, window: Window) -> Option<tree::NodeId> {
+        let res = SubsetEntry::Client(window);
+        self.root.descendants(&self.tree).find(|node| self.tree[*node].data == res)
     }
 
     /// Focus a fallback node, starting at the node given.
