@@ -163,6 +163,7 @@ pub struct OrderedSubset {
     tree: tree::Arena<SubsetEntry>,
 }
 
+// TODO: this should be parametrized over a layout's tree construction.
 impl OrderedSubset {
     /// Build an ordered subset of weak client references.
     ///
@@ -170,7 +171,6 @@ impl OrderedSubset {
     /// direction.
     pub fn new<T>(primary_split: SplitDirection, mut clients: Peekable<T>)
             -> OrderedSubset where T: Iterator<Item=Window> {
-        // TODO: this should be parametrized over a layout's tree construction.
         let mut tree = tree::Arena::new();
         let secondary_split = primary_split.flip();
         let root = tree.new_node(SubsetEntry::Split(primary_split));
@@ -235,6 +235,14 @@ impl OrderedSubset {
             },
             _ => false,
 
+        }
+    }
+
+    /// Get the focused window in the subset, if any.
+    pub fn get_focused(&self) -> Option<Window> {
+        match self.focused.map(|id| &self.tree[id].data) {
+            Some(&SubsetEntry::Client(window)) => Some(window),
+            _ => None,
         }
     }
 
@@ -305,47 +313,14 @@ impl ClientSet {
 
     /// Update all order entries to account for changes in a given client.
     fn fix_references(&mut self, target_client: ClientRef) {
-        // TODO
-        /*for (tags, entry) in &mut self.order {
-            if !target_client.borrow().match_tags(tags) {
-                // filter tagset's client references
-                entry.1 = entry.1
-                    .iter()
-                    .filter_map(|r|
-                        if !is_ref_to_client(r, &target_client) {
-                            Some(r.clone())
-                        } else {
-                            None
-                        }
-                    )
-                    .collect();
-                // if left pointing to a moved client, set focus reference
-                // to current master client
-                entry.0 = entry.0
-                    .iter()
-                    .filter_map(|r|
-                        if !is_ref_to_client(r, &target_client) {
-                            Some(r.clone())
-                        } else {
-                            None
-                        }
-                    )
-                    .next()
-                    .or(entry.1.first().cloned());
-            } else if entry.1
-                .iter()
-                .find(|r| is_ref_to_client(*r, &target_client))
-                .is_none() {
-                // add client to references
-                entry.1.push(Rc::downgrade(&target_client));
-                // if no client is focused, focus newly added client
-                entry.0 = entry.0
-                    .iter()
-                    .cloned()
-                    .next()
-                    .or(entry.1.first().cloned());
+        for (tags, entry) in &mut self.order {
+            let client = target_client.borrow();
+            if !client.match_tags(tags) {
+                entry.remove(client.window);
+            } else {
+                entry.add(client.window, false);
             }
-        }*/
+        }
     }
 
     /// Add a new client to the client store.
@@ -410,13 +385,9 @@ impl ClientSet {
 
     /// Get the currently focused window on a set of tags.
     pub fn get_focused_window(&self, tags: &BTreeSet<Tag>) -> Option<Window> {
-        // TODO
-        /*self.order
+        self.order
             .get(tags)
-            .and_then(|t| t.0.clone())
-            .and_then(|r| r.upgrade())
-            .map(|r| r.borrow().window)*/
-        None
+            .and_then(|t| t.get_focused())
     }
 
     /// Focus a window on a set of tags relative to the current
