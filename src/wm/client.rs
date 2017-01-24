@@ -303,17 +303,6 @@ impl ClientSet {
             .or_insert_with(|| OrderedSubset::new(SplitDirection::Vertical, clients))
     }
 
-    /// Clean client store from invalidated weak references.
-    ///
-    /// This need arises from the fact that we store weak references to
-    /// clients. When these objects get deallocated, we clean up.
-    fn clean(&mut self) {
-        // TODO
-        for entry in self.order.values_mut() {
-            //entry.clean();
-        }
-    }
-
     /// Update all order entries to account for changes in a given client.
     fn fix_references(&mut self, target_client: ClientRef) {
         // TODO
@@ -390,7 +379,9 @@ impl ClientSet {
     /// returning whether a client has actually been removed
     pub fn remove(&mut self, window: Window) -> bool {
         if self.clients.remove(&window).is_some() {
-            self.clean();
+            for entry in self.order.values_mut() {
+                entry.remove(window);
+            }
             true
         } else {
             false
