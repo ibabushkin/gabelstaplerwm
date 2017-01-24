@@ -586,10 +586,8 @@ impl<'a> Wm<'a> {
         use std::ops::Deref;
         if ev.atom() == xproto::ATOM_WM_HINTS {
             let window = ev.window();
-            if let Some(client) = self
-                    .clients
-                    .get_client_by_window(window)
-                    .and_then(|r| r.deref().try_borrow().ok()) {
+            if let Some(client) = self.clients.get_client_by_window(window) {
+                    //.and_then(|r| r.deref().try_borrow().ok()) {
                 let hints = self.get_property_set(
                         window, vec![(xproto::ATOM_WM_HINTS, xproto::ATOM_WM_HINTS)]);
                 if let Some(&ClientProp::PropAtom(ref res)) = hints.first() {

@@ -1,11 +1,9 @@
 use indextree as tree;
 
-use std::cell::{RefCell, RefMut};
 use std::collections::{HashMap, BTreeSet};
 use std::collections::hash_map::Entry;
 use std::fmt;
 use std::iter::Peekable;
-use std::rc::{Rc, Weak};
 
 use xcb::xproto::{Atom, Window};
 use xcb::randr;
@@ -126,19 +124,6 @@ impl Client {
         self.tags.intersection(tags).next().is_some()
     }
 }
-
-/// Weak reference to a client.
-///
-/// Used to store references to clients that are placed in secondary
-/// structures, such as `HashMap`s storing the order of clients on specific
-/// tagsets.
-pub type WeakClientRef = Weak<RefCell<Client>>;
-
-/// Strong reference to a client.
-///
-/// Used to store clients themselves. The wrapping is necessary to allow
-/// for weak references to exist.
-pub type ClientRef = Rc<RefCell<Client>>;
 
 /// Different kinds of nodes in our client subset tree.
 #[derive(PartialEq, Eq)]
@@ -285,14 +270,14 @@ impl OrderedSubset {
 #[derive(Default)]
 pub struct ClientSet {
     /// All clients.
-    clients: HashMap<Window, ClientRef>,
+    clients: HashMap<Window, Client>,
     /// Ordered subsets of clients associated with sets of tags.
     order: HashMap<BTreeSet<Tag>, OrderedSubset>,
 }
 
 impl ClientSet {
     /// Get a client that corresponds to a given window.
-    pub fn get_client_by_window(&self, window: Window) -> Option<&ClientRef> {
+    pub fn get_client_by_window(&self, window: Window) -> Option<&Client> {
         self.clients.get(&window)
     }
 
@@ -303,24 +288,12 @@ impl ClientSet {
         let clients =
             self.clients
                 .values()
-                .filter(|cl| cl.borrow().match_tags(tags))
-                .map(|r| r.borrow().window)
+                .filter(|cl| cl.match_tags(tags))
+                .map(|r| r.window)
                 .peekable();
         self.order
             .entry(tags.clone())
             .or_insert_with(|| OrderedSubset::new(SplitDirection::Vertical, clients))
-    }
-
-    /// Update all order entries to account for changes in a given client.
-    fn fix_references(&mut self, target_client: ClientRef) {
-        for (tags, entry) in &mut self.order {
-            let client = target_client.borrow();
-            if !client.match_tags(tags) {
-                entry.remove(client.window);
-            } else {
-                entry.add(client.window, false);
-            }
-        }
     }
 
     /// Add a new client to the client store.
@@ -335,8 +308,8 @@ impl ClientSet {
                 subset.add(window, true);
             }
         }
-        let wrapped_client = Rc::new(RefCell::new(client));
-        self.clients.insert(window, wrapped_client);
+
+        self.clients.insert(window, client);
     }
 
     /// Remove the client corresponding to a window.
@@ -359,15 +332,21 @@ impl ClientSet {
     /// Maps the function and updates references as needed, returning a
     /// window manager command as returned by the passed closure.
     pub fn update_client<F>(&mut self, window: Window, func: F) -> Option<WmCommand>
-            where F: Fn(RefMut<Client>) -> WmCommand {
+            where F: Fn(&mut Client) -> WmCommand {
         let res = self
             .clients
             .get_mut(&window)
-            .map(|c| func(c.borrow_mut()));
+            .map(|c| func(c));
 
         if res.is_some() {
-            let client = self.clients[&window].clone();
-            self.fix_references(client);
+            let client = &self.clients[&window];
+            for (tags, entry) in &mut self.order {
+                if !client.match_tags(tags) {
+                    entry.remove(window);
+                } else {
+                    entry.add(window, false);
+                }
+            }
         }
         res
     }
