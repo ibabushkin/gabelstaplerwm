@@ -328,24 +328,15 @@ impl ClientSet {
     /// Adds client object to master `HashMap` and creates references to
     /// on the tagsets the client is visible on.
     pub fn add(&mut self, client: Client, as_slave: bool) {
-        // TODO
-        /*let window = client.window;
-        let dummy_client = client.clone();
-        let wrapped_client = Rc::new(RefCell::new(client));
-        let weak = Rc::downgrade(&wrapped_client);
+        let window = client.window;
 
-        self.clients.insert(window, wrapped_client);
-        for (tags, &mut (ref mut cur, ref mut clients)) in &mut self.order {
-            if dummy_client.match_tags(tags) {
-                let c = weak.clone();
-                if as_slave {
-                    clients.push(c);
-                } else {
-                    clients.insert(0, c);
-                }
-                *cur = Some(weak.clone());
+        for (tags, subset) in &mut self.order {
+            if client.match_tags(tags) {
+                subset.add(window, true);
             }
-        }*/
+        }
+        let wrapped_client = Rc::new(RefCell::new(client));
+        self.clients.insert(window, wrapped_client);
     }
 
     /// Remove the client corresponding to a window.
@@ -369,8 +360,7 @@ impl ClientSet {
     /// window manager command as returned by the passed closure.
     pub fn update_client<F>(&mut self, window: Window, func: F) -> Option<WmCommand>
             where F: Fn(RefMut<Client>) -> WmCommand {
-        // TODO
-        /*let res = self
+        let res = self
             .clients
             .get_mut(&window)
             .map(|c| func(c.borrow_mut()));
@@ -379,8 +369,7 @@ impl ClientSet {
             let client = self.clients[&window].clone();
             self.fix_references(client);
         }
-        res*/
-        None
+        res
     }
 
     /// Get the currently focused window on a set of tags.
@@ -569,11 +558,6 @@ impl ClientSet {
     pub fn swap_master(&mut self, tagset: &TagSet) -> bool {
         self.swap_direction(&tagset.tags, |_, _| Some(0))
     }
-}
-
-/// Check whether a weak reference is pointing to a specific client.
-fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
-     r.upgrade().map(|r| r.borrow().window) == Some(target.borrow().window)
 }
 
 /// A set of tags with an associated layout.
