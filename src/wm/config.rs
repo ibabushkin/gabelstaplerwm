@@ -250,6 +250,8 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(34, modkey+CTRL, Mode::Normal, |_, _| exec_script("pom.sh", &["-t"])),
         // reset focus (in case bad things happened)
         bind!(35, modkey, Mode::Normal, |_, _| WmCommand::Focus),
+        // toggle fixed state of layout
+        bind!(36, modkey, Mode::Normal, edit_layout!(LayoutMessage::FixedRel)),
         // lock screen - modkey+s
         bind!(39, modkey, Mode::Normal, |_, _| exec_script("slock.sh", &[])),
         // shutdown system - modkey+CTRL+s
@@ -304,6 +306,7 @@ pub fn setup_wm(wm: &mut Wm) {
                 WmCommand::NoCommand
             }
         }),
+        // switch screen - modkey+space
         bind!(65, modkey, Mode::Normal, |_, s|
             if s.change_screen(|cur, len| (cur + 1) % len) {
                 WmCommand::Focus
@@ -419,7 +422,7 @@ pub fn setup_wm(wm: &mut Wm) {
         if screen.tag_stack.is_clean() {
             let tagsets = vec![
                 TagSet::new(set![Tag::Web], VStack {
-                    master_factor: 75,
+                    master_factor: 100,
                     inverted: false,
                     fixed: true,
                 }),
