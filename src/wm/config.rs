@@ -250,8 +250,10 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(34, modkey+CTRL, Mode::Normal, |_, _| exec_script("pom.sh", &["-t"])),
         // reset focus (in case bad things happened)
         bind!(35, modkey, Mode::Normal, |_, _| WmCommand::Focus),
-        // toggle fixed state of layout
+        // toggle fixed state of layout - modkey+enter
         bind!(36, modkey, Mode::Normal, edit_layout!(LayoutMessage::FixedRel)),
+        // toggle inverted state of layout - modkey+SHIFT+enter
+        bind!(36, modkey+SHIFT, Mode::Normal, edit_layout!(LayoutMessage::InvertedRel)),
         // lock screen - modkey+s
         bind!(39, modkey, Mode::Normal, |_, _| exec_script("slock.sh", &[])),
         // shutdown system - modkey+CTRL+s
