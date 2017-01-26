@@ -322,6 +322,8 @@ impl Layout for HStack {
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
+            LayoutMessage::InvertedAbs(i) => self.inverted = i,
+            LayoutMessage::InvertedRel => self.inverted = !self.inverted,
             _ => return false,
         };
         true
@@ -470,6 +472,8 @@ impl Layout for VStack {
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
+            LayoutMessage::InvertedAbs(i) => self.inverted = i,
+            LayoutMessage::InvertedRel => self.inverted = !self.inverted,
             _ => return false,
         };
         true

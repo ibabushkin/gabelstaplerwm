@@ -125,8 +125,12 @@ pub enum LayoutMessage {
     MasterFactorRel(i8),
     /// Set `fixed` attribute of layout.
     FixedAbs(bool),
-    /// Toggle `fixed` attrbute of layout.
+    /// Toggle `fixed` attribute of layout.
     FixedRel,
+    /// Set `inverted` attribute of layout.
+    InvertedAbs(bool),
+    /// Toggle `inverted` attribute of layout.
+    InvertedRel,
     /// Set absolute value of the x offset.
     XOffAbs(u32),
     /// Add an offset to the x offset.
