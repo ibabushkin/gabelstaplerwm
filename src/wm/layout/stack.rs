@@ -227,9 +227,14 @@ impl Layout for HStack {
             } else {
                 screen.height
             };
+            let y = if self.inverted {
+                screen.offset_y + screen.height - master_height
+            } else {
+                screen.offset_y
+            };
             res.push(Some(Geometry {
                 x: screen.offset_x,
-                y: screen.offset_y,
+                y: y,
                 width: screen.width.saturating_sub(2),
                 height: h.saturating_sub(2),
             }));
@@ -377,8 +382,13 @@ impl Layout for VStack {
             } else {
                 screen.width
             };
+            let x = if self.inverted {
+                screen.offset_x + screen.width - master_width
+            } else {
+                screen.offset_x
+            };
             res.push(Some(Geometry {
-                x: screen.offset_x,
+                x: x,
                 y: screen.offset_y,
                 width: w.saturating_sub(2),
                 height: screen.height.saturating_sub(2),
