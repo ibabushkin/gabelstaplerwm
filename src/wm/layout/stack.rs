@@ -228,7 +228,7 @@ impl Layout for HStack {
                 screen.height
             };
             let y = if self.inverted {
-                screen.offset_y + screen.height - master_height
+                screen.offset_y + screen.height - h
             } else {
                 screen.offset_y
             };
@@ -383,7 +383,7 @@ impl Layout for VStack {
                 screen.width
             };
             let x = if self.inverted {
-                screen.offset_x + screen.width - master_width
+                screen.offset_x + screen.width - w
             } else {
                 screen.offset_x
             };
