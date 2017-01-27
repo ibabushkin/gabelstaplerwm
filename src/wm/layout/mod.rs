@@ -97,7 +97,7 @@ impl SplitDirection {
 /// we want to output (`WmCommand` in particular) rely on derived `Debug`
 /// instances and all types implementing `Layout` implement `Debug` anyway.
 pub trait Layout : Debug {
-    /// Compute window geometries. 
+    /// Compute window geometries.
     ///
     /// If a `None` is returned at a particular position, that window is not
     /// to be made visible.
@@ -127,7 +127,45 @@ pub trait Layout : Debug {
     fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
         msgs.drain(..).any(|m| self.edit_layout(m))
     }
+}
 
+/// Types that compute geometries for specifically shaped client subset trees.
+///
+/// The trait inherits from `Debug` for purely practical reasons: some types
+/// we want to output (`WmCommand` in particular) rely on derived `Debug`
+/// instances and all types implementing `Layout` implement `Debug` anyway.
+pub trait NewLayout : Debug {
+    /// Compute window geometries.
+    fn arrange(&self, tree: (), screen: &TilingArea) -> Vec<Option<Geometry>>;
+
+    /// Transform an arbitrary client subset tree into a shape suitable for the layout.
+    fn transform(&self, tree: &mut ());
+
+    /// Insert a new client in a client subset tree.
+    fn insert(&self, tree: &mut (), client: ());
+
+    /// Delete a client in a client subset tree.
+    fn delete(&self, tree: &mut (), client: ());
+
+    /// Focus a client in a client subset tree by direction.
+    ///
+    /// That is, either geometrical, or topological direction gets applied.
+    fn focus_direction(&self, tree: &mut (), direction: ());
+
+    /// Swap a client in a client subset tree by direction.
+    ///
+    /// That is, either geometrical, or topological direction gets applied.
+    fn swap_direction(&self, tree: &mut (), direction: ());
+
+    /// React to a `LayoutMessage`, returning true on change.
+    fn edit_layout(&mut self, msg: LayoutMessage) -> bool;
+
+    /// React to the first applicable `LayoutMessage`.
+    ///
+    /// If any reaction is triggered, return `true`, else `false`.
+    fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
+        msgs.drain(..).any(|m| self.edit_layout(m))
+    }
 }
 
 /// A message type being sent to layout objects.
