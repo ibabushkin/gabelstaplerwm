@@ -302,6 +302,7 @@ impl<'a> Wm<'a> {
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
 
+        /*
         for &mut (_, ref mut screen) in self.screens.screens_mut() {
             if let Some(tagset) = screen.tag_stack.current() {
                 // calculate next tag set ...
@@ -313,13 +314,13 @@ impl<'a> Wm<'a> {
                 // ... get the corresponding client set and geometries ...
                 let clients = self.clients.get_order_or_insert(&tags);
                 // TODO
-                //let geometries = tagset.layout.arrange(clients.1.len(), &screen.area);
-                //debug!("calculated geometries: {:?}", geometries);
+                let geometries = tagset.layout.arrange(clients.1.len(), &screen.area);
+                debug!("calculated geometries: {:?}", geometries);
 
                 // ... and display windows accordingly
-                //arrange(self.con, &mut self.visible_windows, clients, geometries);
+                arrange(self.con, &mut self.visible_windows, clients, geometries);
             }
-        }
+        }*/
     }
 
     /// Hide some windows by moving them offscreen.
@@ -1069,7 +1070,7 @@ fn get_atoms<'a>(con: &base::Connection, names: &[&'a str])
 #[cfg(feature = "parallel-resizing")]
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
-           clients: &OrderedSubset,
+           clients: &SubsetTree,
            geometries: Vec<Option<Geometry>>) {
     // TODO
     /*let cookies: Vec<_> = clients.1

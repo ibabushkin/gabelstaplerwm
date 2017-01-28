@@ -10,7 +10,7 @@ use xcb::randr;
 use xcb::randr::{Crtc, CrtcChange};
 
 use wm::config::Tag;
-use wm::layout::{Layout, TilingArea, SplitDirection};
+use wm::layout::{Layout, TilingArea, SplitDirection, NewLayout};
 use wm::window_system::{ScreenMatching, WmCommand};
 
 /// Construct a Set of... things, like you would use `vec!`.
@@ -139,23 +139,28 @@ pub enum SubsetEntry {
 /// Represents the tree of clients and splits on a specific set of tags.
 /// Combined with a `Layout`, this allows for unambiguous tiling per-tagset,
 /// while preserving tagset-specific ordering, or rather, structure.
-pub struct OrderedSubset {
+pub struct SubsetTree {
     /// The root of the tree.
     root: tree::NodeId,
-    /// The currently focused client, if any.
+    /// The currently focused client, if any. The stored `NodeId` has to represent a leaf.
     focused: Option<tree::NodeId>,
+    /// The root of the currently selected subtree, if any. When not set explicitly, the
+    /// selected subtree is the leaf with the focused client, if one exists.
+    selected: Option<tree::NodeId>,
     /// The tree of clients.
     tree: tree::Arena<SubsetEntry>,
+    /// The layout used by the subset.
+    layout: Box<NewLayout>,
 }
 
 // TODO: this should be parametrized over a layout's tree construction.
-impl OrderedSubset {
+impl SubsetTree {
     /// Build an ordered subset of weak client references.
     ///
     /// Construct a tree with a default layout, parametrized over the main split
     /// direction.
-    pub fn new<T>(primary_split: SplitDirection, mut clients: Peekable<T>)
-            -> OrderedSubset where T: Iterator<Item=Window> {
+    pub fn new<T, L>(primary_split: SplitDirection, mut clients: Peekable<T>, layout: L)
+            -> SubsetTree where T: Iterator<Item=Window>, L: NewLayout + 'static {
         let mut tree = tree::Arena::new();
         let secondary_split = primary_split.flip();
         let root = tree.new_node(SubsetEntry::Split(primary_split));
@@ -178,10 +183,12 @@ impl OrderedSubset {
             None
         };
 
-        OrderedSubset {
+        SubsetTree {
             root: root,
             focused: focused,
+            selected: None,
             tree: tree,
+            layout: Box::new(layout),
         }
     }
 
@@ -213,7 +220,7 @@ impl OrderedSubset {
         match id {
             Some(node_id) => {
                 if id == self.focused {
-                    self.focus_fallback(node_id);
+                    self.focused = self.get_fallback(node_id);
                 }
                 self.remove_from_nodes(node_id);
                 true
@@ -238,13 +245,15 @@ impl OrderedSubset {
     }
 
     /// Focus a fallback node, starting at the node given.
-    fn focus_fallback(&mut self, node: tree::NodeId) {
+    fn get_fallback(&self, node: tree::NodeId) -> Option<tree::NodeId> {
         if let Some(new) = node.following_siblings(&self.tree).next() {
-            self.focused = Some(new);
+            Some(new)
         } else if let Some(new) = node.preceding_siblings(&self.tree).next() {
-            self.focused = Some(new);
+            Some(new)
         } else if let Some(new) = node.ancestors(&self.tree).nth(1) {
-            self.focused = Some(new);
+            Some(new)
+        } else {
+            None
         }
     }
 
@@ -272,7 +281,7 @@ pub struct ClientSet {
     /// All clients.
     clients: HashMap<Window, Client>,
     /// Ordered subsets of clients associated with sets of tags.
-    order: HashMap<BTreeSet<Tag>, OrderedSubset>,
+    order: HashMap<BTreeSet<Tag>, SubsetTree>,
 }
 
 impl ClientSet {
@@ -281,10 +290,11 @@ impl ClientSet {
         self.clients.get(&window)
     }
 
+    /*
     /// Get the order entry for a set of tags.
     ///
     /// If not present, create it.
-    pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>) -> &mut OrderedSubset {
+    pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>) -> &mut SubsetTree {
         let clients =
             self.clients
                 .values()
@@ -293,8 +303,8 @@ impl ClientSet {
                 .peekable();
         self.order
             .entry(tags.clone())
-            .or_insert_with(|| OrderedSubset::new(SplitDirection::Vertical, clients))
-    }
+            .or_insert_with(|| SubsetTree::new(SplitDirection::Vertical, clients))
+    } */
 
     /// Add a new client to the client store.
     ///
@@ -632,16 +642,16 @@ impl TagStack {
         self.tagsets.is_empty() && self.hidden.is_empty() && self.history.is_empty()
     }
 
-    /// Get the current tag set's index
+    /// Get the current tag set's index.
     ///
-    /// Returns `None` if the history stack is empty
+    /// Returns `None` if the history stack is empty.
     pub fn current_index(&self) -> Option<&u8> {
         self.history.last()
     }
 
     /// Get the current tag set by reference.
     ///
-    /// Returns `None` if the history stack is empty
+    /// Returns `None` if the history stack is empty.
     pub fn current(&self) -> Option<&TagSet> {
         self.history
             .last()
@@ -650,7 +660,7 @@ impl TagStack {
 
     /// Get the current tag set by mutable reference.
     ///
-    /// Returns `None` if the history stack is empty
+    /// Returns `None` if the history stack is empty.
     pub fn current_mut(&mut self) -> Option<&mut TagSet> {
         if let Some(i) = self.history.last() {
             self.tagsets.get_mut(i)

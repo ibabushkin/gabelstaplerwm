@@ -1,5 +1,9 @@
 use std::fmt::Debug;
 
+use wm::client::SubsetTree;
+
+use xcb::xproto::Window;
+
 pub mod grid;
 pub mod monocle;
 pub mod spiral;
@@ -129,6 +133,26 @@ pub trait Layout : Debug {
     }
 }
 
+/// A direction, as used for focus and selection manipulation.
+pub enum Direction {
+    /// Visual direction on screen: left.
+    GeometricLeft,
+    /// Visual direction on screen: top.
+    GeometricTop,
+    /// Visual direction on screen: right.
+    GeometricRight,
+    /// Visual direction on screen: bottom.
+    GeometricBottom,
+    /// Structural direction in the tree: left.
+    TopologicLeft,
+    /// Structural direction in the tree: top.
+    TopologicTop,
+    /// Structural direction in the tree: right.
+    TopologicRight,
+    /// Structural direction in the tree: bottom.
+    TopologicBottom,
+}
+
 /// Types that compute geometries for specifically shaped client subset trees.
 ///
 /// The trait inherits from `Debug` for purely practical reasons: some types
@@ -136,26 +160,36 @@ pub trait Layout : Debug {
 /// instances and all types implementing `Layout` implement `Debug` anyway.
 pub trait NewLayout : Debug {
     /// Compute window geometries.
-    fn arrange(&self, tree: (), screen: &TilingArea) -> Vec<Option<Geometry>>;
+    fn arrange(&self, tree: &SubsetTree, screen: &TilingArea)
+        -> Vec<(Window, Geometry)>;
+
+    /// Check a tree's structure regarding a shape suitable for the layout.
+    ///
+    /// This operation *can* modify the tree, but it has to keep it isomorphic to it's
+    /// original state, that is, not change the structure. If this is not possible,
+    /// `false` is returned, `true` otherwise.
+    fn check_tree(&self, tree: &mut SubsetTree) -> bool;
 
     /// Transform an arbitrary client subset tree into a shape suitable for the layout.
-    fn transform(&self, tree: &mut ());
+    ///
+    /// This can change the tree in any way.
+    fn transform_tree(&self, tree: &mut SubsetTree);
 
     /// Insert a new client in a client subset tree.
-    fn insert(&self, tree: &mut (), client: ());
+    fn insert(&self, tree: &mut SubsetTree, client: Window);
 
     /// Delete a client in a client subset tree.
-    fn delete(&self, tree: &mut (), client: ());
+    fn delete(&self, tree: &mut SubsetTree, client: Window);
 
     /// Focus a client in a client subset tree by direction.
     ///
     /// That is, either geometrical, or topological direction gets applied.
-    fn focus_direction(&self, tree: &mut (), direction: ());
+    fn focus_direction(&self, tree: &mut SubsetTree, direction: Direction) -> bool;
 
     /// Swap a client in a client subset tree by direction.
     ///
     /// That is, either geometrical, or topological direction gets applied.
-    fn swap_direction(&self, tree: &mut (), direction: ());
+    fn swap_direction(&self, tree: &mut SubsetTree, direction: Direction) -> bool;
 
     /// React to a `LayoutMessage`, returning true on change.
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool;
