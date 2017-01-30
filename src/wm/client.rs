@@ -140,6 +140,8 @@ pub enum SubsetEntry {
 /// Combined with a `Layout`, this allows for unambiguous tiling per-tagset,
 /// while preserving tagset-specific ordering, or rather, structure.
 pub struct SubsetTree {
+    /// The layout used by the tree.
+    layout: Box<NewLayout>,
     /// The root of the tree.
     root: tree::NodeId,
     /// The currently focused client, if any. The stored `NodeId` has to represent a leaf.
@@ -149,8 +151,6 @@ pub struct SubsetTree {
     selected: Option<tree::NodeId>,
     /// The tree of clients.
     tree: tree::Arena<SubsetEntry>,
-    /// The layout used by the subset.
-    layout: Box<NewLayout>,
 }
 
 // TODO: this should be parametrized over a layout's tree construction.
@@ -159,37 +159,19 @@ impl SubsetTree {
     ///
     /// Construct a tree with a default layout, parametrized over the main split
     /// direction.
-    pub fn new<T, L>(primary_split: SplitDirection, mut clients: Peekable<T>, layout: L)
-            -> SubsetTree where T: Iterator<Item=Window>, L: NewLayout + 'static {
+    pub fn new<I, L>(mut clients: I, layout: L) -> SubsetTree
+            where I: Iterator<Item=Window>, L: NewLayout + 'static {
         let mut tree = tree::Arena::new();
-        let secondary_split = primary_split.flip();
-        let root = tree.new_node(SubsetEntry::Split(primary_split));
-        let focused = if let Some(master) = clients.next() {
-            let master = tree.new_node(SubsetEntry::Client(master));
-            root.append(master, &mut tree);
-
-            if clients.peek().is_some() {
-                let secondary = tree.new_node(SubsetEntry::Split(secondary_split));
-                root.append(secondary, &mut tree);
-
-                for client in clients {
-                    let node = tree.new_node(SubsetEntry::Client(client));
-                    secondary.append(node, &mut tree);
-                }
-            }
-
-            Some(master)
-        } else {
-            None
-        };
+        let root = tree.new_node(SubsetEntry::Split(SplitDirection::Vertical));
 
         SubsetTree {
+            layout: Box::new(layout),
             root: root,
-            focused: focused,
+            focused: None, // TODO
             selected: None,
             tree: tree,
-            layout: Box::new(layout),
         }
+
     }
 
     /// Ensure a window is present in the subset and return whether a change has
