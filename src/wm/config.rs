@@ -366,7 +366,7 @@ pub fn setup_wm(wm: &mut Wm) {
         ),
         // warp the mouse pointer out of the way - modkey+y
         bind!(52, modkey, Mode::Normal, |_, _|
-              exec_command("swarp", &["0", "768"])),
+              exec_command("swarp", &["0", "900"])),
         // kill current client - modkey+SHIFT+c
         bind!(54, modkey+SHIFT, Mode::Normal, |c, s| s
             .tag_stack()
