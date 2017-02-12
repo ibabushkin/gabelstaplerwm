@@ -387,11 +387,6 @@ pub fn setup_wm(wm: &mut Wm) {
               exec_script("volume.sh", &["toggle"])),
         bind!(122, 0, Mode::Normal, |_, _| exec_script("volume.sh", &["5%-"])),
         bind!(123, 0, Mode::Normal, |_, _| exec_script("volume.sh", &["5%+"])),
-        // backlight controls - XF86MonBrightness{Down,Up}
-        bind!(232, 0, Mode::Normal, |_, _|
-              exec_command("xbacklight", &["-dec", "5"])),
-        bind!(233, 0, Mode::Normal, |_, _|
-              exec_command("xbacklight", &["-inc", "5"])),
     ]);
 
     // matching function deciding upon client placement
