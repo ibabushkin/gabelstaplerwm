@@ -246,7 +246,7 @@ pub fn setup_wm(wm: &mut Wm) {
             WmCommand::ModeSwitch(Mode::Setup)
         }),
         // spawn a terminal - modkey+i
-        bind!(31, modkey, Mode::Normal, |_, _| exec_command("st", &[])),
+        bind!(31, modkey, Mode::Normal, |_, _| exec_command("st", &["tmux"])),
         // spawn an agenda notification - modkey+o
         bind!(32, modkey, Mode::Normal, |_, _| exec_script("org.sh", &[])),
         // spawn a weather notification - modkey+p
