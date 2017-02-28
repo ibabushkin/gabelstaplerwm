@@ -47,12 +47,14 @@ pub enum Tag {
     Web,
     /// "unlimited" number of work tags
     Work(i8),
-    /// the org tag - for todos and other organizational stuff
-    Org,
-    /// the media tag - for movies, music apps etc.
-    Media,
     /// the chat tag - for IRC and IM
     Chat,
+    /// the org tag - for todos and other organizational stuff
+    Org,
+    /// the mail tag - for mails (actually just `mutt`)
+    Mail,
+    /// the media tag - for movies, music apps etc.
+    Media,
     /// the log tag - for log viewing
     Logs,
     /// the monitoring tag - for htop & co.
@@ -72,9 +74,10 @@ impl fmt::Display for Tag {
         } else {
             write!(f, "{}", match *self {
                 Tag::Web => "web",
-                Tag::Org => "org",
-                Tag::Media => "media",
                 Tag::Chat => "chat",
+                Tag::Org => "org",
+                Tag::Mail => "mail",
+                Tag::Media => "media",
                 Tag::Logs => "logs",
                 Tag::Mon => "mon",
                 _ => unreachable!(),
@@ -147,16 +150,18 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(10, modkey, Mode::Toggle, toggle_tag!(Tag::Web)),
         bind!(12, modkey, Mode::Toggle, toggle_tag!(Tag::Chat)),
         bind!(13, modkey, Mode::Toggle, toggle_tag!(Tag::Org)),
-        bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
-        bind!(15, modkey, Mode::Toggle, toggle_tag!(Tag::Logs)),
-        bind!(16, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
+        bind!(14, modkey, Mode::Toggle, toggle_tag!(Tag::Mail)),
+        bind!(15, modkey, Mode::Toggle, toggle_tag!(Tag::Media)),
+        bind!(16, modkey, Mode::Toggle, toggle_tag!(Tag::Logs)),
+        bind!(17, modkey, Mode::Toggle, toggle_tag!(Tag::Mon)),
         // move client to tags - modkey+[1-6]
         bind!(10, modkey, Mode::Move, move_to_tag!(Tag::Web)),
         bind!(12, modkey, Mode::Move, move_to_tag!(Tag::Chat)),
         bind!(13, modkey, Mode::Move, move_to_tag!(Tag::Org)),
-        bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Media)),
-        bind!(15, modkey, Mode::Move, move_to_tag!(Tag::Logs)),
-        bind!(16, modkey, Mode::Move, move_to_tag!(Tag::Mon)),
+        bind!(14, modkey, Mode::Move, move_to_tag!(Tag::Mail)),
+        bind!(15, modkey, Mode::Move, move_to_tag!(Tag::Media)),
+        bind!(16, modkey, Mode::Move, move_to_tag!(Tag::Logs)),
+        bind!(17, modkey, Mode::Move, move_to_tag!(Tag::Mon)),
         // toggle tags on current tagset - modkey+[1-6]
         bind!(10, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Web;; current_tagset)),
@@ -165,10 +170,12 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(13, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Org;; current_tagset)),
         bind!(14, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Media;; current_tagset)),
+              toggle_show_tag!(Tag::Mail;; current_tagset)),
         bind!(15, modkey, Mode::Setup,
-              toggle_show_tag!(Tag::Logs;; current_tagset)),
+              toggle_show_tag!(Tag::Media;; current_tagset)),
         bind!(16, modkey, Mode::Setup,
+              toggle_show_tag!(Tag::Logs;; current_tagset)),
+        bind!(17, modkey, Mode::Setup,
               toggle_show_tag!(Tag::Mon;; current_tagset)),
         // quit the window manager - modkey+CTRL+q
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| {
@@ -399,6 +406,8 @@ pub fn setup_wm(wm: &mut Wm) {
             Some((set![Tag::Chat], true))
         } else if props.class.contains(&String::from("Org")) {
             Some((set![Tag::Org], true))
+        } else if props.class.contains(&String::from("Mail")) {
+            Some((set![Tag::Mail], true))
         } else if props.class.contains(&String::from("mpv")) ||
                 props.class.contains(&String::from("Media")) {
             Some((set![Tag::Media], true))
@@ -430,6 +439,11 @@ pub fn setup_wm(wm: &mut Wm) {
                     fixed: false,
                 }),
                 TagSet::new(set![Tag::Org], HStack {
+                    master_factor: 75,
+                    inverted: false,
+                    fixed: false
+                }),
+                TagSet::new(set![Tag::Mail], HStack {
                     master_factor: 75,
                     inverted: false,
                     fixed: false
