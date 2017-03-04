@@ -1,9 +1,10 @@
-use indextree as tree;
-
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{HashMap, BTreeSet, VecDeque};
 use std::collections::hash_map::Entry;
 use std::fmt;
 use std::iter::Peekable;
+use std::rc::{Rc, Weak};
+
+use vec_arena::Arena;
 
 use xcb::xproto::{Atom, Window};
 use xcb::randr;
@@ -125,129 +126,237 @@ impl Client {
     }
 }
 
-/// Different kinds of nodes in our client subset tree.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SubsetError {
+    WrongKindOfNode,
+    WrongParent,
+    Orphan,
+}
+
+pub type SubsetResult<A> = Result<A, SubsetError>;
+
 #[derive(PartialEq, Eq)]
 pub enum SubsetEntry {
-    /// A split, that is, a rectangular area split along one axis in `n` parts.
-    Split(SplitDirection),
-    /// A client.
-    Client(Window),
+    Split(Option<usize>, SplitDirection, Vec<usize>),
+    Client(Option<usize>, Window),
 }
 
-/// An entry in the `order` `HashMap` of a `ClientSet`.
-///
-/// Represents the tree of clients and splits on a specific set of tags.
-/// Combined with a `Layout`, this allows for unambiguous tiling per-tagset,
-/// while preserving tagset-specific ordering, or rather, structure.
+impl SubsetEntry {
+    #[inline(always)]
+    pub fn get_parent(&self) -> Option<usize> {
+        match *self {
+            SubsetEntry::Split(parent, ..) => parent,
+            SubsetEntry::Client(parent, ..) => parent,
+        }
+    }
+
+    #[inline(always)]
+    pub fn set_parent(&mut self, new_parent: Option<usize>) {
+        match *self {
+            SubsetEntry::Split(ref mut parent, ..) => *parent = new_parent,
+            SubsetEntry::Client(ref mut parent, ..) => *parent = new_parent,
+        };
+    }
+
+    #[inline(always)]
+    pub fn get_children(&self) -> SubsetResult<&Vec<usize>> {
+        match *self {
+            SubsetEntry::Split(_, _, ref children) => Ok(children),
+            _ => Err(SubsetError::WrongKindOfNode),
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_children_mut(&mut self) -> SubsetResult<&mut Vec<usize>> {
+        match *self {
+            SubsetEntry::Split(_, _, ref mut children) => Ok(children),
+            _ => Err(SubsetError::WrongKindOfNode),
+        }
+    }
+
+    #[inline(always)]
+    pub fn find_child(&self, child: usize) -> SubsetResult<usize> {
+        // self.get_children().map(|children| children.iter().position(|c| *c == child))
+        let children = try!(self.get_children());
+        if let Some(pos) = children.iter().position(|c| *c == child) {
+            Ok(pos)
+        } else {
+            Err(SubsetError::WrongParent)
+        }
+    }
+
+    #[inline(always)]
+    pub fn remove_child(&mut self, child: usize) -> SubsetResult<()> {
+        try!(self.get_children_mut()).retain(|c| *c != child);
+        Ok(())
+    }
+}
+
+// Each index stored in the whole tree is valid after each mutable API call.
 pub struct SubsetTree {
-    /// The layout used by the tree.
     layout: Box<NewLayout>,
-    /// The root of the tree.
-    root: tree::NodeId,
-    /// The currently focused client, if any. The stored `NodeId` has to represent a leaf.
-    focused: Option<tree::NodeId>,
-    /// The root of the currently selected subtree, if any. When not set explicitly, the
-    /// selected subtree is the leaf with the focused client, if one exists.
-    selected: Option<tree::NodeId>,
-    /// The tree of clients.
-    tree: tree::Arena<SubsetEntry>,
+    arena: Arena<SubsetEntry>,
+    root: Option<usize>,
+    focused: Option<usize>,
+    selected: Option<usize>,
 }
 
-// TODO: this should be parametrized over a layout's tree construction.
-impl SubsetTree {
-    /// Build an ordered subset of weak client references.
-    ///
-    /// Construct a tree with a default layout, parametrized over the main split
-    /// direction.
-    pub fn new<I, L>(mut clients: I, layout: L) -> SubsetTree
-            where I: Iterator<Item=Window>, L: NewLayout + 'static {
-        let mut tree = tree::Arena::new();
-        let root = tree.new_node(SubsetEntry::Split(SplitDirection::Vertical));
+pub enum InsertBias {
+    BelowLeft,
+    BelowRight,
+    NextToLeft,
+    NextToRight,
+}
 
+impl SubsetTree {
+    pub fn new<L: NewLayout + 'static>(layout: L) -> SubsetTree {
         SubsetTree {
             layout: Box::new(layout),
-            root: root,
-            focused: None, // TODO
+            arena: Arena::new(),
+            root: None,
+            focused: None,
             selected: None,
-            tree: tree,
-        }
-
-    }
-
-    /// Ensure a window is present in the subset and return whether a change has
-    /// been made.
-    pub fn add(&mut self, window: Window, focus: bool) -> bool {
-        match self.get_id(window) {
-            Some(_) => false,
-            None => {
-                let new = self.tree.new_node(SubsetEntry::Client(window));
-                if let Some(focused) = self.focused {
-                    focused.insert_after(new, &mut self.tree);
-                } else {
-                    self.root.append(new, &mut self.tree);
-                }
-
-                if focus || self.focused.is_none() {
-                    self.focused = Some(new);
-                }
-                true
-            },
         }
     }
 
-    /// Ensure a window is not present in the subset and return whether a change has
-    /// been made.
-    pub fn remove(&mut self, window: Window) -> bool {
-        let id = self.get_id(window);
-        match id {
-            Some(node_id) => {
-                if id == self.focused {
-                    self.focused = self.get_fallback(node_id);
-                }
-                self.remove_from_nodes(node_id);
-                true
-            },
-            _ => false,
-
-        }
+    fn add_client_node(&mut self, client: Window) -> usize {
+        self.arena.insert(SubsetEntry::Client(None, client))
     }
 
-    /// Get the focused window in the subset, if any.
-    pub fn get_focused(&self) -> Option<Window> {
-        match self.focused.map(|id| &self.tree[id].data) {
-            Some(&SubsetEntry::Client(window)) => Some(window),
-            _ => None,
-        }
+    fn add_inner_node(&mut self, split: SplitDirection) -> usize {
+        self.arena.insert(SubsetEntry::Split(None, split, Vec::new()))
     }
 
-    /// Given a window, get the `NodeId` corresponding to it, if any.
-    fn get_id(&self, window: Window) -> Option<tree::NodeId> {
-        let res = SubsetEntry::Client(window);
-        self.root.descendants(&self.tree).find(|node| self.tree[*node].data == res)
-    }
-
-    /// Focus a fallback node, starting at the node given.
-    fn get_fallback(&self, node: tree::NodeId) -> Option<tree::NodeId> {
-        if let Some(new) = node.following_siblings(&self.tree).next() {
-            Some(new)
-        } else if let Some(new) = node.preceding_siblings(&self.tree).next() {
-            Some(new)
-        } else if let Some(new) = node.ancestors(&self.tree).nth(1) {
-            Some(new)
+    fn get_parent(&self, node: usize) -> SubsetResult<(usize, usize)> {
+        if let Some(parent) = self.arena[node].get_parent() {
+            self.arena[parent].find_child(node).map(|index| (parent, index))
         } else {
-            None
+            Err(SubsetError::Orphan)
         }
     }
 
-    /// Remove a node and possibly it's parents turning to leaves.
-    fn remove_from_nodes(&mut self, node_id: tree::NodeId) {
-        if let Some(parent) = self.tree[node_id].parent() {
-            if self.tree[node_id].previous_sibling().is_none() &&
-                    self.tree[node_id].next_sibling().is_none() {
-                self.remove_from_nodes(parent);
+    fn add_child(&mut self, parent: usize, child: usize, pos: usize) {
+        if self.arena[parent].find_child(child) == Err(SubsetError::WrongParent) {
+            {
+                // At this point we know that the parent node is of the right kind
+                // and that it doesn't have the child yet, so it's safe to unwrap.
+                let children = self.arena[parent].get_children_mut().unwrap();
+                if pos > children.len() {
+                    children.push(child);
+                } else {
+                    children.insert(pos, child);
+                }
+            }
+
+            if let Some(old_parent) = self.arena[child].get_parent() {
+                self.arena[old_parent].remove_child(child);
+            }
+
+            self.arena[child].set_parent(Some(parent));
+        }
+    }
+
+    pub fn add(&mut self,
+               client: Window,
+               focus: bool,
+               direction: InsertBias,
+               split: SplitDirection) {
+        let node = self.add_client_node(client);
+        if let Some(reference) = self.selected.or(self.focused) {
+            match (self.get_parent(reference), direction) {
+                (Ok((parent, index)), InsertBias::NextToLeft) => {
+                    let pos = index.saturating_sub(1);
+                    self.add_child(parent, node, pos);
+                },
+                (Ok((parent, index)), InsertBias::NextToRight) => {
+                    self.add_child(parent, node, index);
+                },
+                (Err(SubsetError::Orphan), InsertBias::NextToLeft) |
+                    (_, InsertBias::BelowLeft) => {
+                    let parent = self.add_inner_node(split);
+                    self.add_child(parent, node, 0);
+                    self.add_child(parent, reference, 1);
+                },
+                (Err(SubsetError::Orphan), InsertBias::NextToRight) |
+                    (_, InsertBias::BelowRight) => {
+                    let parent = self.add_inner_node(split);
+                    self.add_child(parent, reference, 0);
+                    self.add_child(parent, node, 1);
+                },
+                _ => unreachable!(),
             }
         }
-        node_id.detach(&mut self.tree);
+
+        if focus || self.focused.is_none() {
+            self.focused = Some(node);
+        }
+    }
+
+    // TODO: possibly turn this into an iterator
+    fn enumerate_subtree(&self, node: usize) -> Vec<usize> {
+        let mut res = Vec::new();
+        let mut queue = VecDeque::new();
+        queue.push_back(node);
+
+        while let Some(next) = queue.pop_front() {
+            if let Ok(children) = self.arena[next].get_children() {
+                for child in children.iter() {
+                    queue.push_back(*child);
+                }
+            }
+
+            res.push(next);
+        }
+
+        res
+    }
+
+    pub fn remove_subtree(&mut self) {
+        if let Some(node) = self.selected.or(self.focused) {
+            let mut fallback_needed = false;
+            let parent_info = if let Ok((parent, pos)) = self.get_parent(node) {
+                self.arena[parent].remove_child(pos);
+                Some((parent, pos))
+            } else {
+                None
+            };
+
+            // TODO: clean up the tree above us if it's left "empty"
+
+            let mut nodes = self.enumerate_subtree(node);
+            for n in nodes.drain(..) {
+                self.arena.remove(n);
+                if Some(n) == self.focused {
+                    fallback_needed = true;
+                }
+            }
+
+            self.selected = None;
+            match parent_info {
+                Some((parent, pos)) => if fallback_needed {
+                    // select a fallback window here
+                },
+                None => {
+                    self.focused = None
+                },
+            }
+        }
+    }
+
+    pub fn remove(&mut self, window: Window) {
+        // TODO
+    }
+
+    // TODO: make the type more sensible
+    pub fn swap_subtrees(&mut self, direction: InsertBias) {
+
+    }
+
+    pub fn get_focused(&self) -> Option<Window> {
+        match self.focused.map(|id| &self.arena[id]) {
+            Some(&SubsetEntry::Client(_, window)) => Some(window),
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -297,7 +406,7 @@ impl ClientSet {
 
         for (tags, subset) in &mut self.order {
             if client.match_tags(tags) {
-                subset.add(window, true);
+                subset.add(window, true, InsertBias::NextToRight, SplitDirection::Vertical);
             }
         }
 
@@ -336,7 +445,7 @@ impl ClientSet {
                 if !client.match_tags(tags) {
                     entry.remove(window);
                 } else {
-                    entry.add(window, false);
+                    entry.add(window, false, InsertBias::NextToRight, SplitDirection::Vertical);
                 }
             }
         }

@@ -17,7 +17,7 @@ no-xephyr = []
 
 [dependencies]
 env_logger = "*"
-indextree = "^1.0.0"
+vec-arena = "^0.1.1"
 libc = "*"
 log = "*"
 xcb = { version = "0.7.6", features = ["xkb", "randr"] }

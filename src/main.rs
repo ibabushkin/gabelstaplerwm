@@ -8,7 +8,7 @@
 #![feature(slice_patterns)]
 
 extern crate env_logger;
-extern crate indextree;
+extern crate vec_arena;
 extern crate libc;
 #[macro_use]
 extern crate log;
@@ -62,8 +62,7 @@ fn main() {
         act.sa_flags = libc::SA_RESTART;
 
         // setup our SIGCHLD-handler
-        if libc::sigaction(libc::SIGCHLD, &act, 0 as *mut libc::sigaction)
-            == -1 {
+        if libc::sigaction(libc::SIGCHLD, &act, 0 as *mut libc::sigaction) == -1 {
             // crash and burn on failure
             WmError::CouldNotEstablishHandlers.handle();
         }
