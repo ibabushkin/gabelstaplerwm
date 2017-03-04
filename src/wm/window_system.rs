@@ -308,9 +308,9 @@ impl<'a> Wm<'a> {
             if let Some(tagset) = screen.tag_stack.current() {
                 // calculate next tag set ...
                 let hidden = screen.tag_stack.get_hidden();
-                let tags = tagset.tags.difference(hidden).cloned().collect();
+                let tags = tagset.get_tags().difference(hidden).cloned().collect();
                 debug!("next batch of tags: {:?} \\ {:?} = {:?}",
-                       tagset.tags, hidden, tags);
+                       tagset.get_tags(), hidden, tags);
 
                 // ... get the corresponding client set and geometries ...
                 let clients = self.clients.get_order_or_insert(&tags);
@@ -365,7 +365,7 @@ impl<'a> Wm<'a> {
             self.screens
                 .tag_stack()
                 .current()
-                .and_then(|t| self.clients.get_focused_window(&t.tags))
+                .and_then(|t| self.clients.get_focused_window(t.get_tags()))
                 .unwrap_or(self.root);
 
         if self.new_window_as_master() && draw_borders {
@@ -603,7 +603,7 @@ impl<'a> Wm<'a> {
                             .current()
                             .tag_stack
                             .current()
-                            .and_then(|tags| self.clients.get_focused_window(&tags.tags))
+                            .and_then(|tags| self.clients.get_focused_window(tags.get_tags()))
                             .map_or(false, |win| win != window);
                     match res.first() {
                         Some(res) if res & 0x100 != 0 && not_focused => {
@@ -721,7 +721,7 @@ impl<'a> Wm<'a> {
                         self.screens
                             .tag_stack()
                             .current()
-                            .map_or(false, |t| client.match_tags(&t.tags));
+                            .map_or(false, |t| client.match_tags(t.get_tags()));
 
                     // add client to the necessary datastructures
                     self.add_client(client, slave);
@@ -789,7 +789,7 @@ impl<'a> Wm<'a> {
                     .and_then(|f| f(&props, &self.screens)) {
                 res
             } else if let Some(tagset) = self.screens.tag_stack().current() {
-                (tagset.tags.clone(), false)
+                (tagset.get_tags().clone(), false)
             } else {
                 (set![Tag::default()], false)
             };

@@ -73,7 +73,7 @@ macro_rules! push_tagset {
                 for &mut (_, ref mut screen) in s.screens_mut() {
                     screen.tag_stack.set_hidden(&visible);
                     if let Some(tagset) = screen.tag_stack.current() {
-                        let mut tags = tagset.tags.difference(&visible).cloned().collect();
+                        let mut tags = tagset.get_tags().difference(&visible).cloned().collect();
                         visible.append(&mut tags);
                     }
                 }
@@ -94,7 +94,7 @@ macro_rules! push_tagset {
                 for &mut (_, ref mut screen) in s.screens_mut() {
                     screen.tag_stack.set_hidden(&visible);
                     if let Some(tagset) = screen.tag_stack.current() {
-                        let mut tags = tagset.tags.difference(&visible).cloned().collect();
+                        let mut tags = tagset.get_tags().difference(&visible).cloned().collect();
                         visible.append(&mut tags);
                     }
                 }
@@ -124,11 +124,11 @@ macro_rules! toggle_tag {
         |c, s| s
             .tag_stack()
             .current()
-            .and_then(|t| c.get_focused_window(&t.tags))
+            .and_then(|t| c.get_focused_window(t.get_tags()))
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag(&$tag);
                 println!("{}", $print(c, s));
-                if !cl.match_tags(&s.tag_stack().current().unwrap().tags) {
+                if !cl.match_tags(&s.tag_stack().current().unwrap().get_tags()) {
                     WmCommand::Redraw
                 } else {
                     WmCommand::NoCommand
@@ -140,11 +140,11 @@ macro_rules! toggle_tag {
         |c, s| s
             .tag_stack()
             .current()
-            .and_then(|t| c.get_focused_window(&t.tags))
+            .and_then(|t| c.get_focused_window(t.get_tags()))
             .and_then(|w| c.update_client(w, |mut cl| {
                 cl.toggle_tag($tag);
                 $( println!("{}", $print); )*
-                if !cl.match_tags(&s.tag_stack().current().unwrap().tags) {
+                if !cl.match_tags(&s.tag_stack().current().unwrap().get_tags()) {
                     WmCommand::Redraw
                 } else {
                     WmCommand::NoCommand
@@ -206,11 +206,11 @@ macro_rules! move_to_tag {
         |c, s| s
             .tag_stack()
             .current()
-            .and_then(|t| if let Some(win) = c.get_focused_window(&t.tags) {
+            .and_then(|t| if let Some(win) = c.get_focused_window(t.get_tags()) {
                 c.update_client(win, |mut cl| {
                     cl.set_tags(&[$($tag),*]);
                     println!("{}", $print(c, s));
-                    if !cl.match_tags(&t.tags) {
+                    if !cl.match_tags(t.get_tags()) {
                         WmCommand::Redraw
                     } else {
                         WmCommand::NoCommand
@@ -225,11 +225,11 @@ macro_rules! move_to_tag {
         |c, s| s
             .tag_stack()
             .current()
-            .and_then(|t| if let Some(win) = c.get_focused_window(&t.tags) {
+            .and_then(|t| if let Some(win) = c.get_focused_window(t.get_tags()) {
                 c.update_client(win, |mut cl| {
                     cl.set_tags(&[$($tag),*]);
                     $( println!("{}", $print); )*
-                    if !cl.match_tags(&t.tags) {
+                    if !cl.match_tags(t.get_tags()) {
                         WmCommand::Redraw
                     } else {
                         WmCommand::NoCommand

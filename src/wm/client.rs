@@ -501,7 +501,7 @@ fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
 /// specified by a trait object, allowing for easy extending of the defaults.
 pub struct TagSet {
     /// tags belonging to tagset
-    pub tags: BTreeSet<Tag>,
+    tags: BTreeSet<Tag>,
     /// the layout used to display clients on the tagset
     pub layout: Box<Layout>,
 }
@@ -526,9 +526,9 @@ impl TagSet {
         }
     }
 
-    /// Set a layout on the tagset.
-    pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
-        self.layout = Box::new(layout);
+    /// Get the tag set from the tag set. Funny.
+    pub fn get_tags(&self) -> &BTreeSet<Tag> {
+        &self.tags
     }
 }
 

@@ -213,7 +213,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(54, modkey, Mode::Normal, |c, s| s
             .tag_stack()
             .current()
-            .and_then(|t| c.get_focused_window(&t.tags))
+            .and_then(|t| c.get_focused_window(t.get_tags()))
             .map(WmCommand::Kill)
             .unwrap_or(WmCommand::NoCommand)
         ),
