@@ -1081,7 +1081,7 @@ fn arrange(con: &base::Connection,
         .zip(geometries.iter())
         .filter_map(|(client, geometry)|
             if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
-                Some((cl.borrow().window, geom))
+                Some((cl.borrow().get_window(), geom))
             } else {
                 None
             }

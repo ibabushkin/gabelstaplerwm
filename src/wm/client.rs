@@ -72,9 +72,9 @@ pub struct ClientProps {
 #[derive(Clone, Debug)]
 pub struct Client {
     /// the window (a direct child of root)
-    pub window: Window,
+    window: Window,
     /// client properties
-    pub props: ClientProps,
+    props: ClientProps,
     /// all tags this client is visible on, in no particular order
     tags: BTreeSet<Tag>,
 }
@@ -89,6 +89,11 @@ impl Client {
             props: props,
             tags: tags,
         }
+    }
+
+    /// Get the window associated with the client.
+    pub fn get_window(&self) -> Window {
+        self.window
     }
 
     /// *Move* a window to a new set of tags.
