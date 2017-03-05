@@ -100,7 +100,7 @@ impl Client {
     ///
     /// Assumes the slice denoted by `tags` doesn't contain duplicate elements.
     pub fn set_tags(&mut self, tags: &[Tag]) {
-        if tags.len() > 0 {
+        if !tags.is_empty() {
             self.tags = set_from_slice!(tags);
         }
     }
@@ -227,7 +227,7 @@ impl ClientSet {
                         }
                     )
                     .next()
-                    .or(entry.1.first().cloned());
+                    .or_else(|| entry.1.first().cloned());
             } else if entry.1
                 .iter()
                 .find(|r| is_ref_to_client(*r, &target_client))
@@ -239,7 +239,7 @@ impl ClientSet {
                     .iter()
                     .cloned()
                     .next()
-                    .or(entry.1.first().cloned());
+                    .or_else(|| entry.1.first().cloned());
             }
         }
     }

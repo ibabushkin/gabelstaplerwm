@@ -318,7 +318,7 @@ impl<'a> Wm<'a> {
                 debug!("calculated geometries: {:?}", geometries);
 
                 // ... and display windows accordingly
-                arrange(self.con, &mut self.visible_windows, clients, geometries);
+                arrange(self.con, &mut self.visible_windows, clients, &geometries);
             }
         }
     }
@@ -846,7 +846,7 @@ impl<'a> Wm<'a> {
                 match reply.type_() {
                     xproto::ATOM_ATOM => {
                         let atoms: &[xproto::Atom] = reply.value();
-                        if atoms.len() == 0 {
+                        if atoms.is_empty() {
                             ClientProp::NoProp
                         } else {
                             ClientProp::PropAtom(atoms.to_owned())
@@ -854,7 +854,7 @@ impl<'a> Wm<'a> {
                     },
                     xproto::ATOM_WM_HINTS => {
                         let words: &[u32] = reply.value();
-                        if words.len() == 0 {
+                        if words.is_empty() {
                             ClientProp::NoProp
                         } else {
                             ClientProp::PropAtom(words.to_owned())
@@ -866,7 +866,7 @@ impl<'a> Wm<'a> {
                         debug!("raw property data: {:?}, length: {}",
                                raw, reply.value_len());
                         for c in raw.split(|ch| *ch == 0) {
-                            if c.len() > 0 {
+                            if !c.is_empty() {
                                 unsafe {
                                     if let Ok(cl) = str::from_utf8(CStr::from_ptr(
                                             c.as_ptr()).to_bytes()) {
@@ -901,7 +901,9 @@ impl<'a> Wm<'a> {
         let mut props = properties.drain(..);
 
         let window_type = if let Some(ClientProp::PropAtom(mut t)) = props.next() {
-            t.drain(..).next().unwrap_or(self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL"))
+            t.drain(..)
+                .next()
+                .unwrap_or_else(|| self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL"))
         } else { // assume reasonable default
             info!("_NET_WM_WINDOW_TYPE: not set, assuming _NET_WM_WINDOW_TYPE_NORMAL");
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
