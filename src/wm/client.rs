@@ -72,9 +72,9 @@ pub struct ClientProps {
 #[derive(Clone, Debug)]
 pub struct Client {
     /// the window (a direct child of root)
-    pub window: Window,
+    window: Window,
     /// client properties
-    pub props: ClientProps,
+    props: ClientProps,
     /// all tags this client is visible on, in no particular order
     tags: BTreeSet<Tag>,
 }
@@ -91,11 +91,16 @@ impl Client {
         }
     }
 
+    /// Get the window associated with the client.
+    pub fn get_window(&self) -> Window {
+        self.window
+    }
+
     /// *Move* a window to a new set of tags.
     ///
     /// Assumes the slice denoted by `tags` doesn't contain duplicate elements.
     pub fn set_tags(&mut self, tags: &[Tag]) {
-        if tags.len() > 0 {
+        if !tags.is_empty() {
             self.tags = set_from_slice!(tags);
         }
     }
@@ -222,7 +227,7 @@ impl ClientSet {
                         }
                     )
                     .next()
-                    .or(entry.1.first().cloned());
+                    .or_else(|| entry.1.first().cloned());
             } else if entry.1
                 .iter()
                 .find(|r| is_ref_to_client(*r, &target_client))
@@ -234,7 +239,7 @@ impl ClientSet {
                     .iter()
                     .cloned()
                     .next()
-                    .or(entry.1.first().cloned());
+                    .or_else(|| entry.1.first().cloned());
             }
         }
     }
@@ -495,10 +500,10 @@ fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
 /// parameters attached. Note that layouts are dynamically determined and
 /// specified by a trait object, allowing for easy extending of the defaults.
 pub struct TagSet {
-    /// tags belonging to tagset
-    pub tags: BTreeSet<Tag>,
     /// the layout used to display clients on the tagset
     pub layout: Box<Layout>,
+    /// tags belonging to tagset
+    tags: BTreeSet<Tag>,
 }
 
 impl TagSet {
@@ -521,9 +526,9 @@ impl TagSet {
         }
     }
 
-    /// Set a layout on the tagset.
-    pub fn set_layout<L: Layout + 'static>(&mut self, layout: L) {
-        self.layout = Box::new(layout);
+    /// Get the tag set from the tag set. Funny.
+    pub fn get_tags(&self) -> &BTreeSet<Tag> {
+        &self.tags
     }
 }
 
@@ -674,14 +679,6 @@ pub struct Screen {
     pub area: TilingArea,
     /// the tag stack associated with the screen
     pub tag_stack: TagStack,
-    /// the top neighbour, if any
-    pub top: Option<Crtc>,
-    /// the right neighbour, if any
-    pub right: Option<Crtc>,
-    /// the bottom neighbour, if any
-    pub bottom: Option<Crtc>,
-    /// the left neighbour, if any
-    pub left: Option<Crtc>,
 }
 
 impl Screen {
@@ -690,10 +687,6 @@ impl Screen {
         Screen {
             area: area,
             tag_stack: tag_stack,
-            top: None,
-            right: None,
-            bottom: None,
-            left: None,
         }
     }
 

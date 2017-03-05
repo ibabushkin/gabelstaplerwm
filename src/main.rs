@@ -15,6 +15,7 @@ extern crate env_logger;
 extern crate log;
 
 use std::env::remove_var;
+use std::ptr::null_mut;
 
 use std::mem::{transmute, uninitialized};
 
@@ -29,7 +30,7 @@ use xcb::base::*;
 extern fn sigchld_action(_: libc::c_int) {
     unsafe {
         loop {
-            let pid = libc::waitpid(-1, 0 as *mut libc::c_int, libc::WNOHANG);
+            let pid = libc::waitpid(-1, null_mut(), libc::WNOHANG);
             if pid <= 0 {
                 return;
             }
@@ -63,7 +64,7 @@ fn main() {
         act.sa_flags = libc::SA_RESTART;
 
         // setup our SIGCHLD-handler
-        if libc::sigaction(libc::SIGCHLD, &act, 0 as *mut libc::sigaction)
+        if libc::sigaction(libc::SIGCHLD, &act, null_mut())
             == -1 {
             // crash and burn on failure
             WmError::CouldNotEstablishHandlers.handle();

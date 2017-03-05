@@ -308,9 +308,9 @@ impl<'a> Wm<'a> {
             if let Some(tagset) = screen.tag_stack.current() {
                 // calculate next tag set ...
                 let hidden = screen.tag_stack.get_hidden();
-                let tags = tagset.tags.difference(hidden).cloned().collect();
+                let tags = tagset.get_tags().difference(hidden).cloned().collect();
                 debug!("next batch of tags: {:?} \\ {:?} = {:?}",
-                       tagset.tags, hidden, tags);
+                       tagset.get_tags(), hidden, tags);
 
                 // ... get the corresponding client set and geometries ...
                 let clients = self.clients.get_order_or_insert(&tags);
@@ -318,7 +318,7 @@ impl<'a> Wm<'a> {
                 debug!("calculated geometries: {:?}", geometries);
 
                 // ... and display windows accordingly
-                arrange(self.con, &mut self.visible_windows, clients, geometries);
+                arrange(self.con, &mut self.visible_windows, clients, &geometries);
             }
         }
     }
@@ -365,7 +365,7 @@ impl<'a> Wm<'a> {
             self.screens
                 .tag_stack()
                 .current()
-                .and_then(|t| self.clients.get_focused_window(&t.tags))
+                .and_then(|t| self.clients.get_focused_window(t.get_tags()))
                 .unwrap_or(self.root);
 
         if self.new_window_as_master() && draw_borders {
@@ -603,7 +603,7 @@ impl<'a> Wm<'a> {
                             .current()
                             .tag_stack
                             .current()
-                            .and_then(|tags| self.clients.get_focused_window(&tags.tags))
+                            .and_then(|tags| self.clients.get_focused_window(tags.get_tags()))
                             .map_or(false, |win| win != window);
                     match res.first() {
                         Some(res) if res & 0x100 != 0 && not_focused => {
@@ -721,7 +721,7 @@ impl<'a> Wm<'a> {
                         self.screens
                             .tag_stack()
                             .current()
-                            .map_or(false, |t| client.match_tags(&t.tags));
+                            .map_or(false, |t| client.match_tags(t.get_tags()));
 
                     // add client to the necessary datastructures
                     self.add_client(client, slave);
@@ -789,7 +789,7 @@ impl<'a> Wm<'a> {
                     .and_then(|f| f(&props, &self.screens)) {
                 res
             } else if let Some(tagset) = self.screens.tag_stack().current() {
-                (tagset.tags.clone(), false)
+                (tagset.get_tags().clone(), false)
             } else {
                 (set![Tag::default()], false)
             };
@@ -846,7 +846,7 @@ impl<'a> Wm<'a> {
                 match reply.type_() {
                     xproto::ATOM_ATOM => {
                         let atoms: &[xproto::Atom] = reply.value();
-                        if atoms.len() == 0 {
+                        if atoms.is_empty() {
                             ClientProp::NoProp
                         } else {
                             ClientProp::PropAtom(atoms.to_owned())
@@ -854,7 +854,7 @@ impl<'a> Wm<'a> {
                     },
                     xproto::ATOM_WM_HINTS => {
                         let words: &[u32] = reply.value();
-                        if words.len() == 0 {
+                        if words.is_empty() {
                             ClientProp::NoProp
                         } else {
                             ClientProp::PropAtom(words.to_owned())
@@ -866,7 +866,7 @@ impl<'a> Wm<'a> {
                         debug!("raw property data: {:?}, length: {}",
                                raw, reply.value_len());
                         for c in raw.split(|ch| *ch == 0) {
-                            if c.len() > 0 {
+                            if !c.is_empty() {
                                 unsafe {
                                     if let Ok(cl) = str::from_utf8(CStr::from_ptr(
                                             c.as_ptr()).to_bytes()) {
@@ -901,7 +901,9 @@ impl<'a> Wm<'a> {
         let mut props = properties.drain(..);
 
         let window_type = if let Some(ClientProp::PropAtom(mut t)) = props.next() {
-            t.drain(..).next().unwrap_or(self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL"))
+            t.drain(..)
+                .next()
+                .unwrap_or_else(|| self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL"))
         } else { // assume reasonable default
             info!("_NET_WM_WINDOW_TYPE: not set, assuming _NET_WM_WINDOW_TYPE_NORMAL");
             self.lookup_atom("_NET_WM_WINDOW_TYPE_NORMAL")
@@ -1075,13 +1077,13 @@ fn get_atoms<'a>(con: &base::Connection, names: &[&'a str])
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
            clients: &OrderEntry,
-           geometries: Vec<Option<Geometry>>) {
+           geometries: &[Option<Geometry>]) {
     let cookies: Vec<_> = clients.1
         .iter()
         .zip(geometries.iter())
         .filter_map(|(client, geometry)|
             if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
-                Some((cl.borrow().window, geom))
+                Some((cl.borrow().get_window(), geom))
             } else {
                 None
             }
@@ -1115,10 +1117,10 @@ fn arrange(con: &base::Connection,
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
            clients: &OrderEntry,
-           geometries: Vec<Option<Geometry>>) {
+           geometries: &[Option<Geometry>]) {
     for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
         if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
-            let window = cl.borrow().window;
+            let window = cl.borrow().get_window();
             visible.push(window);
             let cookie = xproto::configure_window(
                 con, window,

@@ -299,10 +299,12 @@ pub fn setup_wm(wm: &mut Wm) {
         // change work tagset - modkey+CTRL+[hl]
         bind!(43, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&Tag::Work(n)) =
-                s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
+                s.tag_stack().current().and_then(|s| s.get_tags().iter().next()) {
                 s.tag_stack_mut().current_mut().map(|mut s| {
-                    s.tags.remove(&Tag::Work(n));
-                    s.tags.insert(Tag::Work(n.saturating_sub(1)));
+                    // s.tags.remove(&Tag::Work(n));
+                    //s.tags.insert(Tag::Work(n.saturating_sub(1)));
+                    s.toggle_tag(Tag::Work(n));
+                    s.toggle_tag(Tag::Work(n.saturating_sub(1)));
                 });
                 true
             } else {
@@ -324,10 +326,12 @@ pub fn setup_wm(wm: &mut Wm) {
             }),
         bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&Tag::Work(n)) =
-                s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
+                s.tag_stack().current().and_then(|s| s.get_tags().iter().next()) {
                 s.tag_stack_mut().current_mut().map(|mut s| {
-                    s.tags.remove(&Tag::Work(n));
-                    s.tags.insert(Tag::Work(n.saturating_add(1)));
+                    // s.tags.remove(&Tag::Work(n));
+                    // s.tags.insert(Tag::Work(n.saturating_add(1)));
+                    s.toggle_tag(Tag::Work(n));
+                    s.toggle_tag(Tag::Work(n.saturating_add(1)));
                 });
                 true
             } else {
@@ -343,10 +347,10 @@ pub fn setup_wm(wm: &mut Wm) {
         // move a client to an adjacent work tagset - modkey+CTRL+SHIFT+[hl]
         bind!(43, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
             if let Some(&Tag::Work(n)) =
-                s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
+                s.tag_stack().current().and_then(|s| s.get_tags().iter().next()) {
                 s.tag_stack()
                     .current()
-                    .and_then(|t| c.get_focused_window(&t.tags))
+                    .and_then(|t| c.get_focused_window(t.get_tags()))
                     .and_then(|w| c.update_client(w, |mut cl| {
                         cl.set_tags(&[Tag::Work(n.saturating_sub(1))]);
                         WmCommand::Redraw
@@ -358,10 +362,10 @@ pub fn setup_wm(wm: &mut Wm) {
         ),
         bind!(46, modkey+CTRL+SHIFT, Mode::Normal, |c, s|
             if let Some(&Tag::Work(n)) =
-                s.tag_stack().current().and_then(|s| s.tags.iter().next()) {
+                s.tag_stack().current().and_then(|s| s.get_tags().iter().next()) {
                 s.tag_stack()
                     .current()
-                    .and_then(|t| c.get_focused_window(&t.tags))
+                    .and_then(|t| c.get_focused_window(t.get_tags()))
                     .and_then(|w| c.update_client(w, |mut cl| {
                         cl.set_tags(&[Tag::Work(n.saturating_add(1))]);
                         WmCommand::Redraw
@@ -378,7 +382,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(54, modkey+SHIFT, Mode::Normal, |c, s| s
             .tag_stack()
             .current()
-            .and_then(|t| c.get_focused_window(&t.tags))
+            .and_then(|t| c.get_focused_window(t.get_tags()))
             .map(WmCommand::Kill)
             .unwrap_or(WmCommand::NoCommand)
         ),
@@ -414,7 +418,7 @@ pub fn setup_wm(wm: &mut Wm) {
         } else if props.class.contains(&String::from("Mon")) {
             Some((set![Tag::Mon], true))
         } else {
-            screens.tag_stack().current().map(|t| (t.tags.clone(), true))
+            screens.tag_stack().current().map(|t| (t.get_tags().clone(), true))
         }
     ));
 

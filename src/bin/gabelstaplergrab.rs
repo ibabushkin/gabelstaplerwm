@@ -51,7 +51,7 @@ fn main() {
             exit(4);
         }
         match con.wait_for_event() {
-            Some(ev) => print_event(ev),
+            Some(ref ev) => print_event(ev),
             None => {
                 error!("i/o error occured");
                 exit(5);
@@ -61,9 +61,9 @@ fn main() {
 }
 
 /// Print an event we are interested in (i.e. a key press).
-fn print_event(event: GenericEvent) {
+fn print_event(event: &GenericEvent) {
     if event.response_type() == xkb::STATE_NOTIFY {
-        let ev: &xkb::StateNotifyEvent = cast_event(&event);
+        let ev: &xkb::StateNotifyEvent = cast_event(event);
         println!("key pressed: code: {}, mods: {}", ev.xkb_type(), ev.keycode());
     }
 }
