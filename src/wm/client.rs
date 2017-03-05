@@ -500,10 +500,10 @@ fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
 /// parameters attached. Note that layouts are dynamically determined and
 /// specified by a trait object, allowing for easy extending of the defaults.
 pub struct TagSet {
-    /// tags belonging to tagset
-    tags: BTreeSet<Tag>,
     /// the layout used to display clients on the tagset
     pub layout: Box<Layout>,
+    /// tags belonging to tagset
+    tags: BTreeSet<Tag>,
 }
 
 impl TagSet {
@@ -679,14 +679,6 @@ pub struct Screen {
     pub area: TilingArea,
     /// the tag stack associated with the screen
     pub tag_stack: TagStack,
-    /// the top neighbour, if any
-    pub top: Option<Crtc>,
-    /// the right neighbour, if any
-    pub right: Option<Crtc>,
-    /// the bottom neighbour, if any
-    pub bottom: Option<Crtc>,
-    /// the left neighbour, if any
-    pub left: Option<Crtc>,
 }
 
 impl Screen {
@@ -695,10 +687,6 @@ impl Screen {
         Screen {
             area: area,
             tag_stack: tag_stack,
-            top: None,
-            right: None,
-            bottom: None,
-            left: None,
         }
     }
 
