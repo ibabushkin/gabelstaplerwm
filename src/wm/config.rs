@@ -301,10 +301,7 @@ pub fn setup_wm(wm: &mut Wm) {
             let res = if let Some(&Tag::Work(n)) =
                 s.tag_stack().current().and_then(|s| s.get_tags().iter().next()) {
                 s.tag_stack_mut().current_mut().map(|mut s| {
-                    // s.tags.remove(&Tag::Work(n));
-                    //s.tags.insert(Tag::Work(n.saturating_sub(1)));
-                    s.toggle_tag(Tag::Work(n));
-                    s.toggle_tag(Tag::Work(n.saturating_sub(1)));
+                    s.replace_tag(Tag::Work(n), Tag::Work(n.saturating_sub(1)));
                 });
                 true
             } else {
@@ -328,10 +325,7 @@ pub fn setup_wm(wm: &mut Wm) {
             let res = if let Some(&Tag::Work(n)) =
                 s.tag_stack().current().and_then(|s| s.get_tags().iter().next()) {
                 s.tag_stack_mut().current_mut().map(|mut s| {
-                    // s.tags.remove(&Tag::Work(n));
-                    // s.tags.insert(Tag::Work(n.saturating_add(1)));
-                    s.toggle_tag(Tag::Work(n));
-                    s.toggle_tag(Tag::Work(n.saturating_add(1)));
+                    s.replace_tag(Tag::Work(n), Tag::Work(n.saturating_add(1)));
                 });
                 true
             } else {
