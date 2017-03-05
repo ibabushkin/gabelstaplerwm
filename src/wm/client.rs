@@ -515,7 +515,7 @@ impl TagSet {
         }
     }
 
-    /// Toggle a tag on the tagset and return whether changes have been made.
+    /// Toggle a tag on the tagset and return which changes have been made.
     pub fn toggle_tag(&mut self, tag: Tag) -> bool {
         if self.tags.contains(&tag) {
             self.tags.remove(&tag);
@@ -523,6 +523,14 @@ impl TagSet {
         } else {
             self.tags.insert(tag);
             false
+        }
+    }
+
+    /// Replace a tag in the tagset, if it is present.
+    pub fn replace_tag(&mut self, old: Tag, new: Tag) {
+        if self.tags.contains(&old) {
+            self.tags.remove(&old);
+            self.tags.insert(new);
         }
     }
 
