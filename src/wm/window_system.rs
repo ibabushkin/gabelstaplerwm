@@ -1075,7 +1075,7 @@ fn get_atoms<'a>(con: &base::Connection, names: &[&'a str])
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
            clients: &OrderEntry,
-           geometries: Vec<Option<Geometry>>) {
+           geometries: &[Option<Geometry>]) {
     let cookies: Vec<_> = clients.1
         .iter()
         .zip(geometries.iter())
@@ -1115,10 +1115,10 @@ fn arrange(con: &base::Connection,
 fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
            clients: &OrderEntry,
-           geometries: Vec<Option<Geometry>>) {
+           geometries: &[Option<Geometry>]) {
     for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
         if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
-            let window = cl.borrow().window;
+            let window = cl.borrow().get_window();
             visible.push(window);
             let cookie = xproto::configure_window(
                 con, window,
