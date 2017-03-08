@@ -265,7 +265,7 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(39, modkey, Mode::Normal, |_, _| exec_script("slock.sh", &[])),
         // shutdown system - modkey+CTRL+s
         bind!(39, modkey+CTRL, Mode::Normal, |_, _|
-              exec_command("sudo", &["shutdown", "-h", "now"])),
+              exec_command("doas", &["shutdown", "-h", "now"])),
         // go back in tagset history - modkey+g
         bind!(42, modkey, Mode::Normal, |c, s| {
             if s.tag_stack_mut().view_prev() {
