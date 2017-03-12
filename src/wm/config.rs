@@ -188,8 +188,11 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(24, modkey, Mode::Normal, |_, _| exec_script("alarm.zsh", &[])),
         // spawn custom dmenu - modkey+w
         bind!(25, modkey, Mode::Normal, |_, _| exec_script("menu.sh", &[])),
-        // spawn dmenu_run - modkey+SHIFT-w
+        // spawn workspace dmenu - modkey+SHIFT+w
         bind!(25, modkey+SHIFT, Mode::Normal, |_, _|
+              exec_script("workspace.sh", &[])),
+        // spawn dmenu_run - modkey+CTRL+w
+        bind!(25, modkey+CTRL, Mode::Normal, |_, _|
               exec_command("dmenu_run", &["-y", "20"])),
         // spawn password manager script for dmenu - modkey+e
         bind!(26, modkey, Mode::Normal, |_, _| exec_script("pass.sh", &[])),
