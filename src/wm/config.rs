@@ -264,6 +264,8 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(36, modkey, Mode::Normal, edit_layout!(LayoutMessage::FixedRel)),
         // toggle inverted state of layout - modkey+SHIFT+enter
         bind!(36, modkey+SHIFT, Mode::Normal, edit_layout!(LayoutMessage::InvertedRel)),
+        // reattach to tmux session - modkey+a
+        bind!(38, modkey, Mode::Normal, |_, _| exec_script("reattach.sh", &[])),
         // lock screen - modkey+s
         bind!(39, modkey, Mode::Normal, |_, _| exec_script("slock.sh", &[])),
         // shutdown system - modkey+CTRL+s
