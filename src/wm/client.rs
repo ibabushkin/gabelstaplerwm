@@ -1,8 +1,6 @@
 use std::collections::{HashMap, BTreeSet, VecDeque};
 use std::collections::hash_map::Entry;
 use std::fmt;
-use std::iter::Peekable;
-use std::rc::{Rc, Weak};
 
 use vec_arena::Arena;
 
@@ -245,8 +243,6 @@ pub struct SubsetTree {
     layout: Box<NewLayout>,
     /// The arena used to allocate tree nodes.
     arena: Arena<SubsetEntry>,
-    /// The arena index of the root node.
-    root: Option<usize>,
     /// The arena index of the focused leaf.
     focused: Option<usize>,
     /// The arena index of the selected subtree's root node.
@@ -259,7 +255,6 @@ impl SubsetTree {
         SubsetTree {
             layout: Box::new(layout),
             arena: Arena::new(),
-            root: None,
             focused: None,
             selected: None,
         }
@@ -302,7 +297,7 @@ impl SubsetTree {
             }
 
             if let Some(old_parent) = self.arena[child].get_parent() {
-                self.arena[old_parent].remove_child(child);
+                let _ = self.arena[old_parent].remove_child(child);
             }
 
             self.arena[child].set_parent(Some(parent));
@@ -372,7 +367,7 @@ impl SubsetTree {
         if let Some(node) = self.selected.or(self.focused) {
             let mut fallback_needed = false;
             let parent_info = if let Ok((parent, pos)) = self.get_parent(node) {
-                self.arena[parent].remove_child(pos);
+                let _ = self.arena[parent].remove_child(pos);
                 Some((parent, pos))
             } else {
                 None
@@ -390,7 +385,7 @@ impl SubsetTree {
 
             self.selected = None;
             match parent_info {
-                Some((parent, pos)) => if fallback_needed {
+                Some((_, _ => if fallback_needed {
                     // select a fallback window here
                 },
                 None => {
