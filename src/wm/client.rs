@@ -126,23 +126,32 @@ impl Client {
     }
 }
 
+/// Error type representing error conditions when manipulating subset trees.
 #[derive(Debug, PartialEq, Eq)]
 pub enum SubsetError {
+    /// A split node has been passed instead of a client node, or vice-versa.
     WrongKindOfNode,
+    /// The parent doesn't have the expected child.
     WrongParent,
+    /// The node is an orphan.
     Orphan,
 }
 
+/// The result type corresponding with the error type.
 pub type SubsetResult<A> = Result<A, SubsetError>;
 
+/// A subset tree's node.
 #[derive(PartialEq, Eq)]
 pub enum SubsetEntry {
+    /// A split, with parent reference, split direction, and children.
     Split(Option<usize>, SplitDirection, Vec<usize>),
+    /// A client, with parent reference and window.
     Client(Option<usize>, Window),
 }
 
 impl SubsetEntry {
     #[inline(always)]
+    /// Get the node's parent.
     pub fn get_parent(&self) -> Option<usize> {
         match *self {
             SubsetEntry::Split(parent, ..) => parent,
@@ -151,6 +160,7 @@ impl SubsetEntry {
     }
 
     #[inline(always)]
+    /// Set the node's parent.
     pub fn set_parent(&mut self, new_parent: Option<usize>) {
         match *self {
             SubsetEntry::Split(ref mut parent, ..) => *parent = new_parent,
@@ -159,6 +169,10 @@ impl SubsetEntry {
     }
 
     #[inline(always)]
+    /// Get the children of the node, if any.
+    ///
+    /// Note we distinguish between a split with no children and an ordinary
+    /// client leaf.
     pub fn get_children(&self) -> SubsetResult<&Vec<usize>> {
         match *self {
             SubsetEntry::Split(_, _, ref children) => Ok(children),
@@ -167,6 +181,9 @@ impl SubsetEntry {
     }
 
     #[inline(always)]
+    /// Get a mutable reference to the children of a node.
+    ///
+    /// All restrictions mentioned regarding `get_children` apply.
     pub fn get_children_mut(&mut self) -> SubsetResult<&mut Vec<usize>> {
         match *self {
             SubsetEntry::Split(_, _, ref mut children) => Ok(children),
@@ -174,6 +191,7 @@ impl SubsetEntry {
         }
     }
 
+    /// Find a child node by it's arena index in the children vector of a node.
     #[inline(always)]
     pub fn find_child(&self, child: usize) -> SubsetResult<usize> {
         // self.get_children().map(|children| children.iter().position(|c| *c == child))
@@ -185,6 +203,7 @@ impl SubsetEntry {
         }
     }
 
+    /// Remove a child node from the children vector of a node.
     #[inline(always)]
     pub fn remove_child(&mut self, child: usize) -> SubsetResult<()> {
         try!(self.get_children_mut()).retain(|c| *c != child);
@@ -192,23 +211,50 @@ impl SubsetEntry {
     }
 }
 
-// Each index stored in the whole tree is valid after each mutable API call.
-pub struct SubsetTree {
-    layout: Box<NewLayout>,
-    arena: Arena<SubsetEntry>,
-    root: Option<usize>,
-    focused: Option<usize>,
-    selected: Option<usize>,
-}
-
+/// The insertion bias to use when inserting a new child.
+///
+/// This essentially describes, *where* the new child is inserted.
 pub enum InsertBias {
+    /// Insert the child left of the reference child, and insert both
+    /// as children of a new split.
     BelowLeft,
+    /// Insert the child right of the reference child, and insert both
+    /// as children of a new split.
     BelowRight,
+    /// Insert the child left of the refernce child.
     NextToLeft,
+    /// Insert the child right of the refernce child.
     NextToRight,
 }
 
+/// A hierarchically organized subset of windows.
+///
+/// Represents the windows as leaves of a rose tree, while inner nodes represent
+/// splits that can be either vertical or horizontal. There is however no guarantee
+/// whether the topological structure of the tree is mapped directly to the
+/// geographical structure of the windows on screen.
+///
+/// In addition, two optional pointers to nodes in tree are stored: a focused leaf,
+/// which consequently holds a window, and a selected subtree. If there is a focused
+/// leaf, but no explicitly selected subtree, the focused leaf is assumed to be
+/// selected.
+///
+/// The tree is rendered using the layout stored as a trait object.
+pub struct SubsetTree {
+    /// The layout used to render the tree.
+    layout: Box<NewLayout>,
+    /// The arena used to allocate tree nodes.
+    arena: Arena<SubsetEntry>,
+    /// The arena index of the root node.
+    root: Option<usize>,
+    /// The arena index of the focused leaf.
+    focused: Option<usize>,
+    /// The arena index of the selected subtree's root node.
+    selected: Option<usize>,
+}
+
 impl SubsetTree {
+    /// Create an empty subset tree, holding only a layout.
     pub fn new<L: NewLayout + 'static>(layout: L) -> SubsetTree {
         SubsetTree {
             layout: Box::new(layout),
@@ -219,14 +265,20 @@ impl SubsetTree {
         }
     }
 
+    /// Add a client node holding a window.
     fn add_client_node(&mut self, client: Window) -> usize {
         self.arena.insert(SubsetEntry::Client(None, client))
     }
 
+    /// Add an inner node holding a split.
     fn add_inner_node(&mut self, split: SplitDirection) -> usize {
         self.arena.insert(SubsetEntry::Split(None, split, Vec::new()))
     }
 
+    /// Get information on the parent of a node.
+    ///
+    /// Return parent index and the position of the node in it's children vector,
+    /// if the node isn't the root.
     fn get_parent(&self, node: usize) -> SubsetResult<(usize, usize)> {
         if let Some(parent) = self.arena[node].get_parent() {
             self.arena[parent].find_child(node).map(|index| (parent, index))
@@ -235,6 +287,7 @@ impl SubsetTree {
         }
     }
 
+    /// Reparent `child` to `parent`, if possible.
     fn add_child(&mut self, parent: usize, child: usize, pos: usize) {
         if self.arena[parent].find_child(child) == Err(SubsetError::WrongParent) {
             {
@@ -256,11 +309,13 @@ impl SubsetTree {
         }
     }
 
+    /// Add a new window to the set, close to the selected node.
     pub fn add(&mut self,
                client: Window,
                focus: bool,
                direction: InsertBias,
                split: SplitDirection) {
+        // TODO: avoid including a window multiple times
         let node = self.add_client_node(client);
         if let Some(reference) = self.selected.or(self.focused) {
             match (self.get_parent(reference), direction) {
@@ -292,8 +347,9 @@ impl SubsetTree {
         }
     }
 
-    // TODO: possibly turn this into an iterator
+    /// Get all windows in the subtree which `node` is the root of.
     fn enumerate_subtree(&self, node: usize) -> Vec<usize> {
+        // TODO: possibly turn this into an iterator
         let mut res = Vec::new();
         let mut queue = VecDeque::new();
         queue.push_back(node);
@@ -311,6 +367,7 @@ impl SubsetTree {
         res
     }
 
+    /// Remove all nodes in the selected subtree.
     pub fn remove_subtree(&mut self) {
         if let Some(node) = self.selected.or(self.focused) {
             let mut fallback_needed = false;
@@ -343,15 +400,18 @@ impl SubsetTree {
         }
     }
 
+    /// Remove a window's tree leaf.
     pub fn remove(&mut self, window: Window) {
         // TODO
     }
 
+    /// Swap the currently selected subtree by topological direction.
     // TODO: make the type more sensible
     pub fn swap_subtrees(&mut self, direction: InsertBias) {
 
     }
 
+    /// Return the currently focused window.
     pub fn get_focused(&self) -> Option<Window> {
         match self.focused.map(|id| &self.arena[id]) {
             Some(&SubsetEntry::Client(_, window)) => Some(window),
