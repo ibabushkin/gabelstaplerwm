@@ -185,7 +185,7 @@ pub fn setup_wm(wm: &mut Wm) {
             WmCommand::Quit
         }),
         // spawn alarm/reminder notification with a delay - modkey+q
-        bind!(24, modkey, Mode::Normal, |_, _| exec_script("alarm.zsh", &[])),
+        bind!(24, modkey, Mode::Normal, |_, _| exec_script("alarm.sh", &[])),
         // spawn custom dmenu - modkey+w
         bind!(25, modkey, Mode::Normal, |_, _| exec_script("menu.sh", &[])),
         // spawn workspace dmenu - modkey+SHIFT+w
