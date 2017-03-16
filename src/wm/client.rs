@@ -385,7 +385,7 @@ impl SubsetTree {
 
             self.selected = None;
             match parent_info {
-                Some((_, _ => if fallback_needed {
+                Some((_, _)) => if fallback_needed {
                     // select a fallback window here
                 },
                 None => {

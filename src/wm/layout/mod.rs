@@ -160,8 +160,7 @@ pub enum Direction {
 /// instances and all types implementing `Layout` implement `Debug` anyway.
 pub trait NewLayout : Debug {
     /// Compute window geometries.
-    fn arrange(&self, tree: &SubsetTree, screen: &TilingArea)
-        -> Vec<(Window, Geometry)>;
+    fn arrange(&self, tree: &SubsetTree, screen: &TilingArea) -> Vec<(Window, Geometry)>;
 
     // Construct a tree of suitable shape for the layout from an iterator of clients.
     //fn construct_tree<I>(&self, tree: &mut tree::Arena<SubsetEntry>, mut clients: I)

@@ -108,6 +108,7 @@ pub struct Wm<'a> {
     /// windows we know about, but do not manage
     unmanaged_windows: Vec<xproto::Window>,
     /// currently focused window
+    // TODO: possibly redundant
     focused_window: Option<xproto::Window>,
     /// current keyboard mode
     mode: Mode,
@@ -282,6 +283,7 @@ impl<'a> Wm<'a> {
     /// For instance, the `Monocle` layout only shows the master window,
     /// rendering client creation as a slave useless and unergonomic.
     fn new_window_as_master(&self) -> bool {
+        // TODO: this is an ugly hack - replace
         self.screens
             .tag_stack()
             .current()
@@ -368,11 +370,13 @@ impl<'a> Wm<'a> {
                 .and_then(|t| self.clients.get_focused_window(&t.tags))
                 .unwrap_or(self.root);
 
+        // TODO: this calls for a refactoring as well
         if self.new_window_as_master() && draw_borders {
            self.clients.swap_master(self.screens.tag_stack().current().unwrap());
            self.arrange_windows();
         }
 
+        // TODO: I don't like this either
         if draw_borders {
             if let Some(old_win) = self.focused_window {
                 self.set_border_color(old_win, self.border_colors.1);
@@ -412,6 +416,7 @@ impl<'a> Wm<'a> {
     }
 
     /// Wait for events, handle them. Repeat.
+    // TODO: define `WmResult` somewhere
     pub fn run(&mut self) -> Result<(), WmError> {
         loop {
             self.con.flush();
@@ -469,12 +474,13 @@ impl<'a> Wm<'a> {
     /// This might need some update in case we need to change some offsets as well.
     /// However, this code isn't likely to be used often.
     fn handle_screen_change_notify(&mut self, ev: &randr::ScreenChangeNotifyEvent) {
+        // TODO: taken from awesome. possibly needs some work.
         if ev.root() != self.root {
             return;
         }
 
-        if ev.rotation() as u32 &
-                (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
+        let rotation_mask = randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270;
+        if ev.rotation() as u32 & rotation_mask != 0 {
             info!("rotating all screen areas");
             self.screens.rotate();
         }
@@ -521,6 +527,12 @@ impl<'a> Wm<'a> {
             WmCommand::NoCommand
         };
 
+        // TODO: make the commands more specific and declarative.
+        // For instance, instead of a redraw command, we should add
+        // commands representing window swapping, layout parameter changes
+        // and similar things. Add to this the ability of the subset trees
+        // to store geometric information on their subtrees or at least leaves,
+        // and we can make the redraw flicker much more subtle.
         match command {
             WmCommand::Redraw => {
                 self.arrange_windows();
@@ -588,7 +600,6 @@ impl<'a> Wm<'a> {
         if ev.atom() == xproto::ATOM_WM_HINTS {
             let window = ev.window();
             if let Some(client) = self.clients.get_client_by_window(window) {
-                    //.and_then(|r| r.deref().try_borrow().ok()) {
                 let hints = self.get_property_set(
                         window, vec![(xproto::ATOM_WM_HINTS, xproto::ATOM_WM_HINTS)]);
                 if let Some(&ClientProp::PropAtom(ref res)) = hints.first() {
@@ -1113,7 +1124,7 @@ fn arrange(con: &base::Connection,
            visible: &mut Vec<xproto::Window>,
            clients: &OrderEntry,
            geometries: Vec<Option<Geometry>>) {
-    for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
+    /*for (client, geometry) in clients.1.iter().zip(geometries.iter()) {
         if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
             let window = cl.borrow().window;
             visible.push(window);
@@ -1131,5 +1142,5 @@ fn arrange(con: &base::Connection,
                 error!("could not set window geometry");
             }
         }
-    }
+    }*/
 }
