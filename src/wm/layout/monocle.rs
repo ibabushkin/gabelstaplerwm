@@ -21,6 +21,24 @@ impl Default for Monocle {
     }
 }
 
+impl NewLayout for Monocle {
+    fn arrange(&self, forest: &SubsetForest, tree: &SubsetTree, screen: &TilingArea)
+        -> Vec<(Window, Geometry)> {
+        if let Some(&SubsetEntry::Client(_, focused)) =
+                tree.focused.map(|node| &forest.arena[node]) {
+            let geometry = Geometry {
+                x: self.offset_x + screen.offset_x,
+                y: self.offset_y + screen.offset_y,
+                width: screen.width - 2 * self.offset_x - 2,
+                height: screen.height - 2 * self.offset_y - 2,
+            };
+            vec![(focused, geometry)]
+        } else {
+            Vec::new()
+        }
+    }
+}
+
 impl Layout for Monocle {
     fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);

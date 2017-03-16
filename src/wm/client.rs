@@ -127,11 +127,11 @@ impl Client {
 /// Error type representing error conditions when manipulating subset trees.
 #[derive(Debug, PartialEq, Eq)]
 pub enum SubsetError {
-    /// A split node has been passed instead of a client node, or vice-versa.
+    /// a split node has been passed instead of a client node, or vice-versa
     WrongKindOfNode,
-    /// The parent doesn't have the expected child.
+    /// the parent doesn't have the expected child
     WrongParent,
-    /// The node is an orphan.
+    /// the node is an orphan
     Orphan,
 }
 
@@ -141,9 +141,9 @@ pub type SubsetResult<A> = Result<A, SubsetError>;
 /// A subset tree's node.
 #[derive(PartialEq, Eq)]
 pub enum SubsetEntry {
-    /// A split, with parent reference, split direction, and children.
+    /// a split, with parent reference, split direction, and children
     Split(Option<usize>, SplitDirection, Vec<usize>),
-    /// A client, with parent reference and window.
+    /// a client, with parent reference and window
     Client(Option<usize>, Window),
 }
 
@@ -211,55 +211,34 @@ impl SubsetEntry {
 
 /// The insertion bias to use when inserting a new child.
 ///
-/// This essentially describes, *where* the new child is inserted.
+/// This essentially describes *where* the new child is inserted.
 pub enum InsertBias {
-    /// Insert the child left of the reference child, and insert both
-    /// as children of a new split.
+    /// insert the child left of the reference child, and insert both
+    /// as children of a new split
     BelowLeft,
-    /// Insert the child right of the reference child, and insert both
-    /// as children of a new split.
+    /// insert the child right of the reference child, and insert both
+    /// as children of a new split
     BelowRight,
-    /// Insert the child left of the refernce child.
+    /// insert the child left of the refernce child
     NextToLeft,
-    /// Insert the child right of the refernce child.
+    /// insert the child right of the refernce child
     NextToRight,
 }
 
-/// A hierarchically organized subset of windows.
+/// The forest of subset trees.
 ///
-/// Represents the windows as leaves of a rose tree, while inner nodes represent
-/// splits that can be either vertical or horizontal. There is however no guarantee
-/// whether the topological structure of the tree is mapped directly to the
-/// geographical structure of the windows on screen.
-///
-/// In addition, two optional pointers to nodes in tree are stored: a focused leaf,
-/// which consequently holds a window, and a selected subtree. If there is a focused
-/// leaf, but no explicitly selected subtree, the focused leaf is assumed to be
-/// selected.
-///
-/// The tree is rendered using the layout stored as a trait object.
-pub struct SubsetTree {
-    /// The layout used to render the tree.
-    layout: Box<NewLayout>,
-    /// The arena used to allocate tree nodes.
-    arena: Arena<SubsetEntry>,
-    /// The arena index of the focused leaf.
-    focused: Option<usize>,
-    /// The arena index of the selected subtree's root node.
-    selected: Option<usize>,
+/// Manages node allocation and all operations directly touching the allocation
+/// arena. This is because we want to reuse nodes across different trees to avoid
+/// complicated operations when we need to move or copy entire subtrees.
+#[derive(Default)]
+pub struct SubsetForest {
+    /// the arena used to allocate tree nodes
+    pub arena: Arena<SubsetEntry>,
+    /// the subsets associated with sets of tags and their tree's root nodes
+    pub trees: HashMap<BTreeSet<Tag>, SubsetTree>,
 }
 
-impl SubsetTree {
-    /// Create an empty subset tree, holding only a layout.
-    pub fn new<L: NewLayout + 'static>(layout: L) -> SubsetTree {
-        SubsetTree {
-            layout: Box::new(layout),
-            arena: Arena::new(),
-            focused: None,
-            selected: None,
-        }
-    }
-
+impl SubsetForest {
     /// Add a client node holding a window.
     fn add_client_node(&mut self, client: Window) -> usize {
         self.arena.insert(SubsetEntry::Client(None, client))
@@ -304,6 +283,74 @@ impl SubsetTree {
         }
     }
 
+    /// Get all windows in the subtree which `node` is the root of.
+    fn enumerate_subtree(&self, node: usize) -> Vec<usize> {
+        // TODO: possibly turn this into an iterator
+        let mut res = Vec::new();
+        let mut queue = VecDeque::new();
+        queue.push_back(node);
+
+        while let Some(next) = queue.pop_front() {
+            if let Ok(children) = self.arena[next].get_children() {
+                for child in children.iter() {
+                    queue.push_back(*child);
+                }
+            }
+
+            res.push(next);
+        }
+
+        res
+    }
+
+    /// Return the window currently focused on a tagset, if any.
+    pub fn get_focused(&self, tags: &BTreeSet<Tag>) -> Option<Window> {
+        match self.trees.get(tags).and_then(|tree| tree.focused.map(|id| &self.arena[id])) {
+            Some(&SubsetEntry::Client(_, window)) => Some(window),
+            _ => unreachable!(),
+        }
+    }
+}
+
+/// A hierarchically organized subset of windows.
+///
+/// Represents the windows as leaves of a rose tree, while inner nodes represent
+/// splits that can be either vertical or horizontal. There is however no guarantee
+/// whether the topological structure of the tree is mapped directly to the
+/// geometric structure of the windows on screen.
+///
+/// In addition, two optional pointers to nodes in tree are stored: a focused leaf,
+/// which consequently holds a window, and a selected subtree. If there is a focused
+/// leaf, but no explicitly selected subtree, the focused leaf is assumed to be
+/// selected.
+///
+/// The tree is rendered using the layout stored as a trait object.
+///
+/// The actual node arena referenced by the indices here is managed in a
+/// `SubsetForest`.
+pub struct SubsetTree {
+    /// the layout used to render the tree
+    pub layout: Box<NewLayout>,
+    /// the root node of the tree
+    pub root: Option<usize>,
+    /// the arena index of the focused leaf
+    pub focused: Option<usize>,
+    /// the arena index of the selected subtree's root node
+    pub selected: Option<usize>,
+}
+
+impl SubsetTree {
+    /// Create an empty subset tree, holding only a layout.
+    pub fn new<L: NewLayout + 'static>(layout: L) -> SubsetTree {
+        SubsetTree {
+            layout: Box::new(layout),
+            root: None,
+            focused: None,
+            selected: None,
+        }
+    }
+
+    /*
     /// Add a new window to the set, close to the selected node.
     pub fn add(&mut self,
                client: Window,
@@ -340,28 +387,9 @@ impl SubsetTree {
         if focus || self.focused.is_none() {
             self.focused = Some(node);
         }
-    }
+    }*/
 
-    /// Get all windows in the subtree which `node` is the root of.
-    fn enumerate_subtree(&self, node: usize) -> Vec<usize> {
-        // TODO: possibly turn this into an iterator
-        let mut res = Vec::new();
-        let mut queue = VecDeque::new();
-        queue.push_back(node);
-
-        while let Some(next) = queue.pop_front() {
-            if let Ok(children) = self.arena[next].get_children() {
-                for child in children.iter() {
-                    queue.push_back(*child);
-                }
-            }
-
-            res.push(next);
-        }
-
-        res
-    }
-
+    /*
     /// Remove all nodes in the selected subtree.
     pub fn remove_subtree(&mut self) {
         if let Some(node) = self.selected.or(self.focused) {
@@ -393,26 +421,7 @@ impl SubsetTree {
                 },
             }
         }
-    }
-
-    /// Remove a window's tree leaf.
-    pub fn remove(&mut self, window: Window) {
-        // TODO
-    }
-
-    /// Swap the currently selected subtree by topological direction.
-    // TODO: make the type more sensible
-    pub fn swap_subtrees(&mut self, direction: InsertBias) {
-
-    }
-
-    /// Return the currently focused window.
-    pub fn get_focused(&self) -> Option<Window> {
-        match self.focused.map(|id| &self.arena[id]) {
-            Some(&SubsetEntry::Client(_, window)) => Some(window),
-            _ => unreachable!(),
-        }
-    }
+    }*/
 }
 
 /// A client set.
@@ -420,14 +429,14 @@ impl SubsetTree {
 /// Managing all direct children of the root window, as well as
 /// their orderings on different tagsets. the ordering on different tagsets
 /// is organized in a delayed fashion: not all tagsets have an associated
-/// client list to avoid unnecessary copying of weak references. cleanup is
+/// client list to avoid unnecessary copying of weak references. Cleanup is
 /// done as soon as clients are removed, i.e. it is non-lazy.
 #[derive(Default)]
 pub struct ClientSet {
-    /// All clients.
+    /// all clients
     clients: HashMap<Window, Client>,
-    /// Ordered subsets of clients associated with sets of tags.
-    order: HashMap<BTreeSet<Tag>, SubsetTree>,
+    /// trees representing client subsets associated with sets of tags
+    subset_forest: SubsetForest,
 }
 
 impl ClientSet {
@@ -445,12 +454,12 @@ impl ClientSet {
             self.clients
                 .values()
                 .filter(|cl| cl.match_tags(tags))
-                .map(|r| r.window)
-                .peekable();
-        self.order
+                .map(|r| r.window);
+        self.subset_forest
+            .trees
             .entry(tags.clone())
-            .or_insert_with(|| SubsetTree::new(SplitDirection::Vertical, clients))
-    } */
+            .or_insert_with(|| SubsetTree::new(/* a layout here */))
+    }*/
 
     /// Add a new client to the client store.
     ///
@@ -459,9 +468,10 @@ impl ClientSet {
     pub fn add(&mut self, client: Client, as_slave: bool) {
         let window = client.window;
 
-        for (tags, subset) in &mut self.order {
+        for (tags, subset) in &mut self.subset_forest.trees {
             if client.match_tags(tags) {
-                subset.add(window, true, InsertBias::NextToRight, SplitDirection::Vertical);
+                // TODO
+                //subset.add(window, true, InsertBias::NextToRight, SplitDirection::Vertical);
             }
         }
 
@@ -474,8 +484,9 @@ impl ClientSet {
     /// returning whether a client has actually been removed
     pub fn remove(&mut self, window: Window) -> bool {
         if self.clients.remove(&window).is_some() {
-            for entry in self.order.values_mut() {
-                entry.remove(window);
+            for tree in self.subset_forest.trees.values_mut() {
+                // TODO
+                //tree.remove(window);
             }
             true
         } else {
@@ -496,11 +507,12 @@ impl ClientSet {
 
         if res.is_some() {
             let client = &self.clients[&window];
-            for (tags, entry) in &mut self.order {
+            for (tags, tree) in &mut self.subset_forest.trees {
+                // TODO
                 if !client.match_tags(tags) {
-                    entry.remove(window);
+                    //tree.remove(window);
                 } else {
-                    entry.add(window, false, InsertBias::NextToRight, SplitDirection::Vertical);
+                    //tree.add(window, false, InsertBias::NextToRight, SplitDirection::Vertical);
                 }
             }
         }
@@ -509,9 +521,8 @@ impl ClientSet {
 
     /// Get the currently focused window on a set of tags.
     pub fn get_focused_window(&self, tags: &BTreeSet<Tag>) -> Option<Window> {
-        self.order
-            .get(tags)
-            .and_then(|t| t.get_focused())
+        self.subset_forest
+            .get_focused(tags)
     }
 
     /// Focus a window on a set of tags relative to the current
