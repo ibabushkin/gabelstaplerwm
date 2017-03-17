@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use wm::client::{SubsetEntry, SubsetTree, SubsetForest};
+use wm::client::{InsertBias, SubsetEntry, SubsetForest, SubsetTree};
 
 use xcb::xproto::Window;
 
@@ -162,6 +162,9 @@ pub trait NewLayout : Debug {
     /// Compute window geometries.
     fn arrange(&self, forest: &SubsetForest, tree: &SubsetTree, screen: &TilingArea)
         -> Vec<(Window, Geometry)>;
+
+    fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
+        -> (usize, InsertBias);
 
     // Construct a tree of suitable shape for the layout from an iterator of clients.
     //fn construct_tree<I>(&self, tree: &mut tree::Arena<SubsetEntry>, mut clients: I)

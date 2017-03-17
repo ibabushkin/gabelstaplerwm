@@ -23,7 +23,7 @@ impl Default for Monocle {
 
 impl NewLayout for Monocle {
     fn arrange(&self, forest: &SubsetForest, tree: &SubsetTree, screen: &TilingArea)
-        -> Vec<(Window, Geometry)> {
+            -> Vec<(Window, Geometry)> {
         if let Some(&SubsetEntry::Client(_, focused)) =
                 tree.focused.map(|node| &forest.arena[node]) {
             let geometry = Geometry {
@@ -36,6 +36,22 @@ impl NewLayout for Monocle {
         } else {
             Vec::new()
         }
+    }
+
+    fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
+            -> (usize, InsertBias) {
+        // TODO: ensure a well-formed flat tree here...
+        if tree.root.is_none() {
+            error!("Invalid tree!");
+        }
+
+        if let Some(focused) = tree.focused {
+            // inserting before the focysed window here
+        } else {
+            // inserting below the root here
+        }
+
+        (0, InsertBias::NextToRight)
     }
 }
 
