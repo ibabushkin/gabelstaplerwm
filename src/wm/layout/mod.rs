@@ -163,6 +163,16 @@ pub enum LayoutMessage {
     ColumnRel(i8),
 }
 
+/// The state a tree is in, regarding a layout.
+pub enum TreeState {
+    /// The layout expects the tree to be in a shape it is in already.
+    Valid,
+    /// To use the layout on the tree, relabeling split nodes is necessary.
+    Isomorphic,
+    /// The topology of the tree is not suited for the layout.
+    Invalid,
+}
+
 /// Types that compute geometries for specifically shaped client subset trees.
 ///
 /// The trait inherits from `Debug` for purely practical reasons: some types
@@ -178,7 +188,7 @@ pub trait NewLayout : Debug {
     ///
     /// The validity of a tree is defined by the layout and is determined by it's
     /// topology, as well as the labeling of it's split nodes.
-    fn check_tree(&self, forest: &SubsetForest, tree: &SubsetTree) -> bool;
+    fn check_tree(&self, forest: &SubsetForest, tree: &SubsetTree) -> TreeState;
 
     /// Determine the insertion parameters used.
     fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)

@@ -148,25 +148,22 @@ pub enum SubsetEntry {
 }
 
 impl SubsetEntry {
-    #[inline(always)]
     /// Get the node's parent.
     pub fn get_parent(&self) -> Option<usize> {
         match *self {
-            SubsetEntry::Split(parent, ..) => parent,
-            SubsetEntry::Client(parent, ..) => parent,
+            SubsetEntry::Split(parent, ..) | SubsetEntry::Client(parent, ..) => parent,
         }
     }
 
-    #[inline(always)]
     /// Set the node's parent.
     pub fn set_parent(&mut self, new_parent: Option<usize>) {
         match *self {
-            SubsetEntry::Split(ref mut parent, ..) => *parent = new_parent,
-            SubsetEntry::Client(ref mut parent, ..) => *parent = new_parent,
+            SubsetEntry::Split(ref mut parent, ..) | SubsetEntry::Client(ref mut parent, ..) => {
+                *parent = new_parent
+            },
         };
     }
 
-    #[inline(always)]
     /// Get the children of the node, if any.
     ///
     /// Note we distinguish between a split with no children and an ordinary
@@ -178,7 +175,6 @@ impl SubsetEntry {
         }
     }
 
-    #[inline(always)]
     /// Get a mutable reference to the children of a node.
     ///
     /// All restrictions mentioned regarding `get_children` apply.
@@ -190,7 +186,6 @@ impl SubsetEntry {
     }
 
     /// Find a child node by it's arena index in the children vector of a node.
-    #[inline(always)]
     pub fn find_child(&self, child: usize) -> SubsetResult<usize> {
         // self.get_children().map(|children| children.iter().position(|c| *c == child))
         let children = try!(self.get_children());
@@ -202,7 +197,6 @@ impl SubsetEntry {
     }
 
     /// Remove a child node from the children vector of a node.
-    #[inline(always)]
     pub fn remove_child(&mut self, child: usize) -> SubsetResult<()> {
         try!(self.get_children_mut()).retain(|c| *c != child);
         Ok(())

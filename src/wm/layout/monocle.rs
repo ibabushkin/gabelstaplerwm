@@ -38,13 +38,14 @@ impl NewLayout for Monocle {
         }
     }
 
-    fn check_tree(&self, forest: &SubsetForest, tree: &SubsetTree) -> bool {
+    fn check_tree(&self, forest: &SubsetForest, tree: &SubsetTree) -> TreeState {
         tree.root
             .map(|root| forest
                  .arena[root]
                  .get_children()
-                 .is_ok())
-            .unwrap_or(false)
+                 .map(|_| TreeState::Valid)
+                 .unwrap_or(TreeState::Invalid))
+            .unwrap_or(TreeState::Invalid)
     }
 
     fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
@@ -81,10 +82,10 @@ impl NewLayout for Monocle {
                         dir: Direction) -> Option<usize> {
         // TODO: implement
         match dir {
-            TopologicNext => {
+            Direction::TopologicNext => {
                 None
             },
-            TopologicPrevious => {
+            Direction::TopologicPrevious => {
                 None
             },
             _ => None,
