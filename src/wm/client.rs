@@ -209,22 +209,6 @@ impl SubsetEntry {
     }
 }
 
-/// The insertion bias to use when inserting a new child.
-///
-/// This essentially describes *where* the new child is inserted.
-pub enum InsertBias {
-    /// insert the child left of the reference child, and insert both
-    /// as children of a new split
-    BelowLeft,
-    /// insert the child right of the reference child, and insert both
-    /// as children of a new split
-    BelowRight,
-    /// insert the child left of the refernce child
-    NextToLeft,
-    /// insert the child right of the refernce child
-    NextToRight,
-}
-
 /// The forest of subset trees.
 ///
 /// Manages node allocation and all operations directly touching the allocation

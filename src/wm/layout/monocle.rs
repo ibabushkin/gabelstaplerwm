@@ -39,19 +39,68 @@ impl NewLayout for Monocle {
     }
 
     fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
-            -> (usize, InsertBias) {
+            -> Option<(usize, InsertBias, bool)> {
         // TODO: ensure a well-formed flat tree here...
         if tree.root.is_none() {
             error!("Invalid tree!");
         }
 
         if let Some(focused) = tree.focused {
-            // inserting before the focysed window here
+            Some((focused, InsertBias::SiblingBefore, true))
         } else {
-            // inserting below the root here
+            tree.root.map(|root| (root, InsertBias::SiblingBefore, true))
+        }
+    }
+
+    fn get_fallback(&self, forest: &SubsetForest, tree: &SubsetTree, node: usize)
+            -> Option<usize> {
+        // TODO: ugly as hell
+        if let Some(root) = tree.root {
+            let children = forest.arena[root].get_children();
+            if let Ok(Some(index)) = children.map(|c| c.iter().find(|child| **child == node)) {
+                return Some(forest.arena[root].get_children().unwrap()[index - 1]);
+            }
         }
 
-        (0, InsertBias::NextToRight)
+        None
+    }
+
+    fn get_by_direction(&self,
+                        forest: &SubsetForest,
+                        tree: &SubsetTree,
+                        node: usize,
+                        dir: Direction) -> Option<usize> {
+        // TODO: implement
+        match dir {
+            TopologicNext => {
+                None
+            },
+            TopologicPrevious => {
+                None
+            },
+            _ => None,
+        }
+    }
+
+    fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
+        match msg {
+            LayoutMessage::XOffAbs(x) => self.offset_x = x,
+            LayoutMessage::XOffRel(x) =>
+                self.offset_x = if x < 0 {
+                    self.offset_x.saturating_sub(x.abs() as u32)
+                } else {
+                    self.offset_x.saturating_add(x.abs() as u32)
+                },
+            LayoutMessage::YOffAbs(y) => self.offset_y = y,
+            LayoutMessage::YOffRel(y) =>
+                self.offset_y = if y < 0 {
+                    self.offset_y.saturating_sub(y.abs() as u32)
+                } else {
+                    self.offset_y.saturating_add(y.abs() as u32)
+                },
+            _ => return false,
+        };
+        true
     }
 }
 

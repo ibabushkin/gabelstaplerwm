@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use wm::client::{InsertBias, SubsetEntry, SubsetForest, SubsetTree};
+use wm::client::{SubsetEntry, SubsetForest, SubsetTree};
 
 use xcb::xproto::Window;
 
@@ -94,6 +94,133 @@ impl SplitDirection {
     }
 }
 
+/// The insertion bias to use when inserting a new child.
+///
+/// This essentially describes *where* the new child is inserted.
+pub enum InsertBias {
+    /// insert the child after the reference node, and insert both as
+    /// children of a new split
+    ChildAfter(SplitDirection),
+    /// insert the child before the reference node, and insert both as
+    /// children of a new split
+    ChildBefore(SplitDirection),
+    /// insert the child after the reference node (fallback to `ChildAfter`)
+    SiblingAfter,
+    /// insert the child before the reference node (fallback to `ChildBefore`)
+    SiblingBefore,
+}
+
+/// A direction, as used for focus and selection manipulation.
+pub enum Direction {
+    /// Visual direction on screen: left.
+    GeometricLeft,
+    /// Visual direction on screen: top.
+    GeometricTop,
+    /// Visual direction on screen: right.
+    GeometricRight,
+    /// Visual direction on screen: bottom.
+    GeometricBottom,
+    /// Structural direction in the tree: left.
+    TopologicLeft,
+    /// Structural direction in the tree: top.
+    TopologicTop,
+    /// Structural direction in the tree: right.
+    TopologicRight,
+    /// Structural direction in the tree: bottom.
+    TopologicBottom,
+    /// Perceived order in the tree: forward.
+    TopologicNext,
+    /// Perceived order in the tree: backward.
+    TopologicPrevious,
+}
+
+/// A message type being sent to layout objects.
+///
+/// Introduced to allow for type- and implementation-independent layout editing
+/// from keybindings and other code. Layout implementations can choose to react
+/// to any subset of the message variants below, or none at all.
+#[derive(Debug, PartialEq, Eq)]
+pub enum LayoutMessage {
+    /// Set absolute value of the master factor.
+    MasterFactorAbs(u8),
+    /// Add an offset to the master factor.
+    MasterFactorRel(i8),
+    /// Set `fixed` attribute of layout.
+    FixedAbs(bool),
+    /// Toggle `fixed` attrbute of layout.
+    FixedRel,
+    /// Set absolute value of the x offset.
+    XOffAbs(u32),
+    /// Add an offset to the x offset.
+    XOffRel(i32),
+    /// Set absolute value of the y offset.
+    YOffAbs(u32),
+    /// Add an offset to the y offset.
+    YOffRel(i32),
+    /// Set absolute value of the column amount.
+    ColumnAbs(u8),
+    /// Add an offset to the column amount.
+    ColumnRel(i8),
+}
+
+/// Types that compute geometries for specifically shaped client subset trees.
+///
+/// The trait inherits from `Debug` for purely practical reasons: some types
+/// we want to output (`WmCommand` in particular) rely on derived `Debug`
+/// instances and all types implementing `Layout` don't have much trouble
+/// implementing `Debug` anyway (again, via derived instances).
+pub trait NewLayout : Debug {
+    /// Compute window geometries.
+    fn arrange(&self, forest: &SubsetForest, tree: &SubsetTree, screen: &TilingArea)
+        -> Vec<(Window, Geometry)>;
+
+    /// Determine the insertion parameters used.
+    fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
+        -> Option<(usize, InsertBias, bool)>;
+
+    /// Get a fallback node for a given input node.
+    fn get_fallback(&self, forest: &SubsetForest, tree: &SubsetTree, node: usize)
+        -> Option<usize>;
+
+    /// Get a node relative to the input node, given a direction in the tree.
+    fn get_by_direction(&self,
+                        forest: &SubsetForest,
+                        tree: &SubsetTree,
+                        node: usize,
+                        dir: Direction)
+        -> Option<usize>;
+
+    /// React to a `LayoutMessage`, returning true on change.
+    fn edit_layout(&mut self, msg: LayoutMessage) -> bool;
+
+    /// React to the first applicable `LayoutMessage`.
+    ///
+    /// If any reaction is triggered, return `true`, else `false`.
+    fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
+        msgs.drain(..).any(|m| self.edit_layout(m))
+    }
+
+    // Construct a tree of suitable shape for the layout from an iterator of clients.
+    //fn construct_tree<I>(&self, tree: &mut tree::Arena<SubsetEntry>, mut clients: I)
+    //    -> tree::NodeId where I: Iterator<Item=Window>;
+    //fn construct_tree(&self,
+    //                  tree: &mut tree::Arena<SubsetEntry>,
+    //                  mut clients: Box<Iterator<Item=Window>>)
+    //    -> tree::NodeId;
+
+    // Check a tree's structure regarding a shape suitable for the layout.
+    //
+    // This operation *can* modify the tree, but it has to keep it isomorphic to it's
+    // original state, that is, not change the structure. If this is not possible,
+    // `false` is returned, `true` otherwise.
+    //fn check_tree(&self, tree: &mut SubsetTree) -> bool;
+
+    // Transform an arbitrary client subset tree into a shape suitable for the layout.
+    //
+    // This can change the tree in any way.
+    //fn transform_tree(&self, tree: &mut SubsetTree);
+}
+
 /// Types that compute geometries for arbitrary amounts of windows.
 ///
 /// The only input such objects get are `TilingArea` and number of windows.
@@ -131,113 +258,4 @@ pub trait Layout : Debug {
     fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
         msgs.drain(..).any(|m| self.edit_layout(m))
     }
-}
-
-/// A direction, as used for focus and selection manipulation.
-pub enum Direction {
-    /// Visual direction on screen: left.
-    GeometricLeft,
-    /// Visual direction on screen: top.
-    GeometricTop,
-    /// Visual direction on screen: right.
-    GeometricRight,
-    /// Visual direction on screen: bottom.
-    GeometricBottom,
-    /// Structural direction in the tree: left.
-    TopologicLeft,
-    /// Structural direction in the tree: top.
-    TopologicTop,
-    /// Structural direction in the tree: right.
-    TopologicRight,
-    /// Structural direction in the tree: bottom.
-    TopologicBottom,
-}
-
-/// Types that compute geometries for specifically shaped client subset trees.
-///
-/// The trait inherits from `Debug` for purely practical reasons: some types
-/// we want to output (`WmCommand` in particular) rely on derived `Debug`
-/// instances and all types implementing `Layout` implement `Debug` anyway.
-pub trait NewLayout : Debug {
-    /// Compute window geometries.
-    fn arrange(&self, forest: &SubsetForest, tree: &SubsetTree, screen: &TilingArea)
-        -> Vec<(Window, Geometry)>;
-
-    fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
-        -> (usize, InsertBias);
-
-    // Construct a tree of suitable shape for the layout from an iterator of clients.
-    //fn construct_tree<I>(&self, tree: &mut tree::Arena<SubsetEntry>, mut clients: I)
-    //    -> tree::NodeId where I: Iterator<Item=Window>;
-    //fn construct_tree(&self,
-    //                  tree: &mut tree::Arena<SubsetEntry>,
-    //                  mut clients: Box<Iterator<Item=Window>>)
-    //    -> tree::NodeId;
-
-    // Check a tree's structure regarding a shape suitable for the layout.
-    //
-    // This operation *can* modify the tree, but it has to keep it isomorphic to it's
-    // original state, that is, not change the structure. If this is not possible,
-    // `false` is returned, `true` otherwise.
-    //fn check_tree(&self, tree: &mut SubsetTree) -> bool;
-
-    // Transform an arbitrary client subset tree into a shape suitable for the layout.
-    //
-    // This can change the tree in any way.
-    //fn transform_tree(&self, tree: &mut SubsetTree);
-
-    // Insert a new client in a client subset tree.
-    //fn insert(&self, tree: &mut SubsetTree, client: Window);
-
-    // Delete a client in a client subset tree.
-    //fn delete(&self, tree: &mut SubsetTree, client: Window);
-
-    // Focus a client in a client subset tree by direction.
-    //
-    // That is, either geometrical, or topological direction gets applied.
-    //fn focus_direction(&self, tree: &mut SubsetTree, direction: Direction) -> bool;
-
-    // Swap a client in a client subset tree by direction.
-    //
-    // That is, either geometrical, or topological direction gets applied.
-    //fn swap_direction(&self, tree: &mut SubsetTree, direction: Direction) -> bool;
-
-    // React to a `LayoutMessage`, returning true on change.
-    //fn edit_layout(&mut self, msg: LayoutMessage) -> bool;
-
-    // React to the first applicable `LayoutMessage`.
-    //
-    // If any reaction is triggered, return `true`, else `false`.
-    //fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
-    //    msgs.drain(..).any(|m| self.edit_layout(m))
-    //}
-}
-
-/// A message type being sent to layout objects.
-///
-/// Introduced to allow for type- and implementation-independent layout editing
-/// from keybindings and other code. Layout implementations can choose to react
-/// to any subset of the message variants below, or none at all.
-#[derive(Debug, PartialEq, Eq)]
-pub enum LayoutMessage {
-    /// Set absolute value of the master factor.
-    MasterFactorAbs(u8),
-    /// Add an offset to the master factor.
-    MasterFactorRel(i8),
-    /// Set `fixed` attribute of layout.
-    FixedAbs(bool),
-    /// Toggle `fixed` attrbute of layout.
-    FixedRel,
-    /// Set absolute value of the x offset.
-    XOffAbs(u32),
-    /// Add an offset to the x offset.
-    XOffRel(i32),
-    /// Set absolute value of the y offset.
-    YOffAbs(u32),
-    /// Add an offset to the y offset.
-    YOffRel(i32),
-    /// Set absolute value of the column amount.
-    ColumnAbs(u8),
-    /// Add an offset to the column amount.
-    ColumnRel(i8),
 }
