@@ -174,6 +174,12 @@ pub trait NewLayout : Debug {
     fn arrange(&self, forest: &SubsetForest, tree: &SubsetTree, screen: &TilingArea)
         -> Vec<(Window, Geometry)>;
 
+    /// Determine whether a tree is in a valid state.
+    ///
+    /// The validity of a tree is defined by the layout and is determined by it's
+    /// topology, as well as the labeling of it's split nodes.
+    fn check_tree(&self, forest: &SubsetForest, tree: &SubsetTree) -> bool;
+
     /// Determine the insertion parameters used.
     fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
         -> Option<(usize, InsertBias, bool)>;

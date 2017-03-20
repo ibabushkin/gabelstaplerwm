@@ -38,6 +38,15 @@ impl NewLayout for Monocle {
         }
     }
 
+    fn check_tree(&self, forest: &SubsetForest, tree: &SubsetTree) -> bool {
+        tree.root
+            .map(|root| forest
+                 .arena[root]
+                 .get_children()
+                 .is_ok())
+            .unwrap_or(false)
+    }
+
     fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
             -> Option<(usize, InsertBias, bool)> {
         // TODO: ensure a well-formed flat tree here...
