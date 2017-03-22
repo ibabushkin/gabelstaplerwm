@@ -50,7 +50,6 @@ impl NewLayout for Monocle {
 
     fn get_insertion_params(&self, forest: &SubsetForest, tree: &SubsetTree)
             -> Option<(usize, InsertBias, bool)> {
-        // TODO: ensure a well-formed flat tree here...
         if tree.root.is_none() {
             error!("Invalid tree!");
         }

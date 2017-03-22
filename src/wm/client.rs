@@ -261,6 +261,38 @@ impl SubsetForest {
         }
     }
 
+    /// Insert a node as a child into a tree, according to the tree's layout.
+    ///
+    /// This assumes the node to be already present in the arena. The actual
+    /// semantics of insertion vary depending on whether the child node has a
+    /// parent. If not, it is simply inserted. otherwise it is copied together
+    /// with it's descendants. After that, the arena index of the newly created
+    /// node is returned.
+    fn insert(&mut self, tree: &mut SubsetTree, node: usize) -> Option<usize> {
+        if let Some((reference, bias, focus)) = tree.layout.get_insertion_params(self, tree) {
+            let node = self.get_as_tree(node);
+            self.add_child(reference, node, 0); // TODO: interpret bias
+            if focus {
+                tree.focused = Some(node);
+            }
+            Some(node)
+        } else {
+            None
+        }
+    }
+
+    /// Given a node, return it and it's subtree's root node in a new subtree.
+    ///
+    /// If the given node has no parent, it is not copied, otherwise it is.
+    fn get_as_tree(&mut self, node: usize) -> usize {
+        // TODO
+        if self.arena[node].get_parent().is_some() {
+            node
+        } else {
+            node
+        }
+    }
+
     /// Get all windows in the subtree which `node` is the root of.
     fn enumerate_subtree(&self, node: usize) -> Vec<usize> {
         // TODO: possibly turn this into an iterator
