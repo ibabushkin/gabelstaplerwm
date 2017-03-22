@@ -276,6 +276,10 @@ impl SubsetForest {
                 tree.focused = Some(node);
             }
             Some(node)
+        } else if tree.root.is_none() { // TODO: clean this up
+            let node = self.get_as_tree(node);
+            tree.root = Some(node);
+            Some(node)
         } else {
             None
         }
