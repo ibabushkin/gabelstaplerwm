@@ -139,7 +139,7 @@ pub enum SubsetError {
 pub type SubsetResult<A> = Result<A, SubsetError>;
 
 /// A subset tree's node.
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum SubsetEntry {
     /// a split, with parent reference, split direction, and children
     Split(Option<usize>, SplitDirection, Vec<usize>),
@@ -289,9 +289,25 @@ impl SubsetForest {
     ///
     /// If the given node has no parent, it is not copied, otherwise it is.
     fn get_as_tree(&mut self, node: usize) -> usize {
-        // TODO
         if self.arena[node].get_parent().is_some() {
-            node
+            let mut queue = VecDeque::new();
+
+            let node_value = self.arena[node].clone();
+            let node_copy = self.arena.insert(node_value);
+            queue.push_back((node, node_copy));
+
+            while let Some((next, next_copy)) = queue.pop_front() {
+                if let Ok(children) =
+                        self.arena[next].get_children().map(|cs| cs.clone()) {
+                    for (index, child) in children.iter().enumerate() {
+                        let node_value = self.arena[*child].clone();
+                        let child_copy = self.arena.insert(node_value);
+                        self.add_child(next_copy, child_copy, index);
+                        queue.push_back((*child, child_copy));
+                    }
+                }
+            }
+            node_copy
         } else {
             node
         }
