@@ -41,6 +41,20 @@ extern fn sigchld_action(_: libc::c_int) {
     }
 }
 
+/// Call pledge(2) to drop privileges.
+#[cfg(feature = "pledge")]
+fn pledge_promise() {
+    // TODO: maybe check our pledge?
+    match pledge![Stdio, RPath, Proc, Exec, Unix] {
+        Err(_) => error!("calling pledge() failed"),
+        _ => (),
+    }
+}
+
+/// Dummy call to pledge(2) for non-OpenBSD systems.
+#[cfg(not(feature = "pledge"))]
+fn pledge_promise() { }
+
 /// Main function.
 ///
 /// Sets up connection, and window manager object.
@@ -51,12 +65,7 @@ fn main() {
         handle_logger_error();
     }
 
-    if cfg!(pledge) { // TODO: maybe check our pledge?
-        match pledge![Stdio, RPath, Proc, Exec, Unix] {
-            Err(_) => error!("calling pledge() failed"),
-            _ => (),
-        }
-    }
+    pledge_promise();
 
     // we're a good parent - we wait for our children when they get a screaming
     // fit at the checkout lane
