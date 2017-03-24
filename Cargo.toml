@@ -20,6 +20,7 @@ libc = "*"
 env_logger = "*"
 log = "*"
 xcb = { version = "0.7.6", features = ["xkb", "randr"] }
+pledge = { version = "*", optional = true }
 
 [profile.release]
 opt-level = 3

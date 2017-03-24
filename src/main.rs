@@ -5,12 +5,17 @@
 //! See the documentation for the `config` module for more information on
 //! configuration.
 
-extern crate libc;
-extern crate xcb;
-
 extern crate env_logger;
+extern crate libc;
 #[macro_use]
 extern crate log;
+#[cfg(feature = "pledge")]
+#[macro_use]
+extern crate pledge;
+extern crate xcb;
+
+#[cfg(feature = "pledge")]
+use pledge::{pledge, Promise, ToPromiseString};
 
 use std::env::remove_var;
 use std::ptr::null_mut;
@@ -46,6 +51,13 @@ fn main() {
         handle_logger_error();
     }
 
+    if cfg!(pledge) { // TODO: maybe check our pledge?
+        match pledge![Stdio, RPath, Proc, Exec, Unix] {
+            Err(_) => error!("calling pledge() failed"),
+            _ => (),
+        }
+    }
+
     // we're a good parent - we wait for our children when they get a screaming
     // fit at the checkout lane
     unsafe {
@@ -62,8 +74,7 @@ fn main() {
         act.sa_flags = libc::SA_RESTART;
 
         // setup our SIGCHLD-handler
-        if libc::sigaction(libc::SIGCHLD, &act, null_mut())
-            == -1 {
+        if libc::sigaction(libc::SIGCHLD, &act, null_mut()) == -1 {
             // crash and burn on failure
             WmError::CouldNotEstablishHandlers.handle();
         }
