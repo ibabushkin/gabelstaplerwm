@@ -135,7 +135,9 @@ pub enum SubsetError {
     Orphan,
 }
 
-/// The result type corresponding with the error type.
+/// The result type corresponding to the error type.
+///
+/// Used to return the result of subset tree related operations.
 pub type SubsetResult<A> = Result<A, SubsetError>;
 
 /// A subset tree's node.
@@ -158,7 +160,8 @@ impl SubsetEntry {
     /// Set the node's parent.
     pub fn set_parent(&mut self, new_parent: Option<usize>) {
         match *self {
-            SubsetEntry::Split(ref mut parent, ..) | SubsetEntry::Client(ref mut parent, ..) => {
+            SubsetEntry::Split(ref mut parent, ..)
+                    | SubsetEntry::Client(ref mut parent, ..) => {
                 *parent = new_parent
             },
         };
@@ -229,8 +232,9 @@ impl SubsetForest {
 
     /// Get information on the parent of a node.
     ///
-    /// Return parent index and the position of the node in it's children vector,
-    /// if the node isn't the root.
+    /// Return the parent's index and the position of the node in it's `children`
+    /// vector, if the node passed in has a parent. Otherwise, signal that the node
+    /// is an orphan.
     fn get_parent(&self, node: usize) -> SubsetResult<(usize, usize)> {
         if let Some(parent) = self.arena[node].get_parent() {
             self.arena[parent].find_child(node).map(|index| (parent, index))
@@ -239,7 +243,10 @@ impl SubsetForest {
         }
     }
 
-    /// Reparent `child` to `parent`, if possible.
+    /// Reparent `child` to `parent`, if necessary.
+    ///
+    /// If the designated child node is already a child of the designated parent,
+    /// the tree remains unchanged.
     fn add_child(&mut self, parent: usize, child: usize, pos: usize) {
         if self.arena[parent].find_child(child) == Err(SubsetError::WrongParent) {
             {
@@ -269,15 +276,16 @@ impl SubsetForest {
     /// with it's descendants. After that, the arena index of the newly created
     /// node is returned.
     fn insert(&mut self, tree: &mut SubsetTree, node: usize) -> Option<usize> {
-        if let Some((reference, bias, focus)) = tree.layout.get_insertion_params(self, tree) {
-            let node = self.get_as_tree(node);
+        if let Some((reference, bias, focus)) =
+                tree.layout.get_insertion_params(self, tree) {
+            let node = self.get_or_copy_subtree(node);
             self.add_child(reference, node, 0); // TODO: interpret bias
             if focus {
                 tree.focused = Some(node);
             }
             Some(node)
         } else if tree.root.is_none() { // TODO: clean this up
-            let node = self.get_as_tree(node);
+            let node = self.get_or_copy_subtree(node);
             tree.root = Some(node);
             Some(node)
         } else {
@@ -285,10 +293,12 @@ impl SubsetForest {
         }
     }
 
-    /// Given a node, return it and it's subtree's root node in a new subtree.
+    /// Given a node, return a version of it's subtree suitable for insertion.
     ///
-    /// If the given node has no parent, it is not copied, otherwise it is.
-    fn get_as_tree(&mut self, node: usize) -> usize {
+    /// The node and it's descendant subtree is copied on demand. That is, if
+    /// the noe has a parent already, it's subtree is copied and the node's copy
+    /// is returned, otherwise it is returned without any further action.
+    fn get_or_copy_subtree(&mut self, node: usize) -> usize {
         if self.arena[node].get_parent().is_some() {
             let mut queue = VecDeque::new();
 
@@ -335,7 +345,9 @@ impl SubsetForest {
 
     /// Return the window currently focused on a tagset, if any.
     pub fn get_focused(&self, tags: &BTreeSet<Tag>) -> Option<Window> {
-        match self.trees.get(tags).and_then(|tree| tree.focused.map(|id| &self.arena[id])) {
+        match self.trees
+                  .get(tags)
+                  .and_then(|tree| tree.focused.map(|id| &self.arena[id])) {
             Some(&SubsetEntry::Client(_, window)) => Some(window),
             _ => unreachable!(),
         }
@@ -347,17 +359,17 @@ impl SubsetForest {
 /// Represents the windows as leaves of a rose tree, while inner nodes represent
 /// splits that can be either vertical or horizontal. There is however no guarantee
 /// whether the topological structure of the tree is mapped directly to the
-/// geometric structure of the windows on screen.
+/// geometric structure of the windows on screen, this is layout-dependent.
 ///
-/// In addition, two optional pointers to nodes in tree are stored: a focused leaf,
-/// which consequently holds a window, and a selected subtree. If there is a focused
-/// leaf, but no explicitly selected subtree, the focused leaf is assumed to be
-/// selected.
+/// In addition, two optional pointers to nodes in the tree are stored: a `focused`
+/// leaf, which consequently holds a window, and a `selected` subtree. If there is a
+/// focused leaf, but no explicitly selected subtree, the focused leaf is assumed
+/// to be selected.
 ///
-/// The tree is rendered using the layout stored as a trait object.
+/// The tree is rendered using the `layout`, which is stored as a trait object.
 ///
 /// The actual node arena referenced by the indices here is managed in a
-/// `SubsetForest`.
+/// `SubsetForest`, which manages the complete set of `SubsetTree`s as well.
 pub struct SubsetTree {
     /// the layout used to render the tree
     pub layout: Box<NewLayout>,
