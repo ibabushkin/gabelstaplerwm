@@ -206,7 +206,7 @@ pub fn setup_wm(wm: &mut Wm) {
         }),
         // spawn a terminal
         bind!(31, modkey, Mode::Normal, |_, _| {
-            let _ = Command::new("termite").spawn();
+            let _ = Command::new("st").spawn();
             WmCommand::NoCommand
         }),
         // kill current client

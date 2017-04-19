@@ -16,9 +16,9 @@ use wm::layout::*;
 pub struct DStack {
     /// percentage of screen width taken by the master window area,
     /// saturating semantics
-    pub master_factor: u8,
+    master_factor: u8,
     /// keep the width(s) of the areas even if they are empty?
-    pub fixed: bool,
+    fixed: bool,
 }
 
 impl Default for DStack {
@@ -34,11 +34,7 @@ impl Layout for DStack {
     fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // set master window width, capping factor
-        let master_width = if self.master_factor >= 100 {
-            screen.width
-        } else {
-            self.master_factor as u32 * screen.width / 100
-        };
+        let master_width = self.master_factor as u32 * screen.width / 100;
         if num_windows == 1 && !self.fixed {
             // one window only - fullscreen
             res.push(Some(Geometry {
@@ -164,13 +160,13 @@ impl Layout for DStack {
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 101,
+                self.master_factor = mf % 96,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
                     self.master_factor.saturating_sub(mf.abs() as u8)
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
-                    if m > 100 { 100 } else { m }
+                    if m > 95 { 95 } else { m }
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
@@ -194,11 +190,11 @@ impl Layout for DStack {
 pub struct HStack {
     /// percentage of screen height taken by the master window area,
     /// saturating semantics
-    pub master_factor: u8,
+    master_factor: u8,
     /// place the stack on top?
-    pub inverted: bool,
+    inverted: bool,
     /// keep the height(s) of the areas even if they are empty?
-    pub fixed: bool,
+    fixed: bool,
 }
 
 impl Default for HStack {
@@ -215,11 +211,7 @@ impl Layout for HStack {
     fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // set master window height, capping factor
-        let master_height = if self.master_factor >= 100 {
-            screen.height
-        } else {
-            self.master_factor as u32 * screen.height / 100
-        };
+        let master_height = self.master_factor as u32 * screen.height / 100;
         if num_windows == 1 {
             // one window only - fullscreen or fixed size
             let h = if self.fixed {
@@ -317,13 +309,13 @@ impl Layout for HStack {
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 101,
+                self.master_factor = mf % 96,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
                     self.master_factor.saturating_sub(mf.abs() as u8)
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
-                    if m > 100 { 100 } else { m }
+                    if m > 95 { 95 } else { m }
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
@@ -349,11 +341,11 @@ impl Layout for HStack {
 pub struct VStack {
     /// percentage of screen height taken by the master window area,
     /// saturating semantics
-    pub master_factor: u8,
+    master_factor: u8,
     /// place the stack on the left?
-    pub inverted: bool,
+    inverted: bool,
     /// keep the height(s) of the areas even if they are empty?
-    pub fixed: bool,
+    fixed: bool,
 }
 
 impl Default for VStack {
@@ -370,11 +362,7 @@ impl Layout for VStack {
     fn arrange(&self, num_windows: usize, screen: &TilingArea) -> Vec<Option<Geometry>> {
         let mut res = Vec::with_capacity(num_windows);
         // set master window width, capping factor
-        let master_width = if self.master_factor >= 100 {
-            screen.width
-        } else {
-            self.master_factor as u32 * screen.width / 100
-        };
+        let master_width = self.master_factor as u32 * screen.width / 100;
         if num_windows == 1 {
             // one window only - fullscreen or fixed size
             let w = if self.fixed {
@@ -472,13 +460,13 @@ impl Layout for VStack {
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 101,
+                self.master_factor = mf % 96,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
                     self.master_factor.saturating_sub(mf.abs() as u8)
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
-                    if m > 100 { 100 } else { m }
+                    if m > 95 { 95 } else { m }
                 },
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
