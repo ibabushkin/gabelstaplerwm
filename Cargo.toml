@@ -1,7 +1,7 @@
 [package]
 name = "gabelstaplerwm"
-version = "0.5.0"
-authors = ["Inokentiy Babushkin <inokentiy.babushkin@googlemail.com>"]
+version = "0.6.0"
+authors = ["Inokentiy Babushkin <twk@twki.de>"]
 description = "A semidynamic tiling window manager using XCB"
 documentation = "https://ibabushkin.github.io/rustdoc/gabelstaplerwm/"
 homepage = "https://ibabushkin.github.io/"
@@ -20,6 +20,7 @@ libc = "*"
 env_logger = "*"
 log = "*"
 xcb = { version = "0.7.6", features = ["xkb", "randr"] }
+pledge = { version = "*", optional = true }
 
 [profile.release]
 opt-level = 3
