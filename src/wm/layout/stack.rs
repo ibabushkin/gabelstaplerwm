@@ -21,6 +21,22 @@ pub struct DStack {
     fixed: bool,
 }
 
+impl DStack {
+    /// Construct a sane `DStack`.
+    pub fn new(master_factor: u8, fixed: bool) -> DStack {
+        DStack {
+            master_factor: if master_factor < 5 {
+                5
+            } else if master_factor > 95 {
+                95
+            } else {
+                master_factor
+            },
+            fixed: fixed,
+        }
+    }
+}
+
 impl Default for DStack {
     fn default() -> DStack {
         DStack {
@@ -198,6 +214,23 @@ pub struct HStack {
     fixed: bool,
 }
 
+impl HStack {
+    /// Construct a sane `HStack`.
+    pub fn new(master_factor: u8, inverted: bool, fixed: bool) -> HStack {
+        HStack {
+            master_factor: if master_factor < 5 {
+                5
+            } else if master_factor > 95 {
+                95
+            } else {
+                master_factor
+            },
+            inverted: inverted,
+            fixed: fixed,
+        }
+    }
+}
+
 impl Default for HStack {
     fn default() -> HStack {
         HStack {
@@ -348,6 +381,23 @@ pub struct VStack {
     inverted: bool,
     /// keep the height(s) of the areas even if they are empty?
     fixed: bool,
+}
+
+impl VStack {
+    /// Construct a sane `VStack`.
+    pub fn new(master_factor: u8, inverted: bool, fixed: bool) -> VStack {
+        VStack {
+            master_factor: if master_factor < 5 {
+                5
+            } else if master_factor > 95 {
+                95
+            } else {
+                master_factor
+            },
+            inverted: inverted,
+            fixed: fixed,
+        }
+    }
 }
 
 impl Default for VStack {
