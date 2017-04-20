@@ -163,7 +163,8 @@ impl Layout for DStack {
                 self.master_factor = mf % 96,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
-                    self.master_factor.saturating_sub(mf.abs() as u8)
+                    let m = self.master_factor.saturating_sub(mf.abs() as u8);
+                    if m < 5 { 5 } else { m }
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
                     if m > 95 { 95 } else { m }
@@ -312,7 +313,8 @@ impl Layout for HStack {
                 self.master_factor = mf % 96,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
-                    self.master_factor.saturating_sub(mf.abs() as u8)
+                    let m = self.master_factor.saturating_sub(mf.abs() as u8);
+                    if m < 5 { 5 } else { m }
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
                     if m > 95 { 95 } else { m }
@@ -463,7 +465,8 @@ impl Layout for VStack {
                 self.master_factor = mf % 96,
             LayoutMessage::MasterFactorRel(mf) =>
                 self.master_factor = if mf < 0 {
-                    self.master_factor.saturating_sub(mf.abs() as u8)
+                    let m = self.master_factor.saturating_sub(mf.abs() as u8);
+                    if m < 5 { 5 } else { m }
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
                     if m > 95 { 95 } else { m }
