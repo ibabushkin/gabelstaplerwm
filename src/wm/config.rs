@@ -430,7 +430,7 @@ pub fn setup_wm(wm: &mut Wm) {
 
         if screen.tag_stack.is_clean() {
             let tagsets = vec![
-                TagSet::new(set![Tag::Web], VStack::new(100, false, true)),
+                TagSet::new(set![Tag::Web], VStack::new(80, true, false)),
                 TagSet::new(set![Tag::Work(0)], VStack::default()),
                 TagSet::new(set![Tag::Chat], HStack::new(75, true, false)),
                 TagSet::new(set![Tag::Org], HStack::new(75, false, false)),
