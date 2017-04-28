@@ -123,8 +123,8 @@ impl Default for Mode {
 /// See the docs for `TilingArea` for more information.
 pub fn generate_config() -> WmConfig {
     WmConfig {
-        f_color: (0x0000, 0x5555, 0x7777), // this is #005577 (dwm cyan)
-        u_color: (0x0000, 0x0000, 0x0000), // and this is #000000 (black)
+        f_color: (0xd7d7, 0x3737, 0x3737), // and this is #d73737 (a red)
+        u_color: (0x2020, 0x2020, 0x1d1d), // this is #20201d (a black)
         border_width: 1,
     }
 }
