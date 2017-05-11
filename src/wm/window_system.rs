@@ -579,6 +579,7 @@ impl<'a> Wm<'a> {
                     .position(|win| *win == window) {
                 self.unmanaged_windows.swap_remove(index);
                 info!("unregistered unmanaged window");
+                info!("unmanaged windows len: {}", self.unmanaged_windows.len());
             }
             self.reset_focus(false);
         }
@@ -744,13 +745,13 @@ impl<'a> Wm<'a> {
                         error!("could not register for client-specific events");
                     }
                 }, // it's a window we don't care about
-                Err(_) => self.register_unmanaged_window(window),
+                Err(props) => self.register_unmanaged_window(window, props),
             }
         }
     }
 
     /// Initialize the state of a window we won't manage.
-    fn register_unmanaged_window(&mut self, window: xproto::Window) {
+    fn register_unmanaged_window(&mut self, window: xproto::Window, props: ClientProps) {
         let cookie1 = xproto::map_window(self.con, window);
         let cookie2 = xproto::set_input_focus(
             self.con,
@@ -758,8 +759,12 @@ impl<'a> Wm<'a> {
             window,
             xproto::TIME_CURRENT_TIME);
 
-        self.unmanaged_windows.push(window);
-        info!("registered unmanaged window");
+        if self.unmanaged_windows.iter().position(|win| *win == window).is_none() {
+            self.unmanaged_windows.push(window);
+            info!("registered unmanaged window {} with props: {:?}", window, props);
+        } else {
+            info!("remapped unmanaged window {}", window);
+        }
 
         if cookie1.request_check().is_err() {
             error!("could not map window");
