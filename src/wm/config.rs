@@ -179,9 +179,7 @@ pub fn setup_wm(wm: &mut Wm) {
               toggle_show_tag!(Tag::Mon;; current_tagset)),
         // quit the window manager - modkey+CTRL+q
         bind!(24, modkey+CTRL, Mode::Normal, |_, _| {
-            let _ = Command::new("killall")
-                .arg("lemonbar")
-                .spawn();
+            exec_script("control.sh", &["stop", "bar"]);
             WmCommand::Quit
         }),
         // spawn alarm/reminder notification with a delay - modkey+q
