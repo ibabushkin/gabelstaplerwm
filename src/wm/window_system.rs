@@ -10,6 +10,7 @@ use xcb::randr;
 use xcb::xkb;
 use xcb::xproto;
 
+use wm::alien::*;
 use wm::client::*;
 use wm::config::{Tag, Mode, IGNORED_MODS_VEC};
 use wm::err::*;
@@ -300,7 +301,9 @@ impl<'a> Wm<'a> {
     fn arrange_windows(&mut self) {
         // first, hide all visible windows ...
         self.hide_windows(&self.visible_windows);
-        debug!("hidden windows: {:?}", self.visible_windows);
+        self.hide_windows(&self.unmanaged_windows);
+        debug!("hidden tiled windows: {:?}", self.visible_windows);
+        debug!("hidden unmanaged windows: {:?}", self.unmanaged_windows);
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
 
@@ -586,7 +589,6 @@ impl<'a> Wm<'a> {
                     .position(|win| *win == window) {
                 self.unmanaged_windows.swap_remove(index);
                 info!("unregistered unmanaged window");
-                info!("unmanaged windows len: {}", self.unmanaged_windows.len());
             }
             self.reset_focus(false);
         }
@@ -709,11 +711,10 @@ impl<'a> Wm<'a> {
         // no client corresponding to the window, add it
         if self.clients.get_client_by_window(window).is_none() {
             // set border width
-            let safe_x = self.screens.screen().width + 2;
             let cookie2 = xproto::configure_window(self.con, window,
                 &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
                    self.border_width as u32),
-                  (xproto::CONFIG_WINDOW_X as u16, safe_x),
+                  (xproto::CONFIG_WINDOW_X as u16, self.safe_x),
                   (xproto::CONFIG_WINDOW_Y as u16, 0)
                 ]);
 
