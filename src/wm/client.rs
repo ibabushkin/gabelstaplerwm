@@ -761,7 +761,7 @@ impl ScreenSet {
     }
 
     /// Get an immutable reference to current screen's geometry.
-    pub fn screen(&self) -> &TilingArea {
+    pub fn current_tiling_area(&self) -> &TilingArea {
         &self.current().area
     }
 

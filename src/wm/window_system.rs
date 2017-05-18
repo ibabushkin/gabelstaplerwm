@@ -107,7 +107,7 @@ pub struct Wm<'a> {
     /// all windows currently visible
     visible_windows: Vec<xproto::Window>,
     /// windows we know about, but do not manage
-    unmanaged_windows: Vec<xproto::Window>,
+    unmanaged_windows: Vec<Alien>,
     /// currently focused window
     focused_window: Option<xproto::Window>,
     /// current keyboard mode
@@ -300,8 +300,8 @@ impl<'a> Wm<'a> {
     /// corresponding `WmCommand`.
     fn arrange_windows(&mut self) {
         // first, hide all visible windows ...
-        self.hide_windows(&self.visible_windows);
-        self.hide_windows(&self.unmanaged_windows);
+        self.hide_windows(self.visible_windows.iter());
+        self.hide_windows(self.unmanaged_windows.iter().map(Alien::get_window));
         debug!("hidden tiled windows: {:?}", self.visible_windows);
         debug!("hidden unmanaged windows: {:?}", self.unmanaged_windows);
         // ... and reset the vector of visible windows
@@ -327,9 +327,8 @@ impl<'a> Wm<'a> {
     }
 
     /// Hide some windows by moving them offscreen.
-    fn hide_windows(&self, windows: &[xproto::Window]) {
+    fn hide_windows<I: Iterator<Item=&'a xproto::Window>>(&self, windows: I) {
         let cookies: Vec<_> = windows
-            .iter()
             .map(|window| xproto::configure_window(
                  self.con, *window,
                  &[(xproto::CONFIG_WINDOW_X as u16, self.safe_x),
@@ -586,7 +585,7 @@ impl<'a> Wm<'a> {
             if let Some(index) = self
                     .unmanaged_windows
                     .iter()
-                    .position(|win| *win == window) {
+                    .position(|alien| *alien.get_window() == window) {
                 self.unmanaged_windows.swap_remove(index);
                 info!("unregistered unmanaged window");
             }
@@ -639,13 +638,14 @@ impl<'a> Wm<'a> {
                 self.get_properties(window).window_type !=
                 self.lookup_atom("_NET_WM_WINDOW_TYPE_DOCK") {
             let value_mask = ev.value_mask();
-            let screen = self.screens.screen();
+            let screen = self.screens.current_tiling_area();
             let width = ev.width() as u32;
             let height = ev.height() as u32;
             let cookie =
                 if value_mask as u32 & xproto::CONFIG_WINDOW_WIDTH != 0 &&
                         value_mask as u32 & xproto::CONFIG_WINDOW_HEIGHT != 0 &&
                         screen.width > width && screen.height > height {
+                    // we got a well-formed request we honour
 
                     let x = (screen.width - width) / 2;
                     let y = (screen.height - height) / 2;
@@ -661,29 +661,17 @@ impl<'a> Wm<'a> {
                     info!("changing window geometry upon request: \
                           x={} y={} width={} height={}",
                           x, y, width, height);
+                    // TODO: update stored geometry in case we handle this as an alien
 
                     cookie
                 } else {
-                    let mut x: u32 = 0;
-                    let mut y: u32 = 0;
-
-                    if let Ok(geom) =
-                            xproto::get_geometry(self.con, window).get_reply() {
-                        let width = geom.width() as u32;
-                        let height = geom.height() as u32;
-                        x = if screen.width > width {
-                            (screen.width - width) / 2
+                    let (x, y) =
+                        if let Some(geom) = get_slave_geometry(self.con, window, screen) {
+                            (geom.x, geom.y)
                         } else {
-                            0
+                            error!("could not get window geometry, expect ugly results");
+                            (0, 0)
                         };
-                        y = if screen.height > height {
-                            (screen.height - height) / 2
-                        } else {
-                            0
-                        };
-                    } else {
-                        error!("could not get window geometry, expect ugly results");
-                    }
 
                     let cookie = xproto::configure_window(
                         self.con, window,
@@ -766,9 +754,15 @@ impl<'a> Wm<'a> {
         let cookie1 = xproto::map_window(self.con, window);
         self.set_focus(window, true);
 
-        if self.unmanaged_windows.iter().position(|win| *win == window).is_none() {
-            self.unmanaged_windows.push(window);
-            info!("registered unmanaged window {} with props: {:?}", window, props);
+        if self.unmanaged_windows
+                .iter().position(|alien| *alien.get_window() == window).is_none() {
+            if let Some(geom) =
+                    get_slave_geometry(self.con, window, self.screens.current_tiling_area()) {
+                self.unmanaged_windows.push(Alien::new(window, geom));
+                info!("registered unmanaged window {} with props: {:?}", window, props);
+            } else {
+                info!("unmanaged window {} could not be registered", window);
+            }
         } else {
             info!("remapped unmanaged window {}", window);
         }
@@ -1145,5 +1139,31 @@ fn arrange(con: &base::Connection,
                 error!("could not set window geometry");
             }
         }
+    }
+}
+
+fn get_slave_geometry(con: &base::Connection, window: xproto::Window, screen: &TilingArea)
+        -> Option<Geometry> {
+    if let Ok(geom) = xproto::get_geometry(con, window).get_reply() {
+        let width = geom.width() as u32;
+        let height = geom.height() as u32;
+        let x = if screen.width > width {
+            (screen.width - width) / 2
+        } else {
+            0
+        };
+        let y = if screen.height > height {
+            (screen.height - height) / 2
+        } else {
+            0
+        };
+
+        Some(Geometry {
+            x: x, y: y,
+            width: width,
+            height: height,
+        })
+    } else {
+        None
     }
 }
