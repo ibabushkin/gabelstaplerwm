@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod util;
-pub mod alien;
 #[macro_use]
 pub mod client;
 pub mod config;

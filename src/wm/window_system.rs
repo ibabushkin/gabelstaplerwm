@@ -10,7 +10,6 @@ use xcb::randr;
 use xcb::xkb;
 use xcb::xproto;
 
-use wm::alien::*;
 use wm::client::*;
 use wm::config::{Tag, Mode, IGNORED_MODS_VEC};
 use wm::err::*;
@@ -107,7 +106,7 @@ pub struct Wm<'a> {
     /// all windows currently visible
     visible_windows: Vec<xproto::Window>,
     /// windows we know about, but do not manage
-    unmanaged_windows: Vec<Alien>,
+    unmanaged_windows: HashMap<xproto::Window, Geometry>,
     /// currently focused window
     focused_window: Option<xproto::Window>,
     /// current keyboard mode
@@ -142,7 +141,7 @@ impl<'a> Wm<'a> {
                 screens: try!(init_screens(con, root)),
                 clients: ClientSet::default(),
                 visible_windows: Vec::new(),
-                unmanaged_windows: Vec::new(),
+                unmanaged_windows: HashMap::new(),
                 focused_window: None,
                 mode: Mode::default(),
                 bindings: HashMap::new(),
@@ -301,7 +300,7 @@ impl<'a> Wm<'a> {
     fn arrange_windows(&mut self) {
         // first, hide all visible windows ...
         self.hide_windows(self.visible_windows.iter());
-        self.hide_windows(self.unmanaged_windows.iter().map(Alien::get_window));
+        self.hide_windows(self.unmanaged_windows.keys());
         debug!("hidden tiled windows: {:?}", self.visible_windows);
         debug!("hidden unmanaged windows: {:?}", self.unmanaged_windows);
         // ... and reset the vector of visible windows
@@ -582,12 +581,8 @@ impl<'a> Wm<'a> {
             }
             self.reset_focus(true);
         } else {
-            if let Some(index) = self
-                    .unmanaged_windows
-                    .iter()
-                    .position(|alien| *alien.get_window() == window) {
-                self.unmanaged_windows.swap_remove(index);
-                info!("unregistered unmanaged window");
+            if self.unmanaged_windows.contains_key(&window) {
+                self.unmanaged_windows.remove(&window);
             }
             self.reset_focus(false);
         }
@@ -632,7 +627,7 @@ impl<'a> Wm<'a> {
     ///
     /// If the window is managed (i.e. has a client), ignore the request.
     /// Otherwise, set it's geometry as desired.
-    fn handle_configure_request(&self, ev: &xproto::ConfigureRequestEvent) {
+    fn handle_configure_request(&mut self, ev: &xproto::ConfigureRequestEvent) {
         let window = ev.window();
         if self.clients.get_client_by_window(window).is_none() &&
                 self.get_properties(window).window_type !=
@@ -661,7 +656,13 @@ impl<'a> Wm<'a> {
                     info!("changing window geometry upon request: \
                           x={} y={} width={} height={}",
                           x, y, width, height);
-                    // TODO: update stored geometry in case we handle this as an alien
+
+                    let geom = Geometry {
+                        x: x, y: y,
+                        width: width,
+                        height: height
+                    };
+                    self.unmanaged_windows.insert(window, geom);
 
                     cookie
                 } else {
@@ -754,11 +755,10 @@ impl<'a> Wm<'a> {
         let cookie1 = xproto::map_window(self.con, window);
         self.set_focus(window, true);
 
-        if self.unmanaged_windows
-                .iter().position(|alien| *alien.get_window() == window).is_none() {
+        if self.unmanaged_windows.contains_key(&window) {
             if let Some(geom) =
                     get_slave_geometry(self.con, window, self.screens.current_tiling_area()) {
-                self.unmanaged_windows.push(Alien::new(window, geom));
+                self.unmanaged_windows.insert(window, geom);
                 info!("registered unmanaged window {} with props: {:?}", window, props);
             } else {
                 info!("unmanaged window {} could not be registered", window);
