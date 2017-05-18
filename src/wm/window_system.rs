@@ -642,8 +642,8 @@ impl<'a> Wm<'a> {
                         screen.width > width && screen.height > height {
                     // we got a well-formed request we honour
 
-                    let x = (screen.width - width) / 2;
-                    let y = (screen.height - height) / 2;
+                    let x = screen.offset_x + (screen.width - width) / 2;
+                    let y = screen.offset_y + (screen.height - height) / 2;
 
                     let cookie = xproto::configure_window(
                         self.con, window,
@@ -1148,14 +1148,14 @@ fn get_slave_geometry(con: &base::Connection, window: xproto::Window, screen: &T
         let width = geom.width() as u32;
         let height = geom.height() as u32;
         let x = if screen.width > width {
-            (screen.width - width) / 2
+            screen.offset_x + (screen.width - width) / 2
         } else {
-            0
+            screen.offset_x
         };
         let y = if screen.height > height {
-            (screen.height - height) / 2
+            screen.offset_y + (screen.height - height) / 2
         } else {
-            0
+            screen.offset_y
         };
 
         Some(Geometry {
