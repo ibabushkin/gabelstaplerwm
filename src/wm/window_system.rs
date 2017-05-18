@@ -668,6 +668,7 @@ impl<'a> Wm<'a> {
                 } else {
                     let (x, y) =
                         if let Some(geom) = get_slave_geometry(self.con, window, screen) {
+                            // self.unmanaged_windows.insert(window, geom);
                             (geom.x, geom.y)
                         } else {
                             error!("could not get window geometry, expect ugly results");

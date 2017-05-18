@@ -1,6 +1,6 @@
 [root]
 name = "gabelstaplerwm"
-version = "0.6.1"
+version = "0.7.0"
 dependencies = [
  "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
