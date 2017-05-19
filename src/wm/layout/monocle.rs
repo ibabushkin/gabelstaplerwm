@@ -26,11 +26,11 @@ impl Layout for Monocle {
         let mut res = Vec::with_capacity(num_windows);
         // master window is shown
         res.push(Some(Geometry {
-            x: self.offset_x + screen.offset_x,
-            y: self.offset_y + screen.offset_y,
-            width: screen.width - 2 * self.offset_x - 2,
-            height: screen.height - 2 * self.offset_y - 2,
-        }));
+                          x: self.offset_x + screen.offset_x,
+                          y: self.offset_y + screen.offset_y,
+                          width: screen.width - 2 * self.offset_x - 2,
+                          height: screen.height - 2 * self.offset_y - 2,
+                      }));
         // all other windows are hidden
         for _ in 1..num_windows {
             res.push(None);
@@ -54,24 +54,28 @@ impl Layout for Monocle {
         None
     }
 
-    fn new_window_as_master(&self) -> bool { true }
+    fn new_window_as_master(&self) -> bool {
+        true
+    }
 
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::XOffAbs(x) => self.offset_x = x,
-            LayoutMessage::XOffRel(x) =>
+            LayoutMessage::XOffRel(x) => {
                 self.offset_x = if x < 0 {
                     self.offset_x.saturating_sub(x.abs() as u32)
                 } else {
                     self.offset_x.saturating_add(x.abs() as u32)
-                },
+                }
+            }
             LayoutMessage::YOffAbs(y) => self.offset_y = y,
-            LayoutMessage::YOffRel(y) =>
+            LayoutMessage::YOffRel(y) => {
                 self.offset_y = if y < 0 {
                     self.offset_y.saturating_sub(y.abs() as u32)
                 } else {
                     self.offset_y.saturating_add(y.abs() as u32)
-                },
+                }
+            }
             _ => return false,
         };
         true

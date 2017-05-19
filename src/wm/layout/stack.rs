@@ -54,28 +54,27 @@ impl Layout for DStack {
         if num_windows == 1 && !self.fixed {
             // one window only - fullscreen
             res.push(Some(Geometry {
-                x: screen.offset_x,
-                y: screen.offset_y,
-                width: screen.width.saturating_sub(2),
-                height: screen.height.saturating_sub(2),
-            }));
+                              x: screen.offset_x,
+                              y: screen.offset_y,
+                              width: screen.width.saturating_sub(2),
+                              height: screen.height.saturating_sub(2),
+                          }));
         } else if num_windows > 1 {
             let slave_width = (screen.width - master_width) / 2;
             // setup two slave stacks if needed
-            let (master_x, slave_right_x) =
-                if num_windows == 2 && !self.fixed {
-                    (0, master_width) // no left stack - no shift
-                } else {
-                    // shift master + right stack
-                    (slave_width, slave_width + master_width)
-                };
+            let (master_x, slave_right_x) = if num_windows == 2 && !self.fixed {
+                (0, master_width) // no left stack - no shift
+            } else {
+                // shift master + right stack
+                (slave_width, slave_width + master_width)
+            };
             // master window
             res.push(Some(Geometry {
-                x: master_x + screen.offset_x,
-                y: screen.offset_y,
-                width: master_width.saturating_sub(2),
-                height: screen.height.saturating_sub(2),
-            }));
+                              x: master_x + screen.offset_x,
+                              y: screen.offset_y,
+                              width: master_width.saturating_sub(2),
+                              height: screen.height.saturating_sub(2),
+                          }));
             // num_left_slaves <= num_right_slaves
             let num_left_slaves = (num_windows - 1) / 2;
             if num_left_slaves > 0 {
@@ -83,19 +82,18 @@ impl Layout for DStack {
                 // slave windows - left stack
                 for i in 0..num_left_slaves {
                     res.push(Some(Geometry {
-                        x: screen.offset_x,
-                        y: i as u32 * slave_height_left + screen.offset_y,
-                        height: slave_height_left.saturating_sub(2),
-                        width: slave_width.saturating_sub(2),
-                    }));
+                                      x: screen.offset_x,
+                                      y: i as u32 * slave_height_left + screen.offset_y,
+                                      height: slave_height_left.saturating_sub(2),
+                                      width: slave_width.saturating_sub(2),
+                                  }));
                 }
             }
             let num_right_slaves = num_windows - 1 - num_left_slaves;
             if num_right_slaves > 0 {
                 // if no left stack is present, the right
                 // stack can be made wider to avoid wasting space
-                let slave_height_right =
-                    screen.height / num_right_slaves as u32;
+                let slave_height_right = screen.height / num_right_slaves as u32;
                 let width = if num_left_slaves == 0 {
                     screen.width - master_width
                 } else {
@@ -104,11 +102,11 @@ impl Layout for DStack {
                 // slave windows - right stack
                 for i in 0..num_right_slaves {
                     res.push(Some(Geometry {
-                        x: slave_right_x + screen.offset_x,
-                        y: i as u32 * slave_height_right + screen.offset_y,
-                        height: slave_height_right.saturating_sub(2),
-                        width: width.saturating_sub(2),
-                    }));
+                                      x: slave_right_x + screen.offset_x,
+                                      y: i as u32 * slave_height_right + screen.offset_y,
+                                      height: slave_height_right.saturating_sub(2),
+                                      width: width.saturating_sub(2),
+                                  }));
                 }
             }
         }
@@ -141,11 +139,7 @@ impl Layout for DStack {
 
     fn left_window(&self, index: usize, max: usize) -> Option<usize> {
         if index == 0 {
-            if max >= 2 {
-                Some(1)
-            } else {
-                None
-            }
+            if max >= 2 { Some(1) } else { None }
         } else if index >= (max + 2) / 2 {
             Some(0)
         } else {
@@ -171,20 +165,22 @@ impl Layout for DStack {
         }
     }
 
-    fn new_window_as_master(&self) -> bool { false }
+    fn new_window_as_master(&self) -> bool {
+        false
+    }
 
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
-            LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 96,
-            LayoutMessage::MasterFactorRel(mf) =>
+            LayoutMessage::MasterFactorAbs(mf) => self.master_factor = mf % 96,
+            LayoutMessage::MasterFactorRel(mf) => {
                 self.master_factor = if mf < 0 {
                     let m = self.master_factor.saturating_sub(mf.abs() as u8);
                     if m < 5 { 5 } else { m }
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
                     if m > 95 { 95 } else { m }
-                },
+                }
+            }
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
             _ => return false,
@@ -259,11 +255,11 @@ impl Layout for HStack {
                 screen.offset_y
             };
             res.push(Some(Geometry {
-                x: screen.offset_x,
-                y: y,
-                width: screen.width.saturating_sub(2),
-                height: h.saturating_sub(2),
-            }));
+                              x: screen.offset_x,
+                              y: y,
+                              width: screen.width.saturating_sub(2),
+                              height: h.saturating_sub(2),
+                          }));
         } else if num_windows > 1 {
             // optionally swap stack and master area
             let (master_y, slave_y) = if self.inverted {
@@ -273,20 +269,20 @@ impl Layout for HStack {
             };
             // master window
             res.push(Some(Geometry {
-                x: screen.offset_x,
-                y: master_y + screen.offset_y,
-                width: screen.width.saturating_sub(2),
-                height: master_height.saturating_sub(2),
-            }));
+                              x: screen.offset_x,
+                              y: master_y + screen.offset_y,
+                              width: screen.width.saturating_sub(2),
+                              height: master_height.saturating_sub(2),
+                          }));
             // slave windows
             let slave_width = screen.width / (num_windows as u32 - 1);
             for i in 1..num_windows {
                 res.push(Some(Geometry {
-                    x: (i as u32 - 1) * slave_width + screen.offset_x,
-                    y: slave_y + screen.offset_y,
-                    width: slave_width.saturating_sub(2),
-                    height: (screen.height - master_height).saturating_sub(2),
-                }));
+                                  x: (i as u32 - 1) * slave_width + screen.offset_x,
+                                  y: slave_y + screen.offset_y,
+                                  width: slave_width.saturating_sub(2),
+                                  height: (screen.height - master_height).saturating_sub(2),
+                              }));
             }
         }
         res
@@ -303,11 +299,7 @@ impl Layout for HStack {
     }
 
     fn left_window(&self, index: usize, _: usize) -> Option<usize> {
-        if index <= 1 {
-            None
-        } else {
-            Some(index - 1)
-        }
+        if index <= 1 { None } else { Some(index - 1) }
     }
 
     fn top_window(&self, index: usize, max: usize) -> Option<usize> {
@@ -338,20 +330,22 @@ impl Layout for HStack {
         }
     }
 
-    fn new_window_as_master(&self) -> bool { false }
+    fn new_window_as_master(&self) -> bool {
+        false
+    }
 
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
-            LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 96,
-            LayoutMessage::MasterFactorRel(mf) =>
+            LayoutMessage::MasterFactorAbs(mf) => self.master_factor = mf % 96,
+            LayoutMessage::MasterFactorRel(mf) => {
                 self.master_factor = if mf < 0 {
                     let m = self.master_factor.saturating_sub(mf.abs() as u8);
                     if m < 5 { 5 } else { m }
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
                     if m > 95 { 95 } else { m }
-                },
+                }
+            }
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
             LayoutMessage::InvertedAbs(i) => self.inverted = i,
@@ -428,11 +422,11 @@ impl Layout for VStack {
                 screen.offset_x
             };
             res.push(Some(Geometry {
-                x: x,
-                y: screen.offset_y,
-                width: w.saturating_sub(2),
-                height: screen.height.saturating_sub(2),
-            }));
+                              x: x,
+                              y: screen.offset_y,
+                              width: w.saturating_sub(2),
+                              height: screen.height.saturating_sub(2),
+                          }));
         } else if num_windows > 1 {
             // optionally swap stack and master area
             let (master_x, slave_x) = if self.inverted {
@@ -442,20 +436,20 @@ impl Layout for VStack {
             };
             // master window
             res.push(Some(Geometry {
-                x: master_x + screen.offset_x,
-                y: screen.offset_y,
-                width: master_width.saturating_sub(2),
-                height: screen.height.saturating_sub(2),
-            }));
+                              x: master_x + screen.offset_x,
+                              y: screen.offset_y,
+                              width: master_width.saturating_sub(2),
+                              height: screen.height.saturating_sub(2),
+                          }));
             // slave windows
             let slave_height = screen.height / (num_windows as u32 - 1);
             for i in 1..num_windows {
                 res.push(Some(Geometry {
-                    x: slave_x + screen.offset_x,
-                    y: (i as u32 - 1) * slave_height + screen.offset_y,
-                    width: (screen.width - master_width).saturating_sub(2),
-                    height: slave_height.saturating_sub(2),
-                }));
+                                  x: slave_x + screen.offset_x,
+                                  y: (i as u32 - 1) * slave_height + screen.offset_y,
+                                  width: (screen.width - master_width).saturating_sub(2),
+                                  height: slave_height.saturating_sub(2),
+                              }));
             }
         }
         res
@@ -490,11 +484,7 @@ impl Layout for VStack {
     }
 
     fn top_window(&self, index: usize, _: usize) -> Option<usize> {
-        if index <= 1 {
-            None
-        } else {
-            Some(index - 1)
-        }
+        if index <= 1 { None } else { Some(index - 1) }
     }
 
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize> {
@@ -507,20 +497,22 @@ impl Layout for VStack {
         }
     }
 
-    fn new_window_as_master(&self) -> bool { false }
+    fn new_window_as_master(&self) -> bool {
+        false
+    }
 
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
-            LayoutMessage::MasterFactorAbs(mf) =>
-                self.master_factor = mf % 96,
-            LayoutMessage::MasterFactorRel(mf) =>
+            LayoutMessage::MasterFactorAbs(mf) => self.master_factor = mf % 96,
+            LayoutMessage::MasterFactorRel(mf) => {
                 self.master_factor = if mf < 0 {
                     let m = self.master_factor.saturating_sub(mf.abs() as u8);
                     if m < 5 { 5 } else { m }
                 } else {
                     let m = self.master_factor.saturating_add(mf.abs() as u8);
                     if m > 95 { 95 } else { m }
-                },
+                }
+            }
             LayoutMessage::FixedAbs(f) => self.fixed = f,
             LayoutMessage::FixedRel => self.fixed = !self.fixed,
             LayoutMessage::InvertedAbs(i) => self.inverted = i,

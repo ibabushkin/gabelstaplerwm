@@ -30,7 +30,7 @@ use wm::window_system::Wm;
 use xcb::base::*;
 
 /// Reap children.
-extern fn sigchld_action(_: libc::c_int) {
+extern "C" fn sigchld_action(_: libc::c_int) {
     unsafe {
         loop {
             let pid = libc::waitpid(-1, null_mut(), libc::WNOHANG);
@@ -53,7 +53,7 @@ fn pledge_promise() {
 
 /// Dummy call to pledge(2) for non-OpenBSD systems.
 #[cfg(not(feature = "pledge"))]
-fn pledge_promise() { }
+fn pledge_promise() {}
 
 /// Main function.
 ///
@@ -74,8 +74,7 @@ fn main() {
         let mut act = uninitialized::<libc::sigaction>();
 
         // convert our handler to a C-style function pointer
-        let f_ptr: *const libc::c_void =
-            transmute(sigchld_action as extern fn(libc::c_int));
+        let f_ptr: *const libc::c_void = transmute(sigchld_action as extern "C" fn(libc::c_int));
         act.sa_sigaction = f_ptr as libc::sighandler_t;
 
         // some default values noone cares about

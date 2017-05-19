@@ -62,8 +62,7 @@ pub struct Geometry {
 impl Geometry {
     /// Check whether a geometry contains a point.
     pub fn match_coords(&self, x: u32, y: u32) -> bool {
-        self.x <= x && self.x + self.width > x &&
-            self.y <= y && self.y + self.height > y
+        self.x <= x && self.x + self.width > x && self.y <= y && self.y + self.height > y
     }
 
     /// Check whether two `Geometry`s overlap.
@@ -78,8 +77,8 @@ impl Geometry {
 /// The trait inherits from `Debug` for purely practical reasons: some types
 /// we want to output (`WmCommand` in particular) rely on derived `Debug`
 /// instances and all types implementing `Layout` implement `Debug` anyway.
-pub trait Layout : Debug {
-    /// Compute window geometries. 
+pub trait Layout: Debug {
+    /// Compute window geometries.
     ///
     /// If a `None` is returned at a particular position, that window is not
     /// to be made visible.
@@ -109,7 +108,6 @@ pub trait Layout : Debug {
     fn edit_layout_retry(&mut self, mut msgs: Vec<LayoutMessage>) -> bool {
         msgs.drain(..).any(|m| self.edit_layout(m))
     }
-
 }
 
 /// A message type being sent to layout objects.

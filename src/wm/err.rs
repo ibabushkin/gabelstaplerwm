@@ -35,30 +35,18 @@ impl WmError {
     /// "Handle" an error, ie. print error message and exit.
     pub fn handle(self) -> ! {
         match self {
-            WmError::CouldNotEstablishHandlers =>
-                error!("could not establish signal handlers"),
-            WmError::CouldNotConnect(e) =>
-                error!("could not connect: {:?}", e),
-            WmError::CouldNotAcquireScreen =>
-                error!("could not acquire screen"),
-            WmError::CouldNotRegisterAtom(s) =>
-                error!("could not register atom {}", s),
-            WmError::CouldNotAllocateColors =>
-                error!("could not allocate border colors"),
-            WmError::OtherWmRunning =>
-                error!("another wm is running"),
-            WmError::RandRVersionMismatch =>
-                error!("randr 1.2 not supported"),
-            WmError::RandRSetupFailed =>
-                error!("randr setup failed"),
-            WmError::CouldNotGetScreenResources =>
-                error!("could not get screen resources"),
-            WmError::BadCrtc =>
-                error!("the set of CRTCs obtained was empty"),
-            WmError::ConnectionInterrupted =>
-                error!("connection interrupted"),
-            WmError::IOError =>
-                error!("i/o error occured"),
+            WmError::CouldNotEstablishHandlers => error!("could not establish signal handlers"),
+            WmError::CouldNotConnect(e) => error!("could not connect: {:?}", e),
+            WmError::CouldNotAcquireScreen => error!("could not acquire screen"),
+            WmError::CouldNotRegisterAtom(s) => error!("could not register atom {}", s),
+            WmError::CouldNotAllocateColors => error!("could not allocate border colors"),
+            WmError::OtherWmRunning => error!("another wm is running"),
+            WmError::RandRVersionMismatch => error!("randr 1.2 not supported"),
+            WmError::RandRSetupFailed => error!("randr setup failed"),
+            WmError::CouldNotGetScreenResources => error!("could not get screen resources"),
+            WmError::BadCrtc => error!("the set of CRTCs obtained was empty"),
+            WmError::ConnectionInterrupted => error!("connection interrupted"),
+            WmError::IOError => error!("i/o error occured"),
         };
         exit(1);
     }

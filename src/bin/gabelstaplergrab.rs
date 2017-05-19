@@ -10,8 +10,8 @@ extern crate log;
 use std::process::exit;
 
 use xcb::base::*;
-use xcb::xkb as xkb;
-use xcb::xproto as xproto;
+use xcb::xkb;
+use xcb::xproto;
 
 /// Main function.
 ///
@@ -29,18 +29,20 @@ fn main() {
         Err(_) => {
             error!("could not connect");
             exit(1);
-        },
+        }
     };
     let root = match con.get_setup().roots().nth(screen_num as usize) {
         Some(screen) => screen.root(),
         None => {
             error!("could not get root window");
             exit(2);
-        },
+        }
     };
-    if xproto::change_window_attributes(
-            &con, root, &[(xproto::CW_EVENT_MASK, xproto::EVENT_MASK_KEY_PRESS)])
-            .request_check().is_err() {
+    if xproto::change_window_attributes(&con,
+                                        root,
+                                        &[(xproto::CW_EVENT_MASK, xproto::EVENT_MASK_KEY_PRESS)])
+               .request_check()
+               .is_err() {
         error!("other window manager running");
         exit(3);
     }
@@ -55,7 +57,7 @@ fn main() {
             None => {
                 error!("i/o error occured");
                 exit(5);
-            },
+            }
         }
     }
 }
@@ -64,6 +66,8 @@ fn main() {
 fn print_event(event: &GenericEvent) {
     if event.response_type() == xkb::STATE_NOTIFY {
         let ev: &xkb::StateNotifyEvent = cast_event(event);
-        println!("key pressed: code: {}, mods: {}", ev.xkb_type(), ev.keycode());
+        println!("key pressed: code: {}, mods: {}",
+                 ev.xkb_type(),
+                 ev.keycode());
     }
 }
