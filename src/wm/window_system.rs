@@ -422,6 +422,50 @@ impl<'a> Wm<'a> {
         }
     }
 
+    /// Raise the first unmanaged window we'll find in our HashMap.
+    ///
+    /// We focus the new window and draw it at it's saved geometry.
+    fn raise_first_unmanaged(&mut self) {
+        // TODO: hide all unmanaged windows first.
+        let window = if let Some((window, geom)) = self.unmanaged_windows.iter().next() {
+            set_geometry(self.con, *window, geom);
+            Some(*window)
+        } else {
+            None
+        };
+
+        if let Some(window) = window {
+            self.set_focus(window, true);
+        }
+    }
+
+    /// Raise the next unmanaged window we'll find in our HashMap.
+    ///
+    /// We focus the new window and draw it at it's saved geometry. The next window is the one
+    /// found after the currently focused one, if that one is unmanaged. Otherwise, the behaviour
+    /// is identical to the previous function.
+    fn raise_next_unmanaged(&mut self) {
+        // TODO: hide all unmanaged windows first.
+        if let Some(current_window) = self.focused_window {
+            // TODO: get the *next* element :)
+            let window = if let Some((window, geom)) =
+                self.unmanaged_windows
+                    .iter()
+                    .find(|&(w, _)| *w == current_window) {
+                set_geometry(self.con, *window, geom);
+                Some(*window)
+            } else {
+                None
+            };
+
+            if let Some(window) = window {
+                self.set_focus(window, true);
+            }
+        } else {
+            self.raise_first_unmanaged();
+        }
+    }
+
     /// Color the borders of a window.
     fn set_border_color(&self, window: xproto::Window, color: u32) {
         let cookie =
@@ -1146,20 +1190,22 @@ fn arrange(con: &base::Connection,
         if let (Some(ref cl), &Some(ref geom)) = (client.upgrade(), geometry) {
             let window = cl.borrow().get_window();
             visible.push(window);
-            let cookie =
-                xproto::configure_window(con,
-                                         window,
-                                         &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
-                                           (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
-                                           (xproto::CONFIG_WINDOW_WIDTH as u16,
-                                            geom.width as u32),
-                                           (xproto::CONFIG_WINDOW_HEIGHT as u16,
-                                            geom.height as u32)]);
-
-            if cookie.request_check().is_err() {
-                error!("could not set window geometry");
-            }
+            set_geometry(con, window, geom);
         }
+    }
+}
+
+fn set_geometry(con: &base::Connection, window: xproto::Window, geom: &Geometry) {
+    let cookie =
+        xproto::configure_window(con,
+                                 window,
+                                 &[(xproto::CONFIG_WINDOW_X as u16, geom.x as u32),
+                                   (xproto::CONFIG_WINDOW_Y as u16, geom.y as u32),
+                                   (xproto::CONFIG_WINDOW_WIDTH as u16, geom.width as u32),
+                                   (xproto::CONFIG_WINDOW_HEIGHT as u16, geom.height as u32)]);
+
+    if cookie.request_check().is_err() {
+        error!("could not set window geometry");
     }
 }
 
