@@ -4,7 +4,7 @@
 //! freely, but you need to keep the functions already declared, as well as
 //! trait instances which are derived or implemented, though you can change
 //! the implementations of the `Default` trait. All other edits are welcome
-//! as well, but chances are you 
+//! as well, but chances are you
 //!
 //! * don't need them to customize your wm.
 //! * should consider contributing your changes back instead, as it seems to be

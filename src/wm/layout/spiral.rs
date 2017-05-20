@@ -13,7 +13,7 @@ use wm::layout::*;
 /// ```
 #[derive(Debug)]
 pub struct Spiral {
-    pub max_windows: u8
+    pub max_windows: u8,
 }
 
 impl Default for Spiral {
@@ -73,11 +73,11 @@ impl Layout for Spiral {
                     east = true;
                 }
                 Some(Geometry {
-                    x: cur_x,
-                    y: cur_y,
-                    width: cur_width,
-                    height: cur_height,
-                })
+                         x: cur_x,
+                         y: cur_y,
+                         width: cur_width,
+                         height: cur_height,
+                     })
             })
             .collect()
     }
@@ -91,19 +91,11 @@ impl Layout for Spiral {
     }
 
     fn left_window(&self, index: usize, _: usize) -> Option<usize> {
-        if index != 0 {
-            Some(index - 1)
-        } else {
-            None
-        }
+        if index != 0 { Some(index - 1) } else { None }
     }
 
     fn top_window(&self, index: usize, _: usize) -> Option<usize> {
-        if index != 0 {
-            Some(index - 1)
-        } else {
-            None
-        }
+        if index != 0 { Some(index - 1) } else { None }
     }
 
     fn bottom_window(&self, index: usize, max: usize) -> Option<usize> {
@@ -114,7 +106,11 @@ impl Layout for Spiral {
         }
     }
 
-    fn new_window_as_master(&self) -> bool { false }
+    fn new_window_as_master(&self) -> bool {
+        false
+    }
 
-    fn edit_layout(&mut self, _: LayoutMessage) -> bool { false }
+    fn edit_layout(&mut self, _: LayoutMessage) -> bool {
+        false
+    }
 }

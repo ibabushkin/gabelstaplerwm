@@ -82,8 +82,7 @@ pub struct Client {
 impl Client {
     /// Setup a new client for a specific window, on a set of tags
     /// and with given properties.
-    pub fn new(window: Window, tags: BTreeSet<Tag>, props: ClientProps)
-            -> Client {
+    pub fn new(window: Window, tags: BTreeSet<Tag>, props: ClientProps) -> Client {
         Client {
             window: window,
             props: props,
@@ -174,12 +173,11 @@ impl ClientSet {
     ///
     /// If not present, create it.
     pub fn get_order_or_insert(&mut self, tags: &BTreeSet<Tag>) -> &mut OrderEntry {
-        let clients: Vec<WeakClientRef> =
-            self.clients
-                .values()
-                .filter(|cl| cl.borrow().match_tags(tags))
-                .map(|r| Rc::downgrade(r))
-                .collect();
+        let clients: Vec<WeakClientRef> = self.clients
+            .values()
+            .filter(|cl| cl.borrow().match_tags(tags))
+            .map(|r| Rc::downgrade(r))
+            .collect();
         let focused = clients.first().cloned();
         self.order.entry(tags.clone()).or_insert((focused, clients))
     }
@@ -190,7 +188,8 @@ impl ClientSet {
     /// clients. When these objects get deallocated, we clean up.
     fn clean(&mut self) {
         for entry in self.order.values_mut() {
-            entry.1 = entry.1
+            entry.1 = entry
+                .1
                 .iter()
                 .filter_map(|c| c.upgrade().map(|_| c.clone()))
                 .collect();
@@ -205,37 +204,37 @@ impl ClientSet {
         for (tags, entry) in &mut self.order {
             if !target_client.borrow().match_tags(tags) {
                 // filter tagset's client references
-                entry.1 = entry.1
+                entry.1 = entry
+                    .1
                     .iter()
-                    .filter_map(|r|
-                        if !is_ref_to_client(r, &target_client) {
-                            Some(r.clone())
-                        } else {
-                            None
-                        }
-                    )
+                    .filter_map(|r| if !is_ref_to_client(r, &target_client) {
+                                    Some(r.clone())
+                                } else {
+                                    None
+                                })
                     .collect();
                 // if left pointing to a moved client, set focus reference
                 // to current master client
-                entry.0 = entry.0
+                entry.0 = entry
+                    .0
                     .iter()
-                    .filter_map(|r|
-                        if !is_ref_to_client(r, &target_client) {
-                            Some(r.clone())
-                        } else {
-                            None
-                        }
-                    )
+                    .filter_map(|r| if !is_ref_to_client(r, &target_client) {
+                                    Some(r.clone())
+                                } else {
+                                    None
+                                })
                     .next()
                     .or_else(|| entry.1.first().cloned());
-            } else if entry.1
-                .iter()
-                .find(|r| is_ref_to_client(*r, &target_client))
-                .is_none() {
+            } else if entry
+                          .1
+                          .iter()
+                          .find(|r| is_ref_to_client(*r, &target_client))
+                          .is_none() {
                 // add client to references
                 entry.1.push(Rc::downgrade(&target_client));
                 // if no client is focused, focus newly added client
-                entry.0 = entry.0
+                entry.0 = entry
+                    .0
                     .iter()
                     .cloned()
                     .next()
@@ -286,11 +285,9 @@ impl ClientSet {
     /// Maps the function and updates references as needed, returning a
     /// window manager command as returned by the passed closure.
     pub fn update_client<F>(&mut self, window: Window, func: F) -> Option<WmCommand>
-            where F: Fn(RefMut<Client>) -> WmCommand {
-        let res = self
-            .clients
-            .get_mut(&window)
-            .map(|c| func(c.borrow_mut()));
+        where F: Fn(RefMut<Client>) -> WmCommand
+    {
+        let res = self.clients.get_mut(&window).map(|c| func(c.borrow_mut()));
 
         if res.is_some() {
             let client = self.clients[&window].clone();
@@ -312,19 +309,20 @@ impl ClientSet {
     /// by index difference, returning whether changes have been made.
     fn focus_offset(&mut self, tags: &BTreeSet<Tag>, offset: isize) -> bool {
         let &mut (ref mut current, ref clients) = self.get_order_or_insert(tags);
-        if let Some(current_window) = current
-            .clone()
-            .and_then(|c| c.upgrade())
-            .map(|r| r.borrow().window) {
+        if let Some(current_window) =
+            current
+                .clone()
+                .and_then(|c| c.upgrade())
+                .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
-                .position(|client| client
-                    .upgrade()
-                    .map_or(false, |r| r.borrow().window == current_window)
-                )
+                .position(|client| {
+                              client
+                                  .upgrade()
+                                  .map_or(false, |r| r.borrow().window == current_window)
+                          })
                 .unwrap();
-            let new_index =
-                (current_index as isize + offset) as usize % clients.len();
+            let new_index = (current_index as isize + offset) as usize % clients.len();
             if let Some(new_client) = clients.get(new_index) {
                 *current = Some(new_client.clone());
                 return true;
@@ -337,16 +335,18 @@ impl ClientSet {
     /// by index difference, returning whether changes have been made.
     fn swap_offset(&mut self, tags: &BTreeSet<Tag>, offset: isize) -> bool {
         let &mut (ref current, ref mut clients) = self.get_order_or_insert(tags);
-        if let Some(current_window) = current
+        if let Some(current_window) =
+            current
                 .clone()
                 .and_then(|c| c.upgrade())
                 .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
-                .position(|client| client
-                    .upgrade()
-                    .map_or(false, |r| r.borrow().window == current_window)
-                )
+                .position(|client| {
+                              client
+                                  .upgrade()
+                                  .map_or(false, |r| r.borrow().window == current_window)
+                          })
                 .unwrap();
             let new_index = (current_index as isize + offset) as usize % clients.len();
             if new_index != current_index {
@@ -383,19 +383,21 @@ impl ClientSet {
     /// Focus a window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
     fn focus_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F) -> bool
-            where F: Fn(usize, usize) -> Option<usize> {
-        let &mut (ref mut current, ref mut clients) =
-            self.get_order_or_insert(tags);
-        if let Some(current_window) = current
+        where F: Fn(usize, usize) -> Option<usize>
+    {
+        let &mut (ref mut current, ref mut clients) = self.get_order_or_insert(tags);
+        if let Some(current_window) =
+            current
                 .clone()
                 .and_then(|c| c.upgrade())
                 .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
-                .position(|client| client
-                    .upgrade()
-                    .map_or(false, |r| r.borrow().window == current_window)
-                )
+                .position(|client| {
+                              client
+                                  .upgrade()
+                                  .map_or(false, |r| r.borrow().window == current_window)
+                          })
                 .unwrap();
             if let Some(new_index) = focus_func(current_index, clients.len() - 1) {
                 if let Some(new_client) = clients.get(new_index) {
@@ -410,19 +412,21 @@ impl ClientSet {
     /// Swap with window on a set of tags relative to the current by direction,
     /// returning whether changes have been made.
     fn swap_direction<F>(&mut self, tags: &BTreeSet<Tag>, focus_func: F) -> bool
-            where F: Fn(usize, usize) -> Option<usize> {
-        let &mut (ref current, ref mut clients) =
-            self.get_order_or_insert(tags);
-        if let Some(current_window) = current
-            .clone()
-            .and_then(|c| c.upgrade())
-            .map(|r| r.borrow().window) {
+        where F: Fn(usize, usize) -> Option<usize>
+    {
+        let &mut (ref current, ref mut clients) = self.get_order_or_insert(tags);
+        if let Some(current_window) =
+            current
+                .clone()
+                .and_then(|c| c.upgrade())
+                .map(|r| r.borrow().window) {
             let current_index = clients
                 .iter()
-                .position(|client| client
-                    .upgrade()
-                    .map_or(false, |r| r.borrow().window == current_window)
-                )
+                .position(|client| {
+                              client
+                                  .upgrade()
+                                  .map_or(false, |r| r.borrow().window == current_window)
+                          })
                 .unwrap();
             if let Some(new_index) = focus_func(current_index, clients.len() - 1) {
                 if new_index != current_index && new_index < clients.len() {
@@ -488,7 +492,7 @@ impl ClientSet {
 
 /// Check whether a weak reference is pointing to a specific client.
 fn is_ref_to_client(r: &WeakClientRef, target: &ClientRef) -> bool {
-     r.upgrade().map(|r| r.borrow().window) == Some(target.borrow().window)
+    r.upgrade().map(|r| r.borrow().window) == Some(target.borrow().window)
 }
 
 /// A set of tags with an associated layout.
@@ -603,9 +607,7 @@ impl TagStack {
     ///
     /// Returns `None` if the history stack is empty
     pub fn current(&self) -> Option<&TagSet> {
-        self.history
-            .last()
-            .and_then(|i| self.tagsets.get(i))
+        self.history.last().and_then(|i| self.tagsets.get(i))
     }
 
     /// Get the current tag set by mutable reference.
@@ -644,8 +646,7 @@ impl TagStack {
     /// Remove a tagset from the set.
     pub fn remove(&mut self, index: u8) -> bool {
         if self.tagsets.remove(&index).is_some() {
-            self.history = self
-                .history
+            self.history = self.history
                 .iter()
                 .filter(|i| **i != index)
                 .cloned()
@@ -724,9 +725,9 @@ impl ScreenSet {
     pub fn new(screens: Vec<(Crtc, Screen)>) -> Option<ScreenSet> {
         if !screens.is_empty() {
             Some(ScreenSet {
-                screens: screens,
-                current_screen: 0,
-            })
+                     screens: screens,
+                     current_screen: 0,
+                 })
         } else {
             None
         }
@@ -761,7 +762,7 @@ impl ScreenSet {
     }
 
     /// Get an immutable reference to current screen's geometry.
-    pub fn screen(&self) -> &TilingArea {
+    pub fn current_tiling_area(&self) -> &TilingArea {
         &self.current().area
     }
 
@@ -784,11 +785,14 @@ impl ScreenSet {
 
     /// Select a screen by altering the current screen's index
     pub fn change_screen<T>(&mut self, f: T) -> bool
-        where T: Fn(usize, usize) -> usize {
+        where T: Fn(usize, usize) -> usize
+    {
         let len = self.screens.len();
         let new = f(self.current_screen, len);
         debug!("changed to screen: cur={}, new={}, len={}",
-               self.current_screen, new, len);
+               self.current_screen,
+               new,
+               len);
         if new < len {
             self.current_screen = new;
             true
@@ -827,24 +831,28 @@ impl ScreenSet {
     pub fn update(&mut self, change: &CrtcChange) {
         let current_crtc = change.crtc();
 
-        if self.screens.iter().find(|&&(crtc, _)| crtc == current_crtc).is_none() {
+        if self.screens
+               .iter()
+               .find(|&&(crtc, _)| crtc == current_crtc)
+               .is_none() {
             self.screens.push((current_crtc, Screen::default()));
         }
-        let &mut (_, ref mut screen) =
-            if let Some(entry) =
-                self.screens.iter_mut().find(|&&mut (crtc, _)| crtc == current_crtc) {
-                entry
-            } else {
-                panic!("logic error in ScreenSet :O");
-            };
+        let &mut (_, ref mut screen) = if let Some(entry) =
+            self.screens
+                .iter_mut()
+                .find(|&&mut (crtc, _)| crtc == current_crtc) {
+            entry
+        } else {
+            panic!("logic error in ScreenSet :O");
+        };
 
         screen.area.offset_x = change.x() as u32;
         screen.area.offset_y = change.y() as u32;
         screen.area.width = change.width() as u32;
         screen.area.height = change.height() as u32;
 
-        if change.rotation() as u32 &
-            (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) != 0 {
+        if change.rotation() as u32 & (randr::ROTATION_ROTATE_90 | randr::ROTATION_ROTATE_270) !=
+           0 {
             screen.swap_dimensions();
         }
     }

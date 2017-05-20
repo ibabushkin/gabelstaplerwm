@@ -21,9 +21,7 @@ pub struct Grid {
 
 impl Default for Grid {
     fn default() -> Grid {
-        Grid {
-            max_col: 3,
-        }
+        Grid { max_col: 3 }
     }
 }
 
@@ -42,11 +40,11 @@ impl Layout for Grid {
                     let x = (width + 2) * (i % max_col) as u32;
                     let y = (height + 2) * (i / max_col) as u32;
                     Some(Geometry {
-                        x: x + screen.offset_x,
-                        y: y + screen.offset_y,
-                        width: width,
-                        height: height
-                    })
+                             x: x + screen.offset_x,
+                             y: y + screen.offset_y,
+                             width: width,
+                             height: height,
+                         })
                 })
                 .collect()
         } else {
@@ -55,19 +53,11 @@ impl Layout for Grid {
     }
 
     fn right_window(&self, index: usize, max: usize) -> Option<usize> {
-        if index != max {
-            Some(index + 1)
-        } else {
-            None
-        }
+        if index != max { Some(index + 1) } else { None }
     }
 
     fn left_window(&self, index: usize, _: usize) -> Option<usize> {
-        if index != 0 {
-            Some(index - 1)
-        } else {
-            None
-        }
+        if index != 0 { Some(index - 1) } else { None }
     }
 
     fn top_window(&self, index: usize, _: usize) -> Option<usize> {
@@ -96,17 +86,20 @@ impl Layout for Grid {
         }
     }
 
-    fn new_window_as_master(&self) -> bool { false }
+    fn new_window_as_master(&self) -> bool {
+        false
+    }
 
     fn edit_layout(&mut self, msg: LayoutMessage) -> bool {
         match msg {
             LayoutMessage::ColumnAbs(ncol) => self.max_col = ncol,
-            LayoutMessage::ColumnRel(ncol) =>
+            LayoutMessage::ColumnRel(ncol) => {
                 self.max_col = if ncol < 0 {
                     self.max_col.saturating_sub(ncol.abs() as u8)
                 } else {
                     self.max_col.saturating_add(ncol.abs() as u8)
-                },
+                }
+            }
             _ => return false,
         };
         true
