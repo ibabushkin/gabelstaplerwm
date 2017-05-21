@@ -311,9 +311,9 @@ impl<'a> Wm<'a> {
     fn arrange_windows(&mut self) {
         // first, hide all visible windows ...
         self.hide_windows(self.visible_windows.iter());
-        self.hide_windows(self.unmanaged_windows.keys());
+        // self.hide_windows(self.unmanaged_windows.keys());
         debug!("hidden tiled windows: {:?}", self.visible_windows);
-        debug!("hidden unmanaged windows: {:?}", self.unmanaged_windows);
+        // debug!("hidden unmanaged windows: {:?}", self.unmanaged_windows);
         // ... and reset the vector of visible windows
         self.visible_windows.clear();
 
@@ -401,22 +401,22 @@ impl<'a> Wm<'a> {
     /// Actually set focus on a window.
     ///
     /// Send appropriate events and color the focused window's borders.
-    fn set_focus(&mut self, new: xproto::Window, draw_borders: bool) {
-        if !self.send_event(new, "WM_TAKE_FOCUS") {
+    fn set_focus(&mut self, window: xproto::Window, draw_borders: bool) {
+        if !self.send_event(window, "WM_TAKE_FOCUS") {
             info!("window didn't accept WM_TAKE_FOCUS message");
         }
 
         let cookie = xproto::set_input_focus(self.con,
                                              xproto::INPUT_FOCUS_POINTER_ROOT as u8,
-                                             new,
+                                             window,
                                              xproto::TIME_CURRENT_TIME);
 
         if draw_borders {
-            self.set_border_color(new, self.border_colors.0);
+            self.set_border_color(window, self.border_colors.0);
         }
 
         if cookie.request_check().is_ok() {
-            self.focused_window = Some(new);
+            self.focused_window = Some(window);
         } else {
             error!("could not focus window");
         }
@@ -631,7 +631,7 @@ impl<'a> Wm<'a> {
     /// A window has been destroyed, react accordingly.
     ///
     /// If the window is managed (i.e. has a client), destroy it. Otherwise,
-    /// remove it from the vector of unmanaged windows.
+    /// remove it from the set of unmanaged windows.
     fn handle_destroy_notify(&mut self, ev: &xproto::DestroyNotifyEvent) {
         let window = ev.window();
         if self.clients.remove(window) {
@@ -641,8 +641,8 @@ impl<'a> Wm<'a> {
             }
             self.reset_focus(true);
         } else {
-            if self.unmanaged_windows.contains_key(&window) {
-                self.unmanaged_windows.remove(&window);
+            if self.unmanaged_windows.remove(&window).is_some() {
+                info!("unregistered unmanaged window");
             }
             self.reset_focus(false);
         }
@@ -711,8 +711,9 @@ impl<'a> Wm<'a> {
                                                (xproto::CONFIG_WINDOW_WIDTH as u16, width),
                                                (xproto::CONFIG_WINDOW_HEIGHT as u16, height)]);
 
-                info!("changing window geometry upon request: \
+                info!("changing window {} geometry upon request: \
                           x={} y={} width={} height={}",
+                      window,
                       x,
                       y,
                       width,
@@ -729,8 +730,9 @@ impl<'a> Wm<'a> {
                 cookie
             } else {
                 let (x, y) = if let Some(geom) = get_slave_geometry(self.con, window, screen) {
-                    // self.unmanaged_windows.insert(window, geom);
-                    (geom.x, geom.y)
+                    let res = (geom.x, geom.y);
+                    self.unmanaged_windows.insert(window, geom);
+                    res
                 } else {
                     error!("could not get window geometry, expect ugly results");
                     (0, 0)
@@ -741,7 +743,10 @@ impl<'a> Wm<'a> {
                                                       &[(xproto::CONFIG_WINDOW_X as u16, x),
                                                         (xproto::CONFIG_WINDOW_Y as u16, y)]);
 
-                info!("changing window geometry upon request: x={} y={}", x, y);
+                info!("changing window {} geometry upon request: x={} y={}",
+                      window,
+                      x,
+                      y);
 
                 cookie
             };
@@ -823,7 +828,7 @@ impl<'a> Wm<'a> {
 
     /// Initialize the state of a window we won't manage.
     fn register_unmanaged_window(&mut self, window: xproto::Window, props: ClientProps) {
-        let cookie1 = xproto::map_window(self.con, window);
+        let cookie = xproto::map_window(self.con, window);
         self.set_focus(window, true);
 
         if self.unmanaged_windows.contains_key(&window) {
@@ -841,7 +846,7 @@ impl<'a> Wm<'a> {
             info!("remapped unmanaged window {}", window);
         }
 
-        if cookie1.request_check().is_err() {
+        if cookie.request_check().is_err() {
             error!("could not map window");
         }
     }
