@@ -762,17 +762,18 @@ impl<'a> Wm<'a> {
         if self.clients.get_client_by_window(window).is_none() {
             // set border width
             let cookie = xproto::configure_window(self.con,
-                                                   window,
-                                                   &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                                                      self.border_width as u32)]);
+                                                  window,
+                                                  &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
+                                                     self.border_width as u32)]);
 
             match self.construct_client(window) {
                 Ok((client, slave)) => {
                     // set coordinates
-                    let cookie2 = xproto::configure_window(self.con, window,
-                        &[(xproto::CONFIG_WINDOW_X as u16, self.safe_x),
-                          (xproto::CONFIG_WINDOW_Y as u16, 0)
-                        ]);
+                    let cookie2 = xproto::configure_window(self.con,
+                                                           window,
+                                                           &[(xproto::CONFIG_WINDOW_X as u16,
+                                                              self.safe_x),
+                                                             (xproto::CONFIG_WINDOW_Y as u16, 0)]);
                     // map window
                     let cookie3 = xproto::map_window(self.con, window);
                     // set event mask
