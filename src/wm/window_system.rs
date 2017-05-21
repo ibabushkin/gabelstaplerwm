@@ -403,7 +403,7 @@ impl<'a> Wm<'a> {
     /// Send appropriate events and color the focused window's borders.
     fn set_focus(&mut self, new: xproto::Window, draw_borders: bool) {
         if !self.send_event(new, "WM_TAKE_FOCUS") {
-            info!("window didn't acept WM_TAKE_FOCUS message");
+            info!("window didn't accept WM_TAKE_FOCUS message");
         }
 
         let cookie = xproto::set_input_focus(self.con,
@@ -761,21 +761,23 @@ impl<'a> Wm<'a> {
         // no client corresponding to the window, add it
         if self.clients.get_client_by_window(window).is_none() {
             // set border width
-            let cookie2 = xproto::configure_window(self.con,
+            let cookie = xproto::configure_window(self.con,
                                                    window,
                                                    &[(xproto::CONFIG_WINDOW_BORDER_WIDTH as u16,
-                                                      self.border_width as u32),
-                                                     (xproto::CONFIG_WINDOW_X as u16,
-                                                      self.safe_x),
-                                                     (xproto::CONFIG_WINDOW_Y as u16, 0)]);
+                                                      self.border_width as u32)]);
 
             match self.construct_client(window) {
                 Ok((client, slave)) => {
-                    // map window
-                    let cookie = xproto::map_window(self.con, window);
                     // set coordinates
+                    let cookie2 = xproto::configure_window(self.con, window,
+                        &[(xproto::CONFIG_WINDOW_X as u16, self.safe_x),
+                          (xproto::CONFIG_WINDOW_Y as u16, 0)
+                        ]);
+                    // map window
+                    let cookie3 = xproto::map_window(self.con, window);
+                    // set event mask
                     let values = xproto::EVENT_MASK_PROPERTY_CHANGE;
-                    let cookie3 = xproto::change_window_attributes(self.con,
+                    let cookie4 = xproto::change_window_attributes(self.con,
                                                                    window,
                                                                    &[(xproto::CW_EVENT_MASK,
                                                                       values)]);
@@ -797,17 +799,22 @@ impl<'a> Wm<'a> {
                         self.reset_focus(true);
                     }
 
-                    if cookie.request_check().is_err() {
+                    if cookie2.request_check().is_err() {
+                        error!("could not configure window");
+                    }
+
+                    if cookie3.request_check().is_err() {
                         error!("could not map window");
                     }
-                    if cookie3.request_check().is_err() {
+
+                    if cookie4.request_check().is_err() {
                         error!("could not register for client-specific events");
                     }
                 } // it's a window we don't care about
                 Err(props) => self.register_unmanaged_window(window, props),
             }
 
-            if cookie2.request_check().is_err() {
+            if cookie.request_check().is_err() {
                 error!("could not set border width");
             }
         }
