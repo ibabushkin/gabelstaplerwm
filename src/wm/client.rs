@@ -880,3 +880,59 @@ pub fn current_tagset(_: &ClientSet, s: &ScreenSet) -> String {
             string
         })
 }
+
+/* mod new {
+    pub struct Client {
+        window: xproto::Window,
+        geometry: Geometry,
+        mapped: bool,
+        properties: (),
+        tags: BTreeSet<Tag>,
+    }
+
+    pub type TagSetId = usize;
+
+    pub struct TagSet {
+        id: TagSetId,
+        tags: BTreeSet<Tag>,
+        tree: TagTree,
+        layout: (),
+    }
+
+    pub type ScreenId = usize;
+
+    pub struct Screen {
+        id: ScreenId,
+        tagset: TagSetId,
+        geometry: Geometry,
+    }
+
+    pub type ContainerId = usize;
+
+    pub enum Container {
+        /// split type, last focused subcontainer, children, floating
+        TrueContainer(SplitType, usize, Vec<usize>, bool),
+        /// window, floating
+        Window(xproto::Window, bool),
+    }
+
+    pub struct TagTree {
+        /// an arena of containers
+        container_arena: Vec<Container>,
+        /// tag set root container
+        root: usize,
+        /// focused container
+        focused: usize,
+        /// selected container
+        selected: usize,
+    }
+
+    pub struct Arena {
+        /// client set
+        clients: HashMap<xproto::Window, Client>,
+        /// tagset set (indexed by `TagSetId`)
+        tagsets: Vec<TagSet>,
+        /// screen set (indexed by `ScreenId`)
+        screens: Vec<Screen>,
+    }
+} */
