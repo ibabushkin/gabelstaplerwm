@@ -54,7 +54,8 @@ pub struct Geometry {
 }
 
 /// A unique identifier for clients, in this case provided by the X server.
-pub type ClientId = xproto::Window;
+#[derive(PartialEq, Eq, Hash)]
+pub struct ClientId(xproto::Window);
 
 /// A client being managed.
 pub struct Client {
@@ -71,7 +72,9 @@ pub struct Client {
 }
 
 /// A unique identifier for tagsets, provided by the arena.
-pub type TagSetId = u16;
+pub struct TagSetId(u16);
+
+pub const DEFAULT_TAGSET: TagSetId = TagSetId(0);
 
 /// A tagset.
 ///
@@ -87,15 +90,38 @@ pub struct TagSet {
     layout: Box<Layout>,
 }
 
+impl TagSet {
+    // NB: assumes the tree is correct according to arena, tagset, and layout.
+    // TODO: pass a reference to the arena instead to compute the tree on-the-fly
+    pub fn new(tags: HashSet<Tag>, tree: TagTree, layout: Box<Layout>) -> TagSet {
+        TagSet {
+            tags,
+            tree,
+            layout,
+        }
+    }
+}
+
 /// A unique identifier for screens, provided by the arena.
-pub type ScreenId = u8;
+pub struct ScreenId(u8);
+
+pub const DEFAULT_SCREEN: ScreenId = ScreenId(0);
 
 /// A screen showing a tagset.
 pub struct Screen {
-    /// The tagset currently shown.
-    tagset: TagSetId,
     /// The screen's geometry.
     geometry: Geometry,
+    /// The tagset currently shown on the screen.
+    tagset: TagSetId,
+}
+
+impl Screen {
+    pub fn new(geometry: Geometry, tagset: TagSetId) -> Screen {
+        Screen {
+            geometry,
+            tagset,
+        }
+    }
 }
 
 /// A split type used in a container.
@@ -110,10 +136,19 @@ pub enum SplitType {
     Tabbed,
 }
 
+impl Default for SplitType {
+    fn default() -> Self {
+        SplitType::Vertical
+    }
+}
+
 /// A unique indentifier for containers, provided by the tag tree they are located in.
-pub type ContainerId = u16;
+pub struct ContainerId(u16);
+
+pub const DEFAULT_CONTAINER: ContainerId = ContainerId(0);
 
 /// A container representing an inner node in a tag tree.
+#[derive(Default)]
 pub struct SplitContainer {
     /// The split type of the container.
     split_type: SplitType,
@@ -136,9 +171,15 @@ pub struct ClientContainer {
 /// A container representing an arbitrary node in a tag tree.
 pub enum Container {
     /// A split container.
-    SplitContainer(SplitContainer),
+    Split(SplitContainer),
     /// A client container.
-    ClientContainer(ClientContainer),
+    Client(ClientContainer),
+}
+
+impl Default for Container {
+    fn default() -> Self {
+        Container::Split(SplitContainer::default())
+    }
 }
 
 /// A tag tree.
@@ -156,12 +197,40 @@ pub struct TagTree {
     selected: Option<ContainerId>,
 }
 
+impl Default for TagTree {
+    fn default() -> Self {
+        TagTree {
+            container_arena: vec![Container::default()],
+            root: DEFAULT_CONTAINER,
+            focused: None,
+            selected: None,
+        }
+    }
+}
+
+/// The type of the set of clients.
+pub type ClientSet = HashMap<ClientId, Client>;
+
 /// The toplevel structure keeping track of clients, tagsets, and screens.
+///
+/// Always contains at least one screen and at least one tagset.
 pub struct Arena {
-    /// The set of clients.
-    clients: HashMap<ClientId, Client>,
+    /// The set of clients, indexed by values of type `ClientId`.
+    clients: ClientSet,
     /// The set of tagsets, indexed by values of type `TagSetId`.
     tagsets: Vec<TagSet>,
     /// The set of screens, indexed by values of type `ScreenId`.
     screens: Vec<Screen>,
+}
+
+impl Arena {
+    pub fn new(default_tagset: HashSet<Tag>,
+               default_layout: Box<Layout>,
+               default_screen_geometry: Geometry) -> Arena {
+        Arena {
+            clients: ClientSet::default(),
+            tagsets: vec![TagSet::new(default_tagset, TagTree::default(), default_layout)],
+            screens: vec![Screen::new(default_screen_geometry, DEFAULT_TAGSET)],
+        }
+    }
 }
