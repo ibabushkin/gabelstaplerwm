@@ -32,7 +32,41 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-pub mod client;
-pub mod config;
-pub mod layout;
-pub mod msg;
+use wm::client::ClientId;
+
+/// A message passed to a layout.
+///
+/// This is constructed in a hierarchic fashion to allow for layouts that don't support all kinds
+/// of messages (for example because they don't keep track of master windows).
+pub enum LayoutMessage { 
+    GenericMessage(GenericMessage),
+    MasterFactorMessage(MasterFactorMessage),
+    MasterNumberMessage(MasterNumberMessage),
+}
+
+pub enum GenericMessage {
+    AddClient(ClientId),
+}
+
+/// A message manipulating the master factor of a layout.
+///
+/// A master factor, if supported by a layout, is a percentage which the layout uses to assign
+/// one or more master windows a specific amount of screen space.
+pub enum MasterFactorMessage {
+    /// Set the absolute value of the master factor, saturated to 100.
+    Absolute(u8),
+    /// Increase the value of the master factor by the given amount, capped to 100.
+    Increase(u8),
+    /// Decrease the value of the master factor by the given amount, saturated to 0.
+    Decrease(u8),
+}
+
+/// A message manipulating the master number of a layout.
+pub enum MasterNumberMessage {
+    /// Set the absolute value of the master number.
+    Absolute(u8),
+    /// Increase the value of the master number by the given amount.
+    Increase(u8),
+    /// Decrease the value of the master number by the given amount, saturated to 1.
+    Decrease(u8),
+}
