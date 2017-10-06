@@ -53,6 +53,33 @@ pub struct Geometry {
     height: u32,
 }
 
+/// Geometrical direction (in a tagset tree).
+pub enum Direction {
+    /// Geometric, left (towards lower x-coordinates).
+    Left,
+    /// Geometric, up (towards lower y-coordinates).
+    Up,
+    /// Geometric, right (towards higher x-coordinates).
+    Right,
+    /// Geometric, down (towards higher y-coordinates).
+    Down,
+    /// In-Order traversal, next element.
+    InOrderForward,
+    /// In-Order traversal, previous element.
+    InOrderBackward,
+    /// Pre-Order traversal, next element.
+    PreOrderForward,
+    /// Pre-Order traversal, previous element.
+    PreOrderBackward,
+    /// Sibling cycling, next sibling.
+    SiblingCycleForward,
+    /// Sibling cycling, previous sibling.
+    SiblingCycleBackward,
+}
+
+/// A map used to hold client geometries constructed by a layout.
+pub type WindowSizes = HashMap<ClientId, Geometry>;
+
 /// A unique identifier for clients, in this case provided by the X server.
 #[derive(PartialEq, Eq, Hash)]
 pub struct ClientId(xproto::Window);

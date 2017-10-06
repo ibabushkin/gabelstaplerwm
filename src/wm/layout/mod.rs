@@ -32,4 +32,79 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-pub trait Layout {}
+use wm::client::{ContainerId, Direction, Screen, TagSet, WindowSizes};
+
+/// Layout trait.
+///
+/// Types implementing it can be used to compute window geometries from a tag tree, as well as
+/// construct and maintain the tree in a shape suitable for the layout, which we call
+/// "layout-consistent".
+pub trait Layout {
+    /// Compute the geometries to render on a given tagset.
+    ///
+    /// The input consists of a tagset (and thus the tree of the clients visible on it),
+    /// the screen to use, and an output map to be used.
+    ///
+    /// NB: The tree can be assumed to be in a layout-consistent state.
+    /// Geometries output for floating clients are ignored, but rendered using a placeholder
+    /// window. The output map can be assumed to be empty.
+    fn compute_geo(&self, &TagSet, &Screen, &mut WindowSizes);
+
+    /// Check whether the tree on a tagset is layout-consistent.
+    fn check_tree(&self, &TagSet) -> bool;
+
+    /// Transform a given tree in a way that makes it layout-consistent.
+    fn correct_tree(&self, &mut TagSet);
+    /// Insert a new container into the tree.
+    ///
+    /// NB: since the container might be essentially an arbitrary subtree, it is not guaranteed
+    /// that the tree will be layout-consistent after insertion. This is *allowed*, because a
+    /// call to `correct_tree` will be issued from outside.
+
+    fn insert_container(&self, &mut TagSet, ContainerId);
+    /// Delete a container from the tree.
+    ///
+    /// NB: since the container might be essentially an arbitrary subtree, it is not guaranteed
+    /// that the tree will be layout-consistent after deletion. This is *allowed*, because a
+    /// call to `correct_tree` will be issued from outside.
+    fn delete_container(&self, &mut TagSet, ContainerId);
+
+    /// Get a container by direction.
+    ///
+    /// Used to compute focus and container swapping. In some cases, this transfers the tree in a
+    /// non-layout-consistent state. A call to `correct_tree` is then issued.
+    fn container_by_direction(&self, &TagSet, ContainerId, Direction) -> Option<ContainerId>;
+}
+
+pub struct Manual;
+
+impl Layout for Manual {
+    /// Compute the geometries in a standard fashion.
+    fn compute_geo(&self, _: &TagSet, _: &Screen, _: &mut WindowSizes) {
+        // TODO: implement
+    }
+
+    /// The manual layout considers any tree valid.
+    fn check_tree(&self, _: &TagSet) -> bool { true }
+
+    /// No correction is performed, ever.
+    fn correct_tree(&self, _: &mut TagSet) { }
+
+    /// Insert a container.
+    fn insert_container(&self, _: &mut TagSet, _: ContainerId) {
+        // TODO: implement
+    }
+
+    /// Remove a container.
+    fn delete_container(&self, _: &mut TagSet, _: ContainerId) {
+        // TODO: implement
+    }
+
+    /// Get a container by direction.
+    fn container_by_direction(&self, _: &TagSet, _: ContainerId, _: Direction)
+        -> Option<ContainerId>
+    {
+        // TODO: implement
+        None
+    }
+}
