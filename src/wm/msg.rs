@@ -33,7 +33,7 @@
  */
 
 use wm::client::ClientId;
-use wm::layout::{Layout, LayoutEnum};
+use wm::layout::{Layout, LayoutContainer};
 
 /// A message passed to a layout.
 ///
@@ -72,7 +72,7 @@ pub enum MasterNumberMessage {
     Decrease(u8),
 }
 
-impl LayoutEnum {
+impl LayoutContainer {
     /// Pass a message to the layout and signify whether it was accepted.
     pub fn accept_msg(&mut self, msg: Message) -> bool {
         match_layout!(*self,

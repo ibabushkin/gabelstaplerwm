@@ -32,11 +32,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#[macro_use]
-pub mod util;
+#[macro_export]
+macro_rules! declare_hierarchy {
+    ($enum_ident:ident; $macro_ident:ident $(, $name:ident)*) => {
+        pub enum $enum_ident {
+            $($name($name)),*
+        }
 
-pub mod client;
-pub mod config;
-#[macro_use]
-pub mod layout;
-pub mod msg;
+        #[macro_export]
+        macro_rules! $macro_ident {
+            ($layout:expr, $bind:pat => $body:expr) => {
+                match $layout {
+                    $($enum_ident::$name($bind) => $body),*
+                }
+            }
+        }
+    }
+}

@@ -37,7 +37,7 @@ use std::collections::{HashMap, HashSet};
 use xcb::xproto;
 
 use wm::config::Tag;
-use wm::layout::Layout;
+use wm::layout::LayoutContainer;
 
 /// A rectangle somewhere on screen.
 ///
@@ -114,13 +114,13 @@ pub struct TagSet {
     /// The tag tree maintained by the layout on the given tagset.
     tree: TagTree,
     /// The layout used.
-    layout: Box<Layout>,
+    layout: LayoutContainer,
 }
 
 impl TagSet {
     // NB: assumes the tree is correct according to arena, tagset, and layout.
     // TODO: pass a reference to the arena instead to compute the tree on-the-fly
-    pub fn new(tags: HashSet<Tag>, tree: TagTree, layout: Box<Layout>) -> TagSet {
+    pub fn new(tags: HashSet<Tag>, tree: TagTree, layout: LayoutContainer) -> TagSet {
         TagSet {
             tags,
             tree,
@@ -252,7 +252,7 @@ pub struct Arena {
 
 impl Arena {
     pub fn new(default_tagset: HashSet<Tag>,
-               default_layout: Box<Layout>,
+               default_layout: LayoutContainer,
                default_screen_geometry: Geometry) -> Arena {
         Arena {
             clients: ClientSet::default(),

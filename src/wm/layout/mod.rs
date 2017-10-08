@@ -121,26 +121,14 @@ impl Layout for Manual {
     }
 }
 
-macro_rules! declare_layouts {
-    ($($name:ident),*) => {
-        pub enum LayoutEnum {
-            $($name($name)),*
-        }
+/// The enum holding all possible layouts, and a macro to match on it.
+declare_hierarchy!(LayoutContainer; match_layout, Manual);
 
-        #[macro_export]
-        macro_rules! match_layout {
-            ($layout:expr, $bind:pat => $body:expr) => {
-                match $layout {
-                    $(LayoutEnum::$name($bind) => $body),*
-                }
-            }
-        }
-    }
-}
-
-declare_layouts!(Manual);
-
-impl LayoutEnum {
+impl LayoutContainer {
+    /// Get a reference to a trait object inside the layout enum.
+    ///
+    /// This has not much practical use in most cases, but it ensures that all types placed in
+    /// variants of the layout enum actually implement the `Layout` trait.
     pub fn as_layout(&self) -> &Layout {
         match_layout!(*self, ref l => l)
     }
