@@ -33,12 +33,13 @@
  */
 
 use wm::client::ClientId;
+use wm::layout::{Layout, LayoutEnum};
 
 /// A message passed to a layout.
 ///
 /// This is constructed in a hierarchic fashion to allow for layouts that don't support all kinds
 /// of messages (for example because they don't keep track of master windows).
-pub enum LayoutMessage { 
+pub enum Message {
     GenericMessage(GenericMessage),
     MasterFactorMessage(MasterFactorMessage),
     MasterNumberMessage(MasterNumberMessage),
@@ -69,4 +70,13 @@ pub enum MasterNumberMessage {
     Increase(u8),
     /// Decrease the value of the master number by the given amount, saturated to 1.
     Decrease(u8),
+}
+
+impl LayoutEnum {
+    /// Pass a message to the layout and signify whether it was accepted.
+    pub fn accept_msg(&mut self, msg: Message) -> bool {
+        match_layout!(*self,
+            ref mut l => Layout::accept_msg(l, msg)
+        )
+    }
 }

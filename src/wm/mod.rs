@@ -34,5 +34,6 @@
 
 pub mod client;
 pub mod config;
+#[macro_use]
 pub mod layout;
 pub mod msg;

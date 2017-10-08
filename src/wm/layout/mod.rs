@@ -33,6 +33,7 @@
  */
 
 use wm::client::{ContainerId, Direction, Screen, TagTree, WindowSizes};
+use wm::msg::Message;
 
 /// Layout trait.
 ///
@@ -74,6 +75,11 @@ pub trait Layout {
     /// Used to compute focus and container swapping. In some cases, this transfers the tree in a
     /// non-layout-consistent state. A call to `correct_tree` is then issued.
     fn container_by_direction(&self, &TagTree, ContainerId, Direction) -> Option<ContainerId>;
+
+    /// Accept a message and signifty whether it was accepted.
+    ///
+    /// Returning `false` implies no change to the layout's state has been performed.
+    fn accept_msg(&mut self, Message) -> bool;
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -108,6 +114,11 @@ impl Layout for Manual {
         // TODO: implement
         None
     }
+
+    /// Drop all messages.
+    fn accept_msg(&mut self, msg: Message) -> bool {
+        false
+    }
 }
 
 macro_rules! declare_layouts {
@@ -118,9 +129,9 @@ macro_rules! declare_layouts {
 
         #[macro_export]
         macro_rules! match_layout {
-            ($layout:expr, $bind:ident => $body:expr) => {
+            ($layout:expr, $bind:pat => $body:expr) => {
                 match $layout {
-                    $(LayoutEnum::$name(ref $bind) => $body),*
+                    $(LayoutEnum::$name($bind) => $body),*
                 }
             }
         }
@@ -131,6 +142,6 @@ declare_layouts!(Manual);
 
 impl LayoutEnum {
     pub fn as_layout(&self) -> &Layout {
-        match_layout!(*self, l => l)
+        match_layout!(*self, ref l => l)
     }
 }
