@@ -32,7 +32,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use wm::client::{ContainerId, Direction, Screen, TagSet, WindowSizes};
+use wm::client::{ContainerId, Direction, Screen, TagTree, WindowSizes};
 
 /// Layout trait.
 ///
@@ -48,63 +48,89 @@ pub trait Layout {
     /// NB: The tree can be assumed to be in a layout-consistent state.
     /// Geometries output for floating clients are ignored, but rendered using a placeholder
     /// window. The output map can be assumed to be empty.
-    fn compute_geo(&self, &TagSet, &Screen, &mut WindowSizes);
+    fn compute_geo(&self, &TagTree, &Screen, &mut WindowSizes);
 
     /// Check whether the tree on a tagset is layout-consistent.
-    fn check_tree(&self, &TagSet) -> bool;
+    fn check_tree(&self, &TagTree) -> bool;
 
     /// Transform a given tree in a way that makes it layout-consistent.
-    fn correct_tree(&self, &mut TagSet);
+    fn correct_tree(&self, &mut TagTree);
     /// Insert a new container into the tree.
     ///
     /// NB: since the container might be essentially an arbitrary subtree, it is not guaranteed
     /// that the tree will be layout-consistent after insertion. This is *allowed*, because a
     /// call to `correct_tree` will be issued from outside.
 
-    fn insert_container(&self, &mut TagSet, ContainerId);
+    fn insert_container(&self, &mut TagTree, ContainerId);
     /// Delete a container from the tree.
     ///
     /// NB: since the container might be essentially an arbitrary subtree, it is not guaranteed
     /// that the tree will be layout-consistent after deletion. This is *allowed*, because a
     /// call to `correct_tree` will be issued from outside.
-    fn delete_container(&self, &mut TagSet, ContainerId);
+    fn delete_container(&self, &mut TagTree, ContainerId);
 
     /// Get a container by direction.
     ///
     /// Used to compute focus and container swapping. In some cases, this transfers the tree in a
     /// non-layout-consistent state. A call to `correct_tree` is then issued.
-    fn container_by_direction(&self, &TagSet, ContainerId, Direction) -> Option<ContainerId>;
+    fn container_by_direction(&self, &TagTree, ContainerId, Direction) -> Option<ContainerId>;
 }
 
+#[derive(PartialEq, Eq, Clone)]
 pub struct Manual;
 
 impl Layout for Manual {
     /// Compute the geometries in a standard fashion.
-    fn compute_geo(&self, _: &TagSet, _: &Screen, _: &mut WindowSizes) {
+    fn compute_geo(&self, _: &TagTree, _: &Screen, _: &mut WindowSizes) {
         // TODO: implement
     }
 
     /// The manual layout considers any tree valid.
-    fn check_tree(&self, _: &TagSet) -> bool { true }
+    fn check_tree(&self, _: &TagTree) -> bool { true }
 
     /// No correction is performed, ever.
-    fn correct_tree(&self, _: &mut TagSet) { }
+    fn correct_tree(&self, _: &mut TagTree) { }
 
     /// Insert a container.
-    fn insert_container(&self, _: &mut TagSet, _: ContainerId) {
+    fn insert_container(&self, _: &mut TagTree, _: ContainerId) {
         // TODO: implement
     }
 
     /// Remove a container.
-    fn delete_container(&self, _: &mut TagSet, _: ContainerId) {
+    fn delete_container(&self, _: &mut TagTree, _: ContainerId) {
         // TODO: implement
     }
 
     /// Get a container by direction.
-    fn container_by_direction(&self, _: &TagSet, _: ContainerId, _: Direction)
+    fn container_by_direction(&self, _: &TagTree, _: ContainerId, _: Direction)
         -> Option<ContainerId>
     {
         // TODO: implement
         None
+    }
+}
+
+macro_rules! declare_layouts {
+    ($($name:ident),*) => {
+        pub enum LayoutEnum {
+            $($name($name)),*
+        }
+
+        #[macro_export]
+        macro_rules! match_layout {
+            ($layout:expr, $bind:ident => $body:expr) => {
+                match $layout {
+                    $(LayoutEnum::$name(ref $bind) => $body),*
+                }
+            }
+        }
+    }
+}
+
+declare_layouts!(Manual);
+
+impl LayoutEnum {
+    pub fn as_layout(&self) -> &Layout {
+        match_layout!(*self, l => l)
     }
 }
