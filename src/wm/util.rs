@@ -49,3 +49,22 @@ macro_rules! declare_hierarchy {
         }
     }
 }
+
+#[macro_export]
+macro_rules! declare_hierarchy_with_parser {
+    ($enum_ident:ident; $macro_ident:ident $(, ($name: ident; $cmd:expr))*) => {
+        declare_hierarchy!($enum_ident; $macro_ident $(, $name)*);
+
+        impl $enum_ident {
+            pub fn parse_from_words(words: &[&str]) -> Option<Self> {
+                $(
+                    if words[0] == $cmd {
+                        return $name::parse_from_words(&words[1..]).map($enum_ident::$name);
+                    }
+                )*
+
+                None
+            }
+        }
+    }
+}

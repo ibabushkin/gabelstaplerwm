@@ -39,14 +39,23 @@ use wm::layout::{Layout, LayoutContainer};
 ///
 /// This is constructed in a hierarchic fashion to allow for layouts that don't support all kinds
 /// of messages (for example because they don't keep track of master windows).
-pub enum Message {
-    GenericMessage(GenericMessage),
-    MasterFactorMessage(MasterFactorMessage),
-    MasterNumberMessage(MasterNumberMessage),
+declare_hierarchy_with_parser!(Message; match_message,
+                               (GenericMessage; "generic"),
+                               (MasterFactorMessage; "master_factor"),
+                               (MasterNumberMessage; "nmaster"));
+
+/// A generic message that is interpreted by any layout, by dispatch performed outside of the
+/// layout implementation.
+pub enum GenericMessage {
+    /// Add a new client on the tag tree managed by the layout.
+    AddClient(ClientId),
 }
 
-pub enum GenericMessage {
-    AddClient(ClientId),
+impl GenericMessage {
+    fn parse_from_words(_: &[&str]) -> Option<Self> {
+        // TODO: implement
+        None
+    }
 }
 
 /// A message manipulating the master factor of a layout.
@@ -62,6 +71,13 @@ pub enum MasterFactorMessage {
     Decrease(u8),
 }
 
+impl MasterFactorMessage {
+    fn parse_from_words(_: &[&str]) -> Option<Self> {
+        // TODO: implement
+        None
+    }
+}
+
 /// A message manipulating the master number of a layout.
 pub enum MasterNumberMessage {
     /// Set the absolute value of the master number.
@@ -70,6 +86,13 @@ pub enum MasterNumberMessage {
     Increase(u8),
     /// Decrease the value of the master number by the given amount, saturated to 1.
     Decrease(u8),
+}
+
+impl MasterNumberMessage {
+    fn parse_from_words(_: &[&str]) -> Option<Self> {
+        // TODO: implement
+        None
+    }
 }
 
 impl LayoutContainer {
