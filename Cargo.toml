@@ -11,10 +11,10 @@ keywords = ["xcb", "window manager", "X"]
 license = "BSD3"
 
 [dependencies]
-libc = "*"
-env_logger = "*"
-log = "*"
-xcb = { version = "0.7.6", features = ["xkb", "randr"] }
+libc = "^0.2"
+env_logger = "^0.4"
+log = "^0.3"
+xcb = { version = "^0.8", features = ["xkb", "randr"] }
 # pledge = { version = "*", optional = true }
 
 [profile.release]
