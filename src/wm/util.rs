@@ -32,6 +32,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/// Declare an enum hierarchy.
+///
+/// Provides an enum enclosing the given types, and macros to match on it.
 #[macro_export]
 macro_rules! declare_hierarchy {
     ($enum_ident:ident; $macro_ident:ident $(, $name:ident)*) => {
@@ -50,6 +53,10 @@ macro_rules! declare_hierarchy {
     }
 }
 
+/// Declare an enum hierarchy and parsing facilities for it's values.
+///
+/// Provides an enum enclosing the given types, macros to match on it, and an implementation to
+/// parse enum variants from a simple word-based representation.
 #[macro_export]
 macro_rules! declare_hierarchy_with_parser {
     ($enum_ident:ident; $macro_ident:ident $(, ($name: ident; $cmd:expr))*) => {

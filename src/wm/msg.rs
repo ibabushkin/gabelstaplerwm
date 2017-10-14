@@ -32,6 +32,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use std::str::FromStr;
+
 use wm::client::ClientId;
 use wm::layout::{Layout, LayoutContainer};
 
@@ -41,7 +43,7 @@ use wm::layout::{Layout, LayoutContainer};
 /// of messages (for example because they don't keep track of master windows).
 declare_hierarchy_with_parser!(Message; match_message,
                                (GenericMessage; "generic"),
-                               (MasterFactorMessage; "master_factor"),
+                               (MasterFactorMessage; "masterf"),
                                (MasterNumberMessage; "nmaster"));
 
 /// A generic message that is interpreted by any layout, by dispatch performed outside of the
@@ -72,9 +74,17 @@ pub enum MasterFactorMessage {
 }
 
 impl MasterFactorMessage {
-    fn parse_from_words(_: &[&str]) -> Option<Self> {
-        // TODO: implement
-        None
+    fn parse_from_words(words: &[&str]) -> Option<Self> {
+        if words.len() < 2 {
+            return None;
+        }
+
+        match words[0] {
+            "abs" => u8::from_str(words[1]).ok().map(MasterFactorMessage::Absolute),
+            "inc" => u8::from_str(words[1]).ok().map(MasterFactorMessage::Increase),
+            "dec" => u8::from_str(words[1]).ok().map(MasterFactorMessage::Decrease),
+            _ => None,
+        }
     }
 }
 
@@ -89,9 +99,17 @@ pub enum MasterNumberMessage {
 }
 
 impl MasterNumberMessage {
-    fn parse_from_words(_: &[&str]) -> Option<Self> {
-        // TODO: implement
-        None
+    fn parse_from_words(words: &[&str]) -> Option<Self> {
+        if words.len() < 2 {
+            return None;
+        }
+
+        match words[0] {
+            "abs" => u8::from_str(words[1]).ok().map(MasterNumberMessage::Absolute),
+            "inc" => u8::from_str(words[1]).ok().map(MasterNumberMessage::Increase),
+            "dec" => u8::from_str(words[1]).ok().map(MasterNumberMessage::Decrease),
+            _ => None,
+        }
     }
 }
 
