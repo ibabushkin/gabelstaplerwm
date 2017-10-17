@@ -40,6 +40,7 @@ extern crate log;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::os::unix::io::AsRawFd;
+use std::str::SplitWhitespace;
 
 fn setup_pollfd(fd: &File) -> libc::pollfd {
     libc::pollfd {
@@ -55,6 +56,46 @@ fn poll(fds: &mut [libc::pollfd]) -> bool {
     };
 
     poll_res > 0
+}
+
+pub enum InputResult<'a> {
+    InputRead(SplitWhitespace<'a>),
+    OtherFd,
+    Failure,
+    PollError,
+}
+
+pub struct CommandInput {
+    reader: BufReader<File>,
+    buffer: String,
+    // first fd is the reader's
+    pollfds: Vec<libc::pollfd>,
+}
+
+impl CommandInput {
+    pub fn get_line(&mut self) -> InputResult {
+        if poll(&mut self.pollfds) {
+            if let Some(buf_fd) = self.pollfds.get(0) {
+                if buf_fd.revents & libc::POLLIN != 0 {
+                    self.buffer.clear();
+
+                    if let Ok(n) = self.reader.read_line(&mut self.buffer) {
+                        if self.buffer.as_bytes()[n - 1] == 0xA {
+                            self.buffer.pop();
+                        }
+                    }
+
+                    InputResult::InputRead(self.buffer.split_whitespace())
+                } else {
+                    InputResult::OtherFd
+                }
+            } else {
+                InputResult::Failure
+            }
+        } else {
+            InputResult::PollError
+        }
+    }
 }
 
 fn main() {
