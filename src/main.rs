@@ -36,11 +36,22 @@ extern crate env_logger;
 extern crate libc;
 #[macro_use]
 extern crate log;
+extern crate xcb;
 
+use std::env::remove_var;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::process::exit;
+use std::ptr::null_mut;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::str::SplitWhitespace;
+
+use xcb::base::*;
+
+/// Reap children.
+extern "C" fn sigchld_action(_: libc::c_int) {
+    while unsafe { libc::waitpid(-1, null_mut(), libc::WNOHANG) } > 0 { }
+}
 
 /// Construct a `pollfd` struct from a file reference.
 fn setup_pollfd_from_file(fd: &File) -> libc::pollfd {
@@ -128,8 +139,46 @@ impl CommandInput {
     }
 }
 
+/// Main function.
 fn main() {
     // fine to unwrap, as this is the only time we call `init`.
     env_logger::init().unwrap();
     info!("initialized logger");
+
+    // we're a good parent - we wait for our children when they get a screaming
+    // fit at the checkout lane
+    unsafe {
+        use std::mem;
+
+        // initialize the sigaction struct
+        let mut act = mem::uninitialized::<libc::sigaction>();
+
+        // convert our handler to a C-style function pointer
+        let f_ptr: *const libc::c_void =
+            mem::transmute(sigchld_action as extern "C" fn(libc::c_int));
+        act.sa_sigaction = f_ptr as libc::sighandler_t;
+
+        // some default values noone cares about
+        libc::sigemptyset(&mut act.sa_mask);
+        act.sa_flags = libc::SA_RESTART;
+
+        // setup our SIGCHLD-handler
+        if libc::sigaction(libc::SIGCHLD, &act, null_mut()) == -1 {
+            // crash and burn on failure
+            eprintln!("could not establish handlers!");
+            exit(1);
+            // WmError::CouldNotEstablishHandlers.handle();
+        }
+    }
+
+    // clean environment for cargo and other programs honoring `RUST_LOG`
+    remove_var("RUST_LOG");
+
+    let (con, screen_num) = match Connection::connect(None) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("could not connect to X");
+            exit(1);
+        },
+    };
 }
