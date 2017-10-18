@@ -39,10 +39,11 @@ extern crate log;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::os::unix::io::AsRawFd;
+use std::os::unix::io::{AsRawFd, RawFd};
 use std::str::SplitWhitespace;
 
-fn setup_pollfd(fd: &File) -> libc::pollfd {
+/// Construct a `pollfd` struct from a file reference.
+fn setup_pollfd_from_file(fd: &File) -> libc::pollfd {
     libc::pollfd {
         fd: fd.as_raw_fd(),
         events: libc::POLLIN,
@@ -50,6 +51,16 @@ fn setup_pollfd(fd: &File) -> libc::pollfd {
     }
 }
 
+/// Construct a `pollfd` struct from a raw file descriptor.
+fn setup_pollfd_from_rawfd(fd: RawFd) -> libc::pollfd {
+    libc::pollfd {
+        fd: fd,
+        events: libc::POLLIN,
+        revents: 0,
+    }
+}
+
+/// `poll(3)` a slice of `pollfd` structs and tell us whether everything went well.
 fn poll(fds: &mut [libc::pollfd]) -> bool {
     let poll_res = unsafe {
         libc::poll(fds.as_mut_ptr(), fds.len() as u64, -1)
@@ -58,39 +69,58 @@ fn poll(fds: &mut [libc::pollfd]) -> bool {
     poll_res > 0
 }
 
+/// The possible input events we get from a command input handler.
 pub enum InputResult<'a> {
+    /// The words handed down by the iterator have been read from the input pipe.
     InputRead(SplitWhitespace<'a>),
-    OtherFd,
-    Failure,
+    /// The X connection's socket has some data.
+    XFdReadable,
+    /// Poll returned an error.
     PollError,
 }
 
+/// The command input handler.
 pub struct CommandInput {
+    /// The buffered reader for the input pipe.
     reader: BufReader<File>,
+    /// The buffer to use for reading.
     buffer: String,
-    // first fd is the reader's
-    pollfds: Vec<libc::pollfd>,
+    /// The `pollfd` structs polled by the command input handler.
+    ///
+    /// The first entry is the input pipe, the socond is the X connection socket.
+    pollfds: [libc::pollfd; 2],
 }
 
 impl CommandInput {
-    pub fn get_line(&mut self) -> InputResult {
+    /// Construct an input handler from a file representing the input pipe and an X connection.
+    pub fn new(file: File, x_con_fd: RawFd) -> CommandInput {
+        let buf_fd = setup_pollfd_from_file(&file);
+        let x_fd = setup_pollfd_from_rawfd(x_con_fd);
+        let reader = BufReader::new(file);
+
+        CommandInput {
+            reader,
+            buffer: String::new(),
+            pollfds: [buf_fd, x_fd],
+        }
+    }
+
+    /// Get the next input event.
+    pub fn get_next_input(&mut self) -> InputResult {
         if poll(&mut self.pollfds) {
-            if let Some(buf_fd) = self.pollfds.get(0) {
-                if buf_fd.revents & libc::POLLIN != 0 {
-                    self.buffer.clear();
+            let buf_fd = self.pollfds[0];
+            if buf_fd.revents & libc::POLLIN != 0 {
+                self.buffer.clear();
 
-                    if let Ok(n) = self.reader.read_line(&mut self.buffer) {
-                        if self.buffer.as_bytes()[n - 1] == 0xA {
-                            self.buffer.pop();
-                        }
+                if let Ok(n) = self.reader.read_line(&mut self.buffer) {
+                    if self.buffer.as_bytes()[n - 1] == 0xA {
+                        self.buffer.pop();
                     }
-
-                    InputResult::InputRead(self.buffer.split_whitespace())
-                } else {
-                    InputResult::OtherFd
                 }
+
+                InputResult::InputRead(self.buffer.split_whitespace())
             } else {
-                InputResult::Failure
+                InputResult::XFdReadable
             }
         } else {
             InputResult::PollError
