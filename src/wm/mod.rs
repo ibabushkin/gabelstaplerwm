@@ -36,6 +36,7 @@
 pub mod util;
 
 pub mod client;
+pub mod err;
 pub mod config;
 #[macro_use]
 pub mod layout;

@@ -33,6 +33,7 @@
  */
 
 extern crate env_logger;
+extern crate gabelstaplerwm;
 extern crate libc;
 #[macro_use]
 extern crate log;
@@ -41,10 +42,11 @@ extern crate xcb;
 use std::env::remove_var;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::process::exit;
 use std::ptr::null_mut;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::str::SplitWhitespace;
+
+use gabelstaplerwm::wm::err::WmError;
 
 use xcb::base::*;
 
@@ -165,9 +167,7 @@ fn main() {
         // setup our SIGCHLD-handler
         if libc::sigaction(libc::SIGCHLD, &act, null_mut()) == -1 {
             // crash and burn on failure
-            eprintln!("could not establish handlers!");
-            exit(1);
-            // WmError::CouldNotEstablishHandlers.handle();
+            WmError::CouldNotEstablishSignalHandlers.handle();
         }
     }
 
@@ -177,8 +177,7 @@ fn main() {
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("could not connect to X");
-            exit(1);
+            WmError::CouldNotConnect(e).handle();
         },
     };
 }
