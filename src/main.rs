@@ -43,7 +43,7 @@ use std::env::remove_var;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::ptr::null_mut;
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::AsRawFd;
 use std::str::SplitWhitespace;
 
 use gabelstaplerwm::wm::err::WmError;
@@ -65,9 +65,9 @@ fn setup_pollfd_from_file(fd: &File) -> libc::pollfd {
 }
 
 /// Construct a `pollfd` struct from a raw file descriptor.
-fn setup_pollfd_from_rawfd(fd: RawFd) -> libc::pollfd {
+fn setup_pollfd_from_connection(con: &Connection) -> libc::pollfd {
     libc::pollfd {
-        fd: fd,
+        fd: con.as_raw_fd(),
         events: libc::POLLIN,
         revents: 0,
     }
@@ -106,9 +106,9 @@ pub struct CommandInput {
 
 impl CommandInput {
     /// Construct an input handler from a file representing the input pipe and an X connection.
-    pub fn new(file: File, x_con_fd: RawFd) -> CommandInput {
+    pub fn new(file: File, con: &xcb::Connection) -> CommandInput {
         let buf_fd = setup_pollfd_from_file(&file);
-        let x_fd = setup_pollfd_from_rawfd(x_con_fd);
+        let x_fd = setup_pollfd_from_connection(con);
         let reader = BufReader::new(file);
 
         CommandInput {
