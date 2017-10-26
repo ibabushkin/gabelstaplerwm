@@ -33,6 +33,7 @@
  */
 
 extern crate env_logger;
+#[macro_use]
 extern crate gabelstaplerwm;
 extern crate libc;
 #[macro_use]
@@ -40,13 +41,17 @@ extern crate log;
 extern crate xcb;
 
 use std::env::remove_var;
-use std::fs::File;
+use std::ffi::CString;
+use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader};
-use std::ptr::null_mut;
+use std::os::unix::fs::FileTypeExt;
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::AsRawFd;
-use std::str::SplitWhitespace;
+use std::path::Path;
+use std::ptr::null_mut;
 
 use gabelstaplerwm::wm::err::WmError;
+use gabelstaplerwm::wm::msg::Message;
 
 use xcb::base::*;
 
@@ -85,7 +90,7 @@ fn poll(fds: &mut [libc::pollfd]) -> bool {
 /// The possible input events we get from a command input handler.
 pub enum InputResult<'a> {
     /// The words handed down by the iterator have been read from the input pipe.
-    InputRead(SplitWhitespace<'a>),
+    InputRead(Vec<&'a str>),
     /// The X connection's socket has some data.
     XFdReadable,
     /// Poll returned an error.
@@ -119,7 +124,7 @@ impl CommandInput {
     }
 
     /// Get the next input event.
-    pub fn get_next_input(&mut self) -> InputResult {
+    pub fn get_next(&mut self) -> InputResult {
         if poll(&mut self.pollfds) {
             let buf_fd = self.pollfds[0];
             if buf_fd.revents & libc::POLLIN != 0 {
@@ -131,7 +136,7 @@ impl CommandInput {
                     }
                 }
 
-                InputResult::InputRead(self.buffer.split_whitespace())
+                InputResult::InputRead(self.buffer.split_whitespace().collect())
             } else {
                 InputResult::XFdReadable
             }
@@ -180,4 +185,51 @@ fn main() {
             WmError::CouldNotConnect(e).handle();
         },
     };
+
+    let mut options = OpenOptions::new();
+    options.read(true);
+    options.write(true);
+
+    let path = Path::new("gwm_fifo");
+
+    let fifo = match options.open(path) {
+        Ok(fifo) => {
+            match fifo.metadata().map(|m| m.file_type().is_fifo()) {
+                Ok(true) => fifo,
+                _ => WmError::CouldNotOpenPipe.handle(),
+            }
+        }
+        _ => {
+            let path_cstr = CString::new(path.as_os_str().as_bytes()).unwrap();
+            let perms = libc::S_IRUSR | libc::S_IWUSR;
+            let ret = unsafe { libc::mkfifo(path_cstr.as_ptr() as *const i8, perms) };
+            if ret != 0 {
+                WmError::CouldNotOpenPipe.handle()
+            } else {
+                options.open(path).ok().unwrap_or_else(|| WmError::CouldNotOpenPipe.handle())
+            }
+        },
+    };
+
+    let mut input = CommandInput::new(fifo, &con);
+
+    loop {
+        match input.get_next() {
+            InputResult::InputRead(words) => {
+                if let Some(msg) = Message::parse_from_words(&words) {
+                    match_message!(msg, inner_msg => {
+                        debug!("received msg: {:?}", inner_msg);
+                    });
+                } else {
+                    debug!("received words: {:?}", words);
+                }
+            },
+            InputResult::XFdReadable => {
+                debug!("X event received");
+            },
+            InputResult::PollError => {
+                debug!("poll(3) returned an error");
+            },
+        }
+    }
 }

@@ -2,6 +2,7 @@ use xcb::base;
 
 pub enum WmError {
     CouldNotEstablishSignalHandlers,
+    CouldNotOpenPipe,
     CouldNotConnect(base::ConnError),
     CouldNotAcquireScreen,
     OtherWMRunning,
@@ -15,6 +16,7 @@ impl WmError {
 
         match self {
             CouldNotEstablishSignalHandlers => error!("could not establish signal handlers"),
+            CouldNotOpenPipe => error!("could not open pipe"),
             CouldNotConnect(e) => error!("could not connect: {}", e),
             CouldNotAcquireScreen => error!("could not acquire screen"),
             OtherWMRunning => error!("another wm is running"),

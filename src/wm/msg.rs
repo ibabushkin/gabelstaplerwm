@@ -48,9 +48,10 @@ declare_hierarchy_with_parser!(Message; match_message,
 
 /// A generic message that is interpreted by any layout, by dispatch performed outside of the
 /// layout implementation.
+#[derive(Debug)]
 pub enum GenericMessage {
-    /// Add a new client on the tag tree managed by the layout.
-    AddClient(ClientId),
+    // Add a new client on the tag tree managed by the layout.
+    // AddClient(ClientId),
 }
 
 impl GenericMessage {
@@ -64,6 +65,7 @@ impl GenericMessage {
 ///
 /// A master factor, if supported by a layout, is a percentage which the layout uses to assign
 /// one or more master windows a specific amount of screen space.
+#[derive(Debug)]
 pub enum MasterFactorMessage {
     /// Set the absolute value of the master factor, saturated to 100.
     Absolute(u8),
@@ -89,6 +91,7 @@ impl MasterFactorMessage {
 }
 
 /// A message manipulating the master number of a layout.
+#[derive(Debug)]
 pub enum MasterNumberMessage {
     /// Set the absolute value of the master number.
     Absolute(u8),
