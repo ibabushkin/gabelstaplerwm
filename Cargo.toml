@@ -13,6 +13,7 @@ license = "BSD3"
 [dependencies]
 libc = "^0.2"
 env_logger = "^0.4"
+getopts = "0.2.15"
 log = "^0.3"
 xcb = { version = "^0.8", features = ["xkb", "randr"] }
 # pledge = { version = "*", optional = true }

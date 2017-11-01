@@ -32,6 +32,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+extern crate getopts;
 extern crate libc;
 #[macro_use]
 extern crate log;

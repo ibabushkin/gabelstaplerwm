@@ -1,6 +1,8 @@
+use getopts::Fail;
 use xcb::base;
 
 pub enum WmError {
+    CouldNotParseOptions(Fail),
     CouldNotEstablishSignalHandlers,
     CouldNotOpenPipe,
     CouldNotConnect(base::ConnError),
@@ -15,6 +17,7 @@ impl WmError {
         use wm::err::WmError::*;
 
         match self {
+            CouldNotParseOptions(e) => error!("{}", e),
             CouldNotEstablishSignalHandlers => error!("could not establish signal handlers"),
             CouldNotOpenPipe => error!("could not open pipe"),
             CouldNotConnect(e) => error!("could not connect: {}", e),

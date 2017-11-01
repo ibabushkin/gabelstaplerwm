@@ -35,19 +35,22 @@
 extern crate env_logger;
 #[macro_use]
 extern crate gabelstaplerwm;
+extern crate getopts;
 extern crate libc;
 #[macro_use]
 extern crate log;
 extern crate xcb;
 
-use std::env::remove_var;
+use getopts::Options;
+
+use std::env::{args, home_dir, remove_var};
 use std::ffi::CString;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader};
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::AsRawFd;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::ptr::null_mut;
 
 use gabelstaplerwm::wm::err::WmError;
@@ -146,12 +149,16 @@ impl CommandInput {
     }
 }
 
-/// Main function.
-fn main() {
+fn setup_logger() {
     // fine to unwrap, as this is the only time we call `init`.
     env_logger::init().unwrap();
     info!("initialized logger");
 
+    // clean environment for cargo and other programs honoring `RUST_LOG`
+    remove_var("RUST_LOG");
+}
+
+fn setup_sigaction() {
     // we're a good parent - we wait for our children when they get a screaming
     // fit at the checkout lane
     unsafe {
@@ -175,24 +182,14 @@ fn main() {
             WmError::CouldNotEstablishSignalHandlers.handle();
         }
     }
+}
 
-    // clean environment for cargo and other programs honoring `RUST_LOG`
-    remove_var("RUST_LOG");
-
-    let (con, screen_num) = match Connection::connect(None) {
-        Ok(c) => c,
-        Err(e) => {
-            WmError::CouldNotConnect(e).handle();
-        },
-    };
-
+fn setup_fifo(path: &Path) -> File {
     let mut options = OpenOptions::new();
     options.read(true);
     options.write(true);
 
-    let path = Path::new("gwm_fifo");
-
-    let fifo = match options.open(path) {
+    match options.open(path) {
         Ok(fifo) => {
             match fifo.metadata().map(|m| m.file_type().is_fifo()) {
                 Ok(true) => fifo,
@@ -209,7 +206,58 @@ fn main() {
                 options.open(path).ok().unwrap_or_else(|| WmError::CouldNotOpenPipe.handle())
             }
         },
+    }
+}
+
+fn setup_fifo_path() -> PathBuf {
+    if let Some(mut buf) = home_dir() {
+        buf.push("tmp");
+        buf.push("gwm_fifo");
+        buf
+    } else {
+        warn!("couldn't determine the value of $HOME, using current dir");
+        PathBuf::from("gwm_fifo")
+    }
+}
+
+/// Main function.
+fn main() {
+    setup_logger();
+
+    let args: Vec<String> = args().collect();
+
+    let mut opts = Options::new();
+    opts.optopt("f", "fifo", "input pipe to use", "FIFO");
+    opts.optflag("h", "help", "print this help menu");
+
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(e) => {
+            WmError::CouldNotParseOptions(e).handle();
+        },
     };
+
+    if matches.opt_present("h") {
+        let brief = format!("Usage: {} [options]", &args[0]);
+        eprintln!("{}", opts.usage(&brief));
+        return;
+    }
+
+    let fifo = if let Some(p) = matches.opt_str("f") {
+        setup_fifo(Path::new(&p))
+    } else {
+        let path = setup_fifo_path();
+        setup_fifo(&path)
+    };
+
+    let (con, screen_num) = match Connection::connect(None) {
+        Ok(c) => c,
+        Err(e) => {
+            WmError::CouldNotConnect(e).handle();
+        },
+    };
+
+    setup_sigaction();
 
     let mut input = CommandInput::new(fifo, &con);
 
