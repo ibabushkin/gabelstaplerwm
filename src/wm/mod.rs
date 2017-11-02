@@ -34,11 +34,12 @@
 
 #[macro_use]
 pub mod util;
+#[macro_use]
+pub mod layout;
+#[macro_use]
+pub mod msg;
 
 pub mod client;
 pub mod core;
 pub mod err;
 pub mod config;
-#[macro_use]
-pub mod layout;
-pub mod msg;
