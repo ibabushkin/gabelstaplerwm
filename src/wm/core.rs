@@ -32,13 +32,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#[macro_use]
-pub mod util;
+pub struct WmCore {
 
-pub mod client;
-pub mod core;
-pub mod err;
-pub mod config;
-#[macro_use]
-pub mod layout;
-pub mod msg;
+}
+
+impl WmCore {
+    pub fn new() -> WmCore {
+        WmCore {
+
+        }
+    }
+}

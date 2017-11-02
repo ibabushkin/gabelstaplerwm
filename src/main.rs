@@ -149,6 +149,7 @@ impl CommandInput {
     }
 }
 
+/// Initialize the logger and unset the `RUST_LOG` environment variable afterwards.
 fn setup_logger() {
     // fine to unwrap, as this is the only time we call `init`.
     env_logger::init().unwrap();
@@ -158,6 +159,7 @@ fn setup_logger() {
     remove_var("RUST_LOG");
 }
 
+/// Set up signal handling for `SIGCHLD`.
 fn setup_sigaction() {
     // we're a good parent - we wait for our children when they get a screaming
     // fit at the checkout lane
@@ -184,6 +186,7 @@ fn setup_sigaction() {
     }
 }
 
+/// Set up a FIFO at the given path.
 fn setup_fifo(path: &Path) -> File {
     let mut options = OpenOptions::new();
     options.read(true);
@@ -209,6 +212,7 @@ fn setup_fifo(path: &Path) -> File {
     }
 }
 
+/// Determine the path to use for the input FIFO.
 fn setup_fifo_path() -> PathBuf {
     if let Some(mut buf) = home_dir() {
         buf.push("tmp");
