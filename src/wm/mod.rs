@@ -39,7 +39,7 @@ pub mod layout;
 #[macro_use]
 pub mod msg;
 
-pub mod client;
+pub mod config;
 pub mod core;
 pub mod err;
-pub mod config;
+pub mod tree;

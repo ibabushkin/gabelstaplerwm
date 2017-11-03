@@ -34,7 +34,6 @@
 
 use std::str::FromStr;
 
-use wm::client::ClientId;
 use wm::layout::{Layout, LayoutContainer};
 
 /// A message passed to a layout.

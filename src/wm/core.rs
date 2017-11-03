@@ -39,7 +39,6 @@ use libc;
 
 use xcb::base::*;
 
-use wm::err::WmError;
 use wm::msg::Message;
 
 /// Construct a `pollfd` struct from a file reference.

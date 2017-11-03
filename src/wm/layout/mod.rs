@@ -32,7 +32,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use wm::client::{ContainerId, Direction, Screen, TagTree, WindowSizes};
+use wm::tree::{ContainerId, Direction, Screen, TagTree, WindowSizes};
 use wm::msg::Message;
 
 /// Layout trait.
@@ -116,7 +116,7 @@ impl Layout for Manual {
     }
 
     /// Drop all messages.
-    fn accept_msg(&mut self, msg: Message) -> bool {
+    fn accept_msg(&mut self, _: Message) -> bool {
         false
     }
 }
