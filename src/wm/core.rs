@@ -127,12 +127,19 @@ impl CommandInput {
     }
 }
 
+/// The core structure handling the X connection and messaging.
+///
+/// Responsible for handling events from X and messages from the FIFO, as well as to dispatch
+/// messages to the appropriate datastructures, and to push the corresponding changes to X.
 pub struct WmCore {
+    /// The input source to use.
     input: CommandInput,
+    /// The screen number the window manager is running on.
     screen_num: i32,
 }
 
 impl WmCore {
+    /// Construct a new window manager core object from the necessary parameters.
     pub fn new(fifo: File, con: &Connection, screen_num: i32) -> WmCore {
         WmCore {
             input: CommandInput::new(fifo, con),
@@ -140,6 +147,7 @@ impl WmCore {
         }
     }
 
+    /// Run the window manager's main loop, listening to X events and commands from the FIFO.
     pub fn main_loop(&mut self) {
         loop {
             match self.input.get_next() {
