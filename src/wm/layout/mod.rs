@@ -133,3 +133,9 @@ impl LayoutContainer {
         match_layout!(*self, ref l => l)
     }
 }
+
+impl Default for LayoutContainer {
+    fn default() -> Self {
+        LayoutContainer::Manual(Manual)
+    }
+}

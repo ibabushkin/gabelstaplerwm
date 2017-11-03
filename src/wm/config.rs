@@ -32,7 +32,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use std::collections::HashSet;
+
+use wm::layout::LayoutContainer;
+use wm::tree::{Arena, Geometry};
+
+#[derive(PartialEq, Eq, Hash)]
 pub enum Tag {
     Work(i8),
     NonWork,
+}
+
+pub fn arena_init(default_screen_geometry: Geometry) -> Arena {
+    let mut default_tagset = HashSet::new();
+    default_tagset.insert(Tag::NonWork);
+
+    let default_layout = LayoutContainer::default();
+
+    Arena::new(default_tagset, default_layout, default_screen_geometry)
 }

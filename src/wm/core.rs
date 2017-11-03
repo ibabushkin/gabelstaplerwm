@@ -39,7 +39,9 @@ use libc;
 
 use xcb::base::*;
 
+use wm::config;
 use wm::msg::Message;
+use wm::tree::Arena;
 
 /// Construct a `pollfd` struct from a file reference.
 fn setup_pollfd_from_file(fd: &File) -> libc::pollfd {
@@ -136,6 +138,8 @@ pub struct WmCore {
     input: CommandInput,
     /// The screen number the window manager is running on.
     screen_num: i32,
+    /// The place where all the internal tree datastructures play.
+    arena: Arena,
 }
 
 impl WmCore {
@@ -144,6 +148,7 @@ impl WmCore {
         WmCore {
             input: CommandInput::new(fifo, con),
             screen_num,
+            arena: config::arena_init(Default::default()), // TODO
         }
     }
 

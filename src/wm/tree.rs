@@ -42,6 +42,7 @@ use wm::layout::LayoutContainer;
 /// A rectangle somewhere on screen.
 ///
 /// Could represent a client's geometry, a screen, or something else.
+#[derive(Default)]
 pub struct Geometry {
     /// The x coordinate of the upper left corner of the rectangle.
     x: u32,
