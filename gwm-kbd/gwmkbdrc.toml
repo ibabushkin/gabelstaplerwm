@@ -1,0 +1,32 @@
+modkey = "mod4"
+
+modes = [
+    "normal", # first is default
+    "swap",
+    "move",
+    "ignore",
+]
+
+[modes.normal]
+enter_binding = "$modkey+n"
+enter_binding_quick_leave = "$modkey+M n"
+enter_command = "echo 'n'"
+leave_command = "echo '!n'"
+
+[modes.normal.bindings]
+"$modkey+h" = "echo h"
+"$modkey+j" = "echo j"
+"$modkey+k" = "echo k"
+"$modkey+l" = "echo l"
+
+[modes.swap]
+enter_binding = "$modkey+s"
+enter_binding_quick_leave = "$modkey+M s"
+
+[modes.move]
+enter_binding = "$modkey+m"
+enter_binding_quick_leave = "$modkey+M m"
+
+[modes.ignore]
+enter_binding = "$modkey+i"
+enter_binding_quick_leave = "$modkey+M i"
