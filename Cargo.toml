@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "src/gabelstaplerwm-core"
+    "gwm-core",
+    "gwm-kbd",
 ]
 
 [profile.release]

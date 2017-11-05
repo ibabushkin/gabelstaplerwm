@@ -1,0 +1,19 @@
+[package]
+name = "gwm-kbd"
+version = "0.1.0"
+authors = ["Inokentiy Babushkin <twk@twki.de>"]
+description = "A keybinding deamon for gabelstaplerwm."
+documentation = "https://ibabushkin.github.io/rustdoc/gabelstaplerwm/"
+homepage = "https://ibabushkin.github.io/"
+repository = "https://github.com/ibabushkin/gabelstaplerwm"
+readme = "../README.md"
+keywords = ["xcb", "window manager", "X"]
+license = "BSD3"
+
+[dependencies]
+# libc = "^0.2"
+env_logger = "^0.4"
+getopts = "0.2.15"
+log = "^0.3"
+xcb = { version = "^0.8", features = ["xkb"] }
+# pledge = { version = "*", optional = true }

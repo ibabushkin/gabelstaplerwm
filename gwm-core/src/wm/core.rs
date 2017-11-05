@@ -136,8 +136,8 @@ impl CommandInput {
 pub struct WmCore {
     /// The input source to use.
     input: CommandInput,
-    /// The screen number the window manager is running on.
-    screen_num: i32,
+    // The root window.
+    // root: Window,
     /// The place where all the internal tree datastructures play.
     arena: Arena,
 }
@@ -145,9 +145,32 @@ pub struct WmCore {
 impl WmCore {
     /// Construct a new window manager core object from the necessary parameters.
     pub fn new(fifo: File, con: &Connection, screen_num: i32) -> WmCore {
+        // TODO: error handling.
+        let screen = con.get_setup().roots().nth(screen_num as usize).unwrap();
+
+        // TODO: set up RANDR, set up ewmh stuff - set up dependency etc
+        // then rewrite the ugly handling code from before using that
+        /* let values = randr::NOTIFY_MASK_CRTC_CHANGE | randr::NOTIFY_MASK_SCREEN_CHANGE;
+        let cookie = randr::select_input(self.con, self.root, values as u16);
+        let cookie2 = randr::query_version(self.con, 1, 2);
+        let randr_query = self.con.get_extension_data(&mut randr::id());
+
+        match (cookie.request_check(), cookie2.get_reply(), randr_query) {
+            (Ok(()), Ok(ref r), Some(ref res)) =>
+                if r.major_version() == 1 && r.minor_version() >= 2 {
+                    self.randr_base = res.first_event();
+                    debug!("got RANDR base: {}", self.randr_base);
+                    Ok(())
+                } else {
+                    Err(WmError::RandRVersionMismatch)
+                },
+            (Err(_), _, _) => Err(WmError::RandRSetupFailed),
+            (_, Err(_), _) | (_, _, None) => Err(WmError::RandRVersionMismatch),
+        } */
+
         WmCore {
             input: CommandInput::new(fifo, con),
-            screen_num,
+            // root: screen.root(),
             arena: config::arena_init(Default::default()), // TODO
         }
     }
