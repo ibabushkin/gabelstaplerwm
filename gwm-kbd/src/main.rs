@@ -31,5 +31,53 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+extern crate toml;
+extern crate xcb;
+extern crate xkb;
 
-fn main() { }
+use std::collections::BTreeMap;
+
+use xcb::base::*;
+use xcb::xkb as xxkb;
+
+use xkb::x11 as x11;
+
+pub type Mode = usize;
+pub type KeyIndex = usize;
+
+pub struct State {
+    current_mode: Mode,
+    modes: Vec<String>,
+    modkey: xkb::Keysym,
+    keys: Vec<xkb::Keysym>,
+    bindings: BTreeMap<(Mode, KeyIndex), String>,
+}
+
+fn main() {
+    let (con, screen_num) = match Connection::connect(None) {
+        Ok(c) => c,
+        Err(e) => {
+            panic!("no connection");
+        },
+    };
+
+    let cookie =
+        xxkb::use_extension(&con, x11::MIN_MAJOR_XKB_VERSION, x11::MIN_MINOR_XKB_VERSION);
+
+    match cookie.get_reply() {
+        Ok(r) => {
+            if !r.supported() {
+                panic!("not supported");
+            }
+        },
+        Err(e) => {
+            panic!("no reply");
+        },
+    };
+
+    let core_dev_id = match x11::device(&con) {
+        Ok(id) => id,
+        Err(()) => panic!("no core device id"),
+    };
+
+}

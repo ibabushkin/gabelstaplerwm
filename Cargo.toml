@@ -12,3 +12,6 @@ lto = true
 debug-assertions = false
 codegen-units = 1
 panic = 'abort'
+
+[replace]
+"xkb:0.1.2" = { git = "https://github.com/ibabushkin/rust-xkb" }

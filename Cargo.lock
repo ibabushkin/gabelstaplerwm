@@ -145,12 +145,19 @@ dependencies = [
 [[package]]
 name = "xkb"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/ibabushkin/rust-xkb#5755fc390f0678bebc4de4850e5d4f85e7d7a685"
 dependencies = [
  "bitflags 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xcb 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "xkbcommon-sys 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "xkb"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+replace = "xkb 0.1.2 (git+https://github.com/ibabushkin/rust-xkb)"
 
 [[package]]
 name = "xkbcommon-sys"
@@ -180,5 +187,6 @@ dependencies = [
 "checksum utf8-ranges 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "662fab6525a98beff2921d7f61a39e7d59e0b425ebc7d0d9e66d316e55124122"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 "checksum xcb 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "400cebeaedeca931825f11606874080f18aa51370dd3d7e11bc08d5aac8b3142"
+"checksum xkb 0.1.2 (git+https://github.com/ibabushkin/rust-xkb)" = "<none>"
 "checksum xkb 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "42764ccddb00e7d9dafb44dda2f926a8643692c901feca5a4e6b2774c4587c0e"
 "checksum xkbcommon-sys 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)" = "fa434980dca02ebf28795d71e570dbb78316d095a228707efd6117bf8246d78b"
