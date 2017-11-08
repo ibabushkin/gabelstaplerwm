@@ -40,6 +40,7 @@ use std::collections::BTreeMap;
 use xcb::base::*;
 use xcb::xkb as xxkb;
 
+use xkb::context::Context;
 use xkb::x11 as x11;
 
 pub type Mode = usize;
@@ -79,5 +80,47 @@ fn main() {
         Ok(id) => id,
         Err(()) => panic!("no core device id"),
     };
+    let context = Context::default();
+    let keymap = match x11::keymap(&con, core_dev_id, &context, Default::default()) {
+        Ok(k) => k,
+        Err(()) => panic!("no keymap"),
+    };
+    let state = match x11::state(&con, core_dev_id, &keymap) {
+        Ok(s) => s,
+        Err(()) => panic!("no state"),
+    };
 
+    let map_parts =
+        xxkb::MAP_PART_KEY_TYPES |
+        xxkb::MAP_PART_KEY_SYMS |
+        xxkb::MAP_PART_MODIFIER_MAP |
+        xxkb::MAP_PART_EXPLICIT_COMPONENTS |
+        xxkb::MAP_PART_KEY_ACTIONS |
+        xxkb::MAP_PART_KEY_BEHAVIORS |
+        xxkb::MAP_PART_VIRTUAL_MODS |
+        xxkb::MAP_PART_VIRTUAL_MOD_MAP;
+
+    let events =
+        xxkb::EVENT_TYPE_NEW_KEYBOARD_NOTIFY |
+        xxkb::EVENT_TYPE_MAP_NOTIFY |
+        xxkb::EVENT_TYPE_STATE_NOTIFY;
+
+    let cookie =
+        xxkb::select_events_checked(&con,
+                                    core_dev_id as u16,
+                                    events as u16,
+                                    0,
+                                    events as u16,
+                                    map_parts as u16,
+                                    map_parts as u16,
+                                    None);
+
+    cookie.request_check().expect("no events selected");
+
+    loop {
+        con.flush();
+        let event = con.wait_for_event().unwrap();
+
+        eprintln!("event received: {}", event.response_type());
+    }
 }
