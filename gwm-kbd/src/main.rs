@@ -61,26 +61,39 @@ pub struct State {
 
 impl State {
     fn from_config(path: &Path) -> Option<State> {
+        eprintln!("loading config");
+
         let mut tree = if let Some(t) = parse_config_file(path) {
             t
         } else {
             return None;
         };
 
-        let modkey = if let Some(Value::String(s)) = tree.remove("mod4") {
+        eprintln!("loaded config");
+
+        let modkey = if let Some(Value::String(s)) = tree.remove("modkey") {
             s
         } else {
             return None;
         };
 
-        let modes = if let Some(Value::Array(m)) = tree.remove("modes") {
-            m
+        eprintln!("modkey: {}", modkey);
+
+        let default_mode = if let Some(Value::String(s)) = tree.remove("default_mode") {
+            s
         } else {
             return None;
         };
 
-        for mode in &modes {
+        let modes = if let Some(Value::Table(m)) = tree.remove("modes") {
+            m
+        } else {
+            return None;
+        };
+        eprintln!("modes: {:?}", modes);
 
+        for mode in &modes {
+            eprintln!("mode: {:?}", mode);
         }
 
         None
@@ -91,6 +104,7 @@ fn parse_config_file(path: &Path) -> Option<Table> {
     if let Ok(mut file) = File::open(path) {
         let mut toml_str = String::new();
         if file.read_to_string(&mut toml_str).is_ok() {
+            eprintln!("{:?}", toml_str.parse::<Value>());
             return toml_str.parse::<Value>().ok().and_then(|v| if let Value::Table(t) = v {
                 Some(t)
             } else {
@@ -103,6 +117,8 @@ fn parse_config_file(path: &Path) -> Option<Table> {
 }
 
 fn main() {
+    let state = State::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"));
+
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(e) => {
