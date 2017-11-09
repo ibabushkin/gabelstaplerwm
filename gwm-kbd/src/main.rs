@@ -36,6 +36,11 @@ extern crate xcb;
 extern crate xkb;
 
 use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
+
+use toml::value::{Table, Value};
 
 use xcb::base::*;
 use xcb::xkb as xxkb;
@@ -52,6 +57,49 @@ pub struct State {
     modkey: xkb::Keysym,
     keys: Vec<xkb::Keysym>,
     bindings: BTreeMap<(Mode, KeyIndex), String>,
+}
+
+impl State {
+    fn from_config(path: &Path) -> Option<State> {
+        let mut tree = if let Some(t) = parse_config_file(path) {
+            t
+        } else {
+            return None;
+        };
+
+        let modkey = if let Some(Value::String(s)) = tree.remove("mod4") {
+            s
+        } else {
+            return None;
+        };
+
+        let modes = if let Some(Value::Array(m)) = tree.remove("modes") {
+            m
+        } else {
+            return None;
+        };
+
+        for mode in &modes {
+
+        }
+
+        None
+    }
+}
+
+fn parse_config_file(path: &Path) -> Option<Table> {
+    if let Ok(mut file) = File::open(path) {
+        let mut toml_str = String::new();
+        if file.read_to_string(&mut toml_str).is_ok() {
+            return toml_str.parse::<Value>().ok().and_then(|v| if let Value::Table(t) = v {
+                Some(t)
+            } else {
+                None
+            });
+        }
+    }
+
+    None
 }
 
 fn main() {
