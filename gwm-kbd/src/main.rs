@@ -105,9 +105,12 @@ fn main() {
         xxkb::EVENT_TYPE_MAP_NOTIFY |
         xxkb::EVENT_TYPE_STATE_NOTIFY;
 
+    let xkb_base = con.get_extension_data(&mut xxkb::id()).unwrap().first_event();
+    eprintln!("xkb base: {}", xkb_base);
+
     let cookie =
         xxkb::select_events_checked(&con,
-                                    core_dev_id as u16,
+                                    xxkb::ID_USE_CORE_KBD as u16,
                                     events as u16,
                                     0,
                                     events as u16,
@@ -117,10 +120,37 @@ fn main() {
 
     cookie.request_check().expect("no events selected");
 
+    let flags =
+        xxkb::PER_CLIENT_FLAG_GRABS_USE_XKB_STATE |
+        xxkb::PER_CLIENT_FLAG_LOOKUP_STATE_WHEN_GRABBED;
+
+    let cookie =
+        xxkb::per_client_flags(&con, xxkb::ID_USE_CORE_KBD as u16, flags, flags, 0, 0, 0);
+
+    cookie.get_reply().expect("no flags set");
+
     loop {
         con.flush();
         let event = con.wait_for_event().unwrap();
+        let event_type = if event.response_type() >= xkb_base {
+            event.response_type() - xkb_base
+        } else {
+            event.response_type()
+        };
 
-        eprintln!("event received: {}", event.response_type());
+        match event_type {
+            xxkb::NEW_KEYBOARD_NOTIFY => {
+                eprintln!("new keyboard notify: {}", event.response_type());
+            },
+            xxkb::MAP_NOTIFY => {
+                eprintln!("map notify: {}", event.response_type());
+            },
+            xxkb::STATE_NOTIFY => {
+                eprintln!("state notify: {}", event.response_type());
+            },
+            _ => {
+                eprintln!("unknown event: {}", event.response_type());
+            },
+        }
     }
 }
