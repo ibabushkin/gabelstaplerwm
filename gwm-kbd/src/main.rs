@@ -53,7 +53,7 @@ pub type KeyIndex = usize;
 
 pub struct State {
     current_mode: Mode,
-    modes: Vec<String>,
+    modes: Vec<ModeDesc>,
     modkey: xkb::Keysym,
     keys: Vec<xkb::Keysym>,
     bindings: BTreeMap<(Mode, KeyIndex), String>,
@@ -61,15 +61,12 @@ pub struct State {
 
 impl State {
     fn from_config(path: &Path) -> Option<State> {
-        eprintln!("loading config");
-
         let mut tree = if let Some(t) = parse_config_file(path) {
+            eprintln!("loaded config");
             t
         } else {
             return None;
         };
-
-        eprintln!("loaded config");
 
         let modkey = if let Some(Value::String(s)) = tree.remove("modkey") {
             s
@@ -85,26 +82,53 @@ impl State {
             return None;
         };
 
+        let mut found_default_mode = false;
+
         let modes = if let Some(Value::Table(m)) = tree.remove("modes") {
             m
         } else {
             return None;
         };
-        eprintln!("modes: {:?}", modes);
 
-        for mode in &modes {
+        for (mode_name, mut mode) in modes {
+            found_default_mode |= *mode_name == default_mode;
+
             eprintln!("mode: {:?}", mode);
+
+            let mut mode_table = if let Value::Table(mode) = mode {
+                mode
+            } else {
+                return None;
+            };
+
+            let enter_binding =
+                if let Some(Value::String(s)) = mode_table.remove("enter_binding") {
+                    s
+                } else {
+                    return None;
+                };
+        }
+
+        if !found_default_mode {
+            return None;
         }
 
         None
     }
 }
 
+struct ModeDesc {
+    name: String,
+    enter_binding: (),
+    enter_binding_quick_leave: (),
+    enter_command: Option<String>,
+    leave_command: Option<String>,
+}
+
 fn parse_config_file(path: &Path) -> Option<Table> {
     if let Ok(mut file) = File::open(path) {
         let mut toml_str = String::new();
         if file.read_to_string(&mut toml_str).is_ok() {
-            eprintln!("{:?}", toml_str.parse::<Value>());
             return toml_str.parse::<Value>().ok().and_then(|v| if let Value::Table(t) = v {
                 Some(t)
             } else {
