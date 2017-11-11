@@ -37,16 +37,28 @@ extern crate xkb;
 
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::Read;
+use std::io::Error as IoError;
+use std::io::prelude::*;
 use std::path::Path;
 
-use toml::value::{Table, Value};
+use toml::value::{Array, Table, Value};
 
 use xcb::base::*;
 use xcb::xkb as xxkb;
 
 use xkb::context::Context;
 use xkb::x11 as x11;
+
+pub enum ConfigError {
+    IOError(IoError),
+    TomlError(toml::de::Error),
+    TomlNotTable,
+    KeyMissing(String),
+    KeyTypeMismatch(String),
+    InvalidDefaultMode(String),
+}
+
+type ConfigResult<T> = Result<T, ConfigError>;
 
 pub type Mode = usize;
 pub type KeyIndex = usize;
@@ -60,60 +72,51 @@ pub struct State {
 }
 
 impl State {
-    fn from_config(path: &Path) -> Option<State> {
-        let mut tree = if let Some(t) = parse_config_file(path) {
-            eprintln!("loaded config");
-            t
-        } else {
-            return None;
-        };
+    fn from_config(path: &Path) -> ConfigResult<State> {
+        let mut tree = parse_config_file(path)?;
+        eprintln!("parsed config");
 
-        let modkey = if let Some(Value::String(s)) = tree.remove("modkey") {
-            s
-        } else {
-            return None;
-        };
-
+        let modkey = extract_string(&mut tree, "modkey")?;
         eprintln!("modkey: {}", modkey);
 
-        let default_mode = if let Some(Value::String(s)) = tree.remove("default_mode") {
-            s
-        } else {
-            return None;
-        };
-
+        let default_mode = extract_string(&mut tree, "default_mode")?;
         let mut found_default_mode = false;
 
-        let modes = if let Some(Value::Table(m)) = tree.remove("modes") {
-            m
-        } else {
-            return None;
-        };
+        let mode_set = extract_array(&mut tree, "active_modes")?;
+        let mut modes = extract_table(&mut tree, "modes")?;
+        let mut i = 0;
 
-        for (mode_name, mut mode) in modes {
-            found_default_mode |= *mode_name == default_mode;
-
-            eprintln!("mode: {:?}", mode);
-
-            let mut mode_table = if let Value::Table(mode) = mode {
-                mode
+        for mode_name in mode_set {
+            let mode_name = if let Value::String(s) = mode_name {
+                s
             } else {
-                return None;
+                return Err(ConfigError::KeyTypeMismatch(format!("active_modes.{}", i)));
             };
 
-            let enter_binding =
-                if let Some(Value::String(s)) = mode_table.remove("enter_binding") {
-                    s
-                } else {
-                    return None;
-                };
+            found_default_mode |= mode_name == default_mode;
+
+            let mut mode = extract_table(&mut modes, &mode_name)?;
+
+            let enter_binding = extract_string(&mut mode, "enter_binding")?;
+            let enter_binding_quick_leave =
+                extract_string(&mut mode, "enter_binding_quick_leave")?;
+            let enter_command = extract_string(&mut mode, "enter_command")?;
+            let leave_command = extract_string(&mut mode, "leave_command")?;
+
+            i += 1;
         }
 
         if !found_default_mode {
-            return None;
+            Err(ConfigError::InvalidDefaultMode(default_mode))
+        } else {
+            Ok(State {
+                current_mode: 0,
+                modes: Vec::new(),
+                modkey: xkb::Keysym(0),
+                keys: Vec::new(),
+                bindings: BTreeMap::new(),
+            })
         }
-
-        None
     }
 }
 
@@ -125,19 +128,51 @@ struct ModeDesc {
     leave_command: Option<String>,
 }
 
-fn parse_config_file(path: &Path) -> Option<Table> {
-    if let Ok(mut file) = File::open(path) {
-        let mut toml_str = String::new();
-        if file.read_to_string(&mut toml_str).is_ok() {
-            return toml_str.parse::<Value>().ok().and_then(|v| if let Value::Table(t) = v {
-                Some(t)
-            } else {
-                None
-            });
-        }
-    }
+fn parse_config_file(path: &Path) -> ConfigResult<Table> {
+    match File::open(path) {
+        Ok(mut file) => {
+            let mut toml_str = String::new();
 
-    None
+            match file.read_to_string(&mut toml_str) {
+                Ok(_) => {
+                    toml_str
+                        .parse::<Value>()
+                        .map_err(ConfigError::TomlError)
+                        .and_then(|v| if let Value::Table(t) = v {
+                            Ok(t)
+                        } else {
+                            Err(ConfigError::TomlNotTable)
+                        })
+                },
+                Err(io_error) => Err(ConfigError::IOError(io_error)),
+            }
+        },
+        Err(io_error) => Err(ConfigError::IOError(io_error)),
+    }
+}
+
+fn extract_string(table: &mut Table, key: &str) -> ConfigResult<String> {
+    match table.remove(key) {
+        Some(Value::String(s)) => Ok(s),
+        Some(_) => Err(ConfigError::KeyTypeMismatch(key.to_owned())),
+        None => Err(ConfigError::KeyMissing(key.to_owned())),
+    }
+}
+
+fn extract_table(table: &mut Table, key: &str) -> ConfigResult<Table> {
+    match table.remove(key) {
+        Some(Value::Table(t)) => Ok(t),
+        Some(_) => Err(ConfigError::KeyTypeMismatch(key.to_owned())),
+        None => Err(ConfigError::KeyMissing(key.to_owned())),
+    }
+}
+
+fn extract_array(table: &mut Table, key: &str) -> ConfigResult<Array> {
+    match table.remove(key) {
+        Some(Value::Array(a)) => Ok(a),
+        Some(_) => Err(ConfigError::KeyTypeMismatch(key.to_owned())),
+        None => Err(ConfigError::KeyMissing(key.to_owned())),
+    }
 }
 
 fn main() {
