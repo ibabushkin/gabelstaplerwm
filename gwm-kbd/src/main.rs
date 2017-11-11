@@ -31,11 +31,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+extern crate env_logger;
+#[macro_use]
+extern crate log;
 extern crate toml;
 extern crate xcb;
 extern crate xkb;
 
 use std::collections::BTreeMap;
+use std::env::remove_var;
 use std::fs::File;
 use std::io::Error as IoError;
 use std::io::prelude::*;
@@ -74,10 +78,10 @@ pub struct State {
 impl State {
     fn from_config(path: &Path) -> ConfigResult<State> {
         let mut tree = parse_config_file(path)?;
-        eprintln!("parsed config");
+        info!("parsed config");
 
         let modkey = extract_string(&mut tree, "modkey")?;
-        eprintln!("modkey: {}", modkey);
+        debug!("modkey: {}", modkey);
 
         let default_mode = extract_string(&mut tree, "default_mode")?;
         let mut found_default_mode = false;
@@ -175,7 +179,18 @@ fn extract_array(table: &mut Table, key: &str) -> ConfigResult<Array> {
     }
 }
 
+fn setup_logger() {
+    // fine to unwrap, as this is the only time we call `init`.
+    env_logger::init().unwrap();
+    info!("initialized logger");
+
+    // clean environment for cargo and other programs honoring `RUST_LOG`
+    remove_var("RUST_LOG");
+}
+
 fn main() {
+    setup_logger();
+
     let state = State::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"));
 
     let (con, screen_num) = match Connection::connect(None) {
@@ -229,7 +244,7 @@ fn main() {
         xxkb::EVENT_TYPE_STATE_NOTIFY;
 
     let xkb_base = con.get_extension_data(&mut xxkb::id()).unwrap().first_event();
-    eprintln!("xkb base: {}", xkb_base);
+    debug!("xkb base: {}", xkb_base);
 
     let cookie =
         xxkb::select_events_checked(&con,
@@ -263,16 +278,16 @@ fn main() {
 
         match event_type {
             xxkb::NEW_KEYBOARD_NOTIFY => {
-                eprintln!("new keyboard notify: {}", event.response_type());
+                debug!("new keyboard notify: {}", event.response_type());
             },
             xxkb::MAP_NOTIFY => {
-                eprintln!("map notify: {}", event.response_type());
+                debug!("map notify: {}", event.response_type());
             },
             xxkb::STATE_NOTIFY => {
-                eprintln!("state notify: {}", event.response_type());
+                debug!("state notify: {}", event.response_type());
             },
             _ => {
-                eprintln!("unknown event: {}", event.response_type());
+                debug!("unknown event: {}", event.response_type());
             },
         }
     }
