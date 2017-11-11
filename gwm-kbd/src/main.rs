@@ -59,7 +59,6 @@ pub enum ConfigError {
     TomlNotTable,
     KeyMissing(String),
     KeyTypeMismatch(String),
-    InvalidDefaultMode(String),
 }
 
 type ConfigResult<T> = Result<T, ConfigError>;
@@ -83,9 +82,6 @@ impl State {
         let modkey = extract_string(&mut tree, "modkey")?;
         debug!("modkey: {}", modkey);
 
-        let default_mode = extract_string(&mut tree, "default_mode")?;
-        let mut found_default_mode = false;
-
         let mode_set = extract_array(&mut tree, "active_modes")?;
         let mut modes = extract_table(&mut tree, "modes")?;
         let mut i = 0;
@@ -96,8 +92,6 @@ impl State {
             } else {
                 return Err(ConfigError::KeyTypeMismatch(format!("active_modes.{}", i)));
             };
-
-            found_default_mode |= mode_name == default_mode;
 
             let mut mode = extract_table(&mut modes, &mode_name)?;
 
@@ -110,17 +104,13 @@ impl State {
             i += 1;
         }
 
-        if !found_default_mode {
-            Err(ConfigError::InvalidDefaultMode(default_mode))
-        } else {
-            Ok(State {
-                current_mode: 0,
-                modes: Vec::new(),
-                modkey: xkb::Keysym(0),
-                keys: Vec::new(),
-                bindings: BTreeMap::new(),
-            })
-        }
+        Ok(State {
+            current_mode: 0,
+            modes: Vec::new(),
+            modkey: xkb::Keysym(0),
+            keys: Vec::new(),
+            bindings: BTreeMap::new(),
+        })
     }
 }
 

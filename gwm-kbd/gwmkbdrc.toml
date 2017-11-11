@@ -1,6 +1,11 @@
 modkey = "mod4"
 
-default_mode = "normal"
+active_modes = [
+  "normal", # first mode listed is default
+  "swap",
+  "move",
+  "ignore"
+]
 
 [modes.normal]
 enter_binding = "$modkey+n"
