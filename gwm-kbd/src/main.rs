@@ -31,6 +31,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 extern crate env_logger;
 #[macro_use]
 extern crate log;
@@ -44,6 +45,7 @@ use std::fs::File;
 use std::io::Error as IoError;
 use std::io::prelude::*;
 use std::path::Path;
+use std::process::Command;
 
 use toml::value::{Array, Table, Value};
 
@@ -53,28 +55,67 @@ use xcb::xkb as xxkb;
 use xkb::context::Context;
 use xkb::x11 as x11;
 
+/// An error occured when reading in the configuration.
 pub enum ConfigError {
+    /// An I/O error occured.
     IOError(IoError),
+    /// The TOML content of the config file is invalid.
     TomlError(toml::de::Error),
+    /// The TOML file does not contain a toplevel table.
     TomlNotTable,
+    /// A necessary config key is missing.
     KeyMissing(String),
+    /// A config key holds a value of the wrong type.
     KeyTypeMismatch(String),
 }
 
+/// A result returned when reading in the configuration.
 type ConfigResult<T> = Result<T, ConfigError>;
 
+/// An index representing a mode.
 pub type Mode = usize;
+
+/// An index representing a keysym.
+///
+/// TODO: not sure why we want this.
 pub type KeyIndex = usize;
 
+/// A shell command to be called in reaction to specific key events.
+pub struct Cmd {
+    /// The string to be passed to a shell to execute the command.
+    repr: String,
+}
+
+impl Cmd {
+    pub fn run(&self) {
+        let _ = Command::new("sh")
+            .args(&["-c", &self.repr])
+            .spawn();
+    }
+}
+
+pub struct ChordDesc {
+    // TODO
+}
+
+/// The current state of the daemon.
 pub struct State {
+    /// The currently active keymap mode.
     current_mode: Mode,
+    /// The vector of all modes the daemon is aware of.
     modes: Vec<ModeDesc>,
+    /// The main modkey to use.
     modkey: xkb::Keysym,
+    /// The set of known keysyms.
+    ///
+    /// TODO: not sure why we want this.
     keys: Vec<xkb::Keysym>,
-    bindings: BTreeMap<(Mode, KeyIndex), String>,
+    /// The bindings registered in all modes.
+    bindings: BTreeMap<(Mode, KeyIndex), Cmd>,
 }
 
 impl State {
+    /// Construct an initial daemon state from a configuration file.
     fn from_config(path: &Path) -> ConfigResult<State> {
         let mut tree = parse_config_file(path)?;
         info!("parsed config");
@@ -114,14 +155,22 @@ impl State {
     }
 }
 
+/// A mode description.
 struct ModeDesc {
+    /// Name of the mode.
     name: String,
+    /// A binding which changes the current mode to the given one.
     enter_binding: (),
+    /// A binding which leaves the current mode untouched, but interprets the next keybinding as
+    /// if it was activated in the given mode.
     enter_binding_quick_leave: (),
-    enter_command: Option<String>,
-    leave_command: Option<String>,
+    /// An optional command to execute when the given mode is activated.
+    enter_command: Option<Cmd>,
+    /// An optional command to execute when the given mode is left.
+    leave_command: Option<Cmd>,
 }
 
+/// Try to parse a TOML table from a config file, given as a path.
 fn parse_config_file(path: &Path) -> ConfigResult<Table> {
     match File::open(path) {
         Ok(mut file) => {
@@ -145,6 +194,7 @@ fn parse_config_file(path: &Path) -> ConfigResult<Table> {
     }
 }
 
+/// Extract a key value from a table as a string.
 fn extract_string(table: &mut Table, key: &str) -> ConfigResult<String> {
     match table.remove(key) {
         Some(Value::String(s)) => Ok(s),
@@ -153,6 +203,7 @@ fn extract_string(table: &mut Table, key: &str) -> ConfigResult<String> {
     }
 }
 
+/// Extract a key value from a table as a table.
 fn extract_table(table: &mut Table, key: &str) -> ConfigResult<Table> {
     match table.remove(key) {
         Some(Value::Table(t)) => Ok(t),
@@ -161,6 +212,7 @@ fn extract_table(table: &mut Table, key: &str) -> ConfigResult<Table> {
     }
 }
 
+/// Extract a key value from a table as an array.
 fn extract_array(table: &mut Table, key: &str) -> ConfigResult<Array> {
     match table.remove(key) {
         Some(Value::Array(a)) => Ok(a),
@@ -169,6 +221,7 @@ fn extract_array(table: &mut Table, key: &str) -> ConfigResult<Array> {
     }
 }
 
+/// Initialize the logger.
 fn setup_logger() {
     // fine to unwrap, as this is the only time we call `init`.
     env_logger::init().unwrap();
@@ -178,6 +231,7 @@ fn setup_logger() {
     remove_var("RUST_LOG");
 }
 
+/// Main routine.
 fn main() {
     setup_logger();
 
@@ -260,7 +314,31 @@ fn main() {
     loop {
         con.flush();
         let event = con.wait_for_event().unwrap();
-        let event_type = if event.response_type() >= xkb_base {
+        if event.response_type() == xkb_base {
+            let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
+            debug!("received XKB event: {}", event.xkb_type());
+
+            match event.xkb_type() {
+                xxkb::NEW_KEYBOARD_NOTIFY => {
+                    debug!("xkb event: NEW_KEYBOARD_NOTIFY");
+                },
+                xxkb::MAP_NOTIFY => {
+                    debug!("xkb event: MAP_NOTIFY");
+                },
+                xxkb::STATE_NOTIFY => {
+                    debug!("xkb event: STATE_NOTIFY");
+                    debug!("mods: {}, group: {}, keycode: {}, event_type: {}",
+                           event.mods(), event.group(), event.keycode(), event.event_type());
+                },
+                t => {
+                    debug!("xkb event (unknown): {}", t);
+                },
+            }
+        } else {
+            debug!("received event: {}", event.response_type());
+        }
+
+        /* let event_type = if event.response_type() >= xkb_base {
             event.response_type() - xkb_base
         } else {
             event.response_type()
@@ -279,6 +357,6 @@ fn main() {
             _ => {
                 debug!("unknown event: {}", event.response_type());
             },
-        }
+        }*/
     }
 }
