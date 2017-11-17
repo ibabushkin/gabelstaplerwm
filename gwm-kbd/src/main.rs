@@ -337,26 +337,11 @@ fn main() {
         } else {
             debug!("received event: {}", event.response_type());
         }
-
-        /* let event_type = if event.response_type() >= xkb_base {
-            event.response_type() - xkb_base
-        } else {
-            event.response_type()
-        };
-
-        match event_type {
-            xxkb::NEW_KEYBOARD_NOTIFY => {
-                debug!("new keyboard notify: {}", event.response_type());
-            },
-            xxkb::MAP_NOTIFY => {
-                debug!("map notify: {}", event.response_type());
-            },
-            xxkb::STATE_NOTIFY => {
-                debug!("state notify: {}", event.response_type());
-            },
-            _ => {
-                debug!("unknown event: {}", event.response_type());
-            },
-        }*/
     }
 }
+
+// comparison mechanism to use:
+// (keysym == shortcut_keysym) &&
+// ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
+// xkb_state_mod_index_is_active etc
+// xkb_state_mod_index_is_consumed etc
