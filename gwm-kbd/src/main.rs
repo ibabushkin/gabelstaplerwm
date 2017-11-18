@@ -47,6 +47,7 @@ use std::io::Error as IoError;
 use std::io::prelude::*;
 use std::path::Path;
 use std::process::Command;
+use std::str::FromStr;
 
 use toml::value::{Array, Table, Value};
 
@@ -68,6 +69,8 @@ pub enum ConfigError {
     KeyMissing(String),
     /// A config key holds a value of the wrong type.
     KeyTypeMismatch(String),
+    /// A Keysym could not be parsed.
+    KeysymCouldNotBeParsed(String),
 }
 
 /// A result returned when reading in the configuration.
@@ -107,8 +110,58 @@ impl PartialOrd for Keysym {
     }
 }
 
-pub struct KeyDesc {
-    // TODO: store modifiers we care about, a keycode
+#[derive(PartialEq, Eq)]
+pub struct ChordDesc {
+    // keysym
+    keysym: Keysym,
+    // non-consumed mods
+    mods: xkb::ModMask,
+}
+
+impl Ord for ChordDesc {
+    fn cmp(&self, other: &ChordDesc) -> Ordering {
+        let mods: u32 = self.mods.into();
+
+        self.keysym.cmp(&other.keysym).then(mods.cmp(&other.mods.into()))
+    }
+}
+
+impl PartialOrd for ChordDesc {
+    fn partial_cmp(&self, other: &ChordDesc) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl ChordDesc {
+    // assumes no spaces are present in the string
+    fn from_string(desc: &str, modkey_sym: Keysym) -> /* ConfigResult<ChordDesc> */ () {
+        let mut mods = Vec::new();
+        // let mut key = None;
+
+        for word in desc.split('+') {
+            if word == "$modkey" {
+                mods.push(modkey_sym);
+            } else if let Ok(sym) = xkb::Keysym::from_str(word) {
+                debug!("keysym decoded: {:?}", sym);
+            } else {
+                error!("could not decode keysym from word, continuing: {}", word);
+            }
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+pub struct ChainDesc {
+    // the chords in the chain, in order
+    chords: Vec<ChordDesc>,
+}
+
+impl ChainDesc {
+    fn from_string(desc: &str, modkey_sym: Keysym) -> () /* ConfigResult<ChainDesc> */ {
+        for expr in desc.split(' ') {
+            let chord = ChordDesc::from_string(expr, modkey_sym);
+        }
+    }
 }
 
 /// The current state of the daemon.
@@ -118,11 +171,9 @@ pub struct State {
     /// The vector of all modes the daemon is aware of.
     modes: Vec<ModeDesc>,
     /// The main modkey to use.
-    modkey: xkb::Keysym,
-    /// Key map representing actual keys on the keyboard.
-    keys: BTreeMap<Keysym, KeyDesc>,
+    modkey: xkb::ModMask,
     /// The bindings registered in all modes.
-    bindings: BTreeMap<(Mode, Keysym), Cmd>,
+    bindings: BTreeMap<(Mode, ChainDesc), Cmd>,
 }
 
 impl State {
@@ -131,8 +182,16 @@ impl State {
         let mut tree = parse_config_file(path)?;
         info!("parsed config");
 
-        let modkey = extract_string(&mut tree, "modkey")?;
-        debug!("modkey: {}", modkey);
+        let modkey_str = extract_string(&mut tree, "modkey")?;
+        let modkey_sym = if let Ok(sym) = xkb::Keysym::from_str(&modkey_str) {
+            info!("determined modkey: {:?}", sym);
+            Keysym(sym)
+        } else {
+            error!("could not decode modkey keysym from word, aborting: {}", modkey_str);
+            return Err(ConfigError::KeysymCouldNotBeParsed(modkey_str.to_owned()));
+        };
+
+        debug!("modkey: {:?}", modkey_sym);
 
         let mode_set = extract_array(&mut tree, "active_modes")?;
         let mut modes = extract_table(&mut tree, "modes")?;
@@ -153,14 +212,20 @@ impl State {
             let enter_command = extract_string(&mut mode, "enter_command")?;
             let leave_command = extract_string(&mut mode, "leave_command")?;
 
+            let bindings = extract_table(&mut mode, "bindings")?;
+
+            for (chain_str, cmd_str) in bindings {
+                println!("mode {}: {} -> {}", mode_name, chain_str, cmd_str);
+                ChordDesc::from_string(&chain_str, modkey_sym);
+            }
+
             i += 1;
         }
 
         Ok(State {
             current_mode: 0,
             modes: Vec::new(),
-            modkey: xkb::Keysym(0),
-            keys: BTreeMap::new(),
+            modkey: xkb::ModMask(0),
             bindings: BTreeMap::new(),
         })
     }
@@ -246,7 +311,7 @@ fn setup_logger() {
 fn main() {
     setup_logger();
 
-    let state = State::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"));
+    let daemon_state = State::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"));
 
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
