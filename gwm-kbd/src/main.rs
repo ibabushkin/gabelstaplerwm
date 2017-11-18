@@ -39,6 +39,7 @@ extern crate toml;
 extern crate xcb;
 extern crate xkb;
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::env::remove_var;
 use std::fs::File;
@@ -75,11 +76,6 @@ type ConfigResult<T> = Result<T, ConfigError>;
 /// An index representing a mode.
 pub type Mode = usize;
 
-/// An index representing a keysym.
-///
-/// TODO: not sure why we want this.
-pub type KeyIndex = usize;
-
 /// A shell command to be called in reaction to specific key events.
 pub struct Cmd {
     /// The string to be passed to a shell to execute the command.
@@ -94,8 +90,25 @@ impl Cmd {
     }
 }
 
-pub struct ChordDesc {
-    // TODO
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+pub struct Keysym(xkb::Keysym);
+
+impl Ord for Keysym {
+    fn cmp(&self, other: &Keysym) -> Ordering {
+        let self_inner: u32 = self.0.into();
+
+        self_inner.cmp(&other.0.into())
+    }
+}
+
+impl PartialOrd for Keysym {
+    fn partial_cmp(&self, other: &Keysym) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+pub struct KeyDesc {
+    // TODO: store modifiers we care about, a keycode
 }
 
 /// The current state of the daemon.
@@ -106,12 +119,10 @@ pub struct State {
     modes: Vec<ModeDesc>,
     /// The main modkey to use.
     modkey: xkb::Keysym,
-    /// The set of known keysyms.
-    ///
-    /// TODO: not sure why we want this.
-    keys: Vec<xkb::Keysym>,
+    /// Key map representing actual keys on the keyboard.
+    keys: BTreeMap<Keysym, KeyDesc>,
     /// The bindings registered in all modes.
-    bindings: BTreeMap<(Mode, KeyIndex), Cmd>,
+    bindings: BTreeMap<(Mode, Keysym), Cmd>,
 }
 
 impl State {
@@ -149,7 +160,7 @@ impl State {
             current_mode: 0,
             modes: Vec::new(),
             modkey: xkb::Keysym(0),
-            keys: Vec::new(),
+            keys: BTreeMap::new(),
             bindings: BTreeMap::new(),
         })
     }
