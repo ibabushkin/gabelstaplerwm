@@ -59,6 +59,7 @@ use xkb::context::Context;
 use xkb::x11 as x11;
 
 /// An error occured when reading in the configuration.
+#[derive(Debug)]
 pub enum ConfigError {
     /// An I/O error occured.
     IOError(IoError),
@@ -74,6 +75,7 @@ pub enum ConfigError {
     KeysymCouldNotBeParsed(String),
     /// An invalid chord has been passed into the config.
     InvalidChord,
+    CommandTypeMismatch,
 }
 
 /// A result returned when reading in the configuration.
@@ -83,6 +85,7 @@ type ConfigResult<T> = Result<T, ConfigError>;
 pub type Mode = usize;
 
 /// A shell command to be called in reaction to specific key events.
+#[derive(Debug)]
 pub struct Cmd {
     /// The string to be passed to a shell to execute the command.
     repr: String,
@@ -93,6 +96,14 @@ impl Cmd {
         let _ = Command::new("sh")
             .args(&["-c", &self.repr])
             .spawn();
+    }
+
+    pub fn from_value(value: toml::Value) -> ConfigResult<Cmd> {
+        if let toml::Value::String(repr) = value {
+            Ok(Cmd { repr })
+        } else {
+            Err(ConfigError::CommandTypeMismatch)
+        }
     }
 }
 
@@ -113,7 +124,7 @@ impl PartialOrd for Keysym {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ChordDesc {
     // keysym
     keysym: Keysym,
@@ -187,28 +198,33 @@ impl ChordDesc {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChainDesc {
     // the chords in the chain, in order
     chords: Vec<ChordDesc>,
 }
 
 impl ChainDesc {
-    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> () /* ConfigResult<ChainDesc> */ {
+    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> ConfigResult<ChainDesc> {
+        let mut chords = Vec::new();
+
         for expr in desc.split(' ') {
-            let chord = ChordDesc::from_string(expr, modkey_mask);
+            chords.push(ChordDesc::from_string(expr, modkey_mask)?);
         }
+
+        Ok(ChainDesc { chords })
     }
 }
 
 /// The current state of the daemon.
+#[derive(Debug)]
 pub struct State {
     /// The currently active keymap mode.
     current_mode: Mode,
     /// The vector of all modes the daemon is aware of.
     modes: Vec<ModeDesc>,
     /// The main modkey to use.
-    modkey: xkb::ModMask,
+    modkey_mask: xkb::ModMask,
     /// The bindings registered in all modes.
     bindings: BTreeMap<(Mode, ChainDesc), Cmd>,
 }
@@ -232,6 +248,8 @@ impl State {
         let mut modes = extract_table(&mut tree, "modes")?;
         let mut i = 0;
 
+        let mut bindings = BTreeMap::new();
+
         for mode_name in mode_set {
             let mode_name = if let Value::String(s) = mode_name {
                 s
@@ -247,11 +265,13 @@ impl State {
             let enter_command = extract_string(&mut mode, "enter_command")?;
             let leave_command = extract_string(&mut mode, "leave_command")?;
 
-            let bindings = extract_table(&mut mode, "bindings")?;
+            let binds = extract_table(&mut mode, "bindings")?;
 
-            for (chain_str, cmd_str) in bindings {
+            for (chain_str, cmd_str) in binds {
                 println!("mode {}: {} -> {}", mode_name, chain_str, cmd_str);
-                ChordDesc::from_string(&chain_str, modkey_mask);
+                bindings
+                    .insert((i, ChainDesc::from_string(&chain_str, modkey_mask)?),
+                            Cmd::from_value(cmd_str)?);
             }
 
             i += 1;
@@ -260,13 +280,14 @@ impl State {
         Ok(State {
             current_mode: 0,
             modes: Vec::new(),
-            modkey: xkb::ModMask(0),
-            bindings: BTreeMap::new(),
+            modkey_mask,
+            bindings,
         })
     }
 }
 
 /// A mode description.
+#[derive(Debug)]
 struct ModeDesc {
     /// Name of the mode.
     name: String,
@@ -347,6 +368,7 @@ fn main() {
     setup_logger();
 
     let daemon_state = State::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"));
+    debug!("initial daemon state: {:?}", daemon_state);
 
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
