@@ -72,6 +72,8 @@ pub enum ConfigError {
     KeyTypeMismatch(String),
     /// A Keysym could not be parsed.
     KeysymCouldNotBeParsed(String),
+    /// An invalid chord has been passed into the config.
+    InvalidChord,
 }
 
 /// A result returned when reading in the configuration.
@@ -119,6 +121,12 @@ pub struct ChordDesc {
     mods: xkb::ModMask,
 }
 
+fn modmask_combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
+    use xcb::ffi::xcb_mod_mask_t;
+
+    *mask = xkb::ModMask(mask.0 as xcb_mod_mask_t | add_mask.0 as xcb_mod_mask_t);
+}
+
 fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
     use xcb::ffi::xcb_mod_mask_t;
 
@@ -155,19 +163,27 @@ impl PartialOrd for ChordDesc {
 
 impl ChordDesc {
     // assumes no spaces are present in the string
-    fn from_string(desc: &str, modkey_sym: xkb::ModMask) -> /* ConfigResult<ChordDesc> */ () {
-        let mut mods = Vec::new();
-        // let mut key = None;
+    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> ConfigResult<ChordDesc> {
+        let mut mods = xkb::ModMask(0);
 
         for word in desc.split('+') {
             if word == "$modkey" {
-                mods.push(modkey_sym);
+                debug!("added default modifier");
+                modmask_combine(&mut mods, modkey_mask);
+            } else if modmask_from_str(word, &mut mods) {
+                debug!("modifier decoded, continuing chord: {} (modmask={:b})", word, mods.0);
             } else if let Ok(sym) = xkb::Keysym::from_str(word) {
-                debug!("keysym decoded: {:?}", sym);
+                debug!("keysym decoded, assuming end of chord: {} ({:?})", word, sym);
+                return Ok(ChordDesc {
+                    keysym: Keysym(sym),
+                    mods: mods,
+                });
             } else {
-                error!("could not decode keysym from word, continuing: {}", word);
+                error!("could not decode keysym or modifier from word, continuing: {}", word);
             }
         }
+
+        Err(ConfigError::InvalidChord)
     }
 }
 
