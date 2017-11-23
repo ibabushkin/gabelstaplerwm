@@ -1,4 +1,4 @@
-modkey = "n"
+modkey = "Mod1"
 
 active_modes = [
   "normal", # first mode listed is default

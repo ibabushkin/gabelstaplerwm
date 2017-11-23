@@ -53,6 +53,7 @@ use toml::value::{Array, Table, Value};
 
 use xcb::base::*;
 use xcb::xkb as xxkb;
+use xcb::xproto;
 
 use xkb::context::Context;
 use xkb::x11 as x11;
@@ -118,6 +119,26 @@ pub struct ChordDesc {
     mods: xkb::ModMask,
 }
 
+fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
+    use xcb::ffi::xcb_mod_mask_t;
+
+    let mod_component: xcb_mod_mask_t = match &desc.to_lowercase()[..] {
+        "shift" => xproto::MOD_MASK_SHIFT,
+        "ctrl" => xproto::MOD_MASK_CONTROL,
+        "mod1" => xproto::MOD_MASK_1,
+        "mod2" => xproto::MOD_MASK_2,
+        "mod3" => xproto::MOD_MASK_3,
+        "mod4" => xproto::MOD_MASK_4,
+        "mod5" => xproto::MOD_MASK_5,
+        _ => 0,
+    };
+
+    let raw_mask = mask.0 as xcb_mod_mask_t;
+    *mask = xkb::ModMask(raw_mask | mod_component);
+
+    mod_component != 0
+}
+
 impl Ord for ChordDesc {
     fn cmp(&self, other: &ChordDesc) -> Ordering {
         let mods: u32 = self.mods.into();
@@ -134,7 +155,7 @@ impl PartialOrd for ChordDesc {
 
 impl ChordDesc {
     // assumes no spaces are present in the string
-    fn from_string(desc: &str, modkey_sym: Keysym) -> /* ConfigResult<ChordDesc> */ () {
+    fn from_string(desc: &str, modkey_sym: xkb::ModMask) -> /* ConfigResult<ChordDesc> */ () {
         let mut mods = Vec::new();
         // let mut key = None;
 
@@ -157,9 +178,9 @@ pub struct ChainDesc {
 }
 
 impl ChainDesc {
-    fn from_string(desc: &str, modkey_sym: Keysym) -> () /* ConfigResult<ChainDesc> */ {
+    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> () /* ConfigResult<ChainDesc> */ {
         for expr in desc.split(' ') {
-            let chord = ChordDesc::from_string(expr, modkey_sym);
+            let chord = ChordDesc::from_string(expr, modkey_mask);
         }
     }
 }
@@ -183,15 +204,13 @@ impl State {
         info!("parsed config");
 
         let modkey_str = extract_string(&mut tree, "modkey")?;
-        let modkey_sym = if let Ok(sym) = xkb::Keysym::from_str(&modkey_str) {
-            info!("determined modkey: {:?}", sym);
-            Keysym(sym)
+        let mut modkey_mask = xkb::ModMask(0);
+        if modmask_from_str(&modkey_str, &mut modkey_mask) {
+            info!("determined modkey mask: {} ({:?})", modkey_str, modkey_mask);
         } else {
             error!("could not decode modkey keysym from word, aborting: {}", modkey_str);
             return Err(ConfigError::KeysymCouldNotBeParsed(modkey_str.to_owned()));
         };
-
-        debug!("modkey: {:?}", modkey_sym);
 
         let mode_set = extract_array(&mut tree, "active_modes")?;
         let mut modes = extract_table(&mut tree, "modes")?;
@@ -216,7 +235,7 @@ impl State {
 
             for (chain_str, cmd_str) in bindings {
                 println!("mode {}: {} -> {}", mode_name, chain_str, cmd_str);
-                ChordDesc::from_string(&chain_str, modkey_sym);
+                ChordDesc::from_string(&chain_str, modkey_mask);
             }
 
             i += 1;
