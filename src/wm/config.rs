@@ -299,6 +299,13 @@ pub fn setup_wm(wm: &mut Wm) {
         bind!(45, modkey+CTRL, Mode::Normal, edit_layout!(
                 LayoutMessage::MasterFactorRel(5),
                 LayoutMessage::ColumnRel(1))),
+        // switch screen - modkey+space
+        bind!(65, modkey, Mode::Normal, |_, s|
+            if s.change_screen(|cur, len| (cur + 1) % len) {
+                WmCommand::Focus
+            } else {
+                WmCommand::NoCommand
+            }),
         // change work tagset - modkey+CTRL+[hl]
         bind!(43, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&Tag::Work(n)) =
@@ -317,13 +324,6 @@ pub fn setup_wm(wm: &mut Wm) {
                 WmCommand::NoCommand
             }
         }),
-        // switch screen - modkey+space
-        bind!(65, modkey, Mode::Normal, |_, s|
-            if s.change_screen(|cur, len| (cur + 1) % len) {
-                WmCommand::Focus
-            } else {
-                WmCommand::NoCommand
-            }),
         bind!(46, modkey+CTRL, Mode::Normal, |c, s| {
             let res = if let Some(&Tag::Work(n)) =
                 s.tag_stack().current().and_then(|s| s.get_tags().iter().next()) {
@@ -383,6 +383,8 @@ pub fn setup_wm(wm: &mut Wm) {
             .map(WmCommand::Kill)
             .unwrap_or(WmCommand::NoCommand)
         ),
+        bind!(56, modkey, Mode::Normal, |_, _|
+              exec_script("bookmarks.sh", &["dmenu", "firefox"])),
         /* bind!(55, modkey, Mode::Normal, change_layout!(VStack::default())),
          * bind!(56, modkey, Mode::Normal, change_layout!(HStack::default())),
          * bind!(57, modkey, Mode::Normal, change_layout!(DStack::default())),
