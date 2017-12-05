@@ -56,7 +56,8 @@ use xcb::xkb as xxkb;
 use xcb::xproto;
 
 use xkb::context::Context;
-use xkb::{Keymap, State};
+use xkb::state::Key;
+use xkb::{Keycode, Keymap, State};
 use xkb::x11 as x11;
 
 /// An error occured when reading in the configuration.
@@ -223,16 +224,32 @@ pub struct KeyboardState<'a> {
     keymap: Keymap,
     state: State,
     dummy_state: State,
+    min_keycode: Keycode,
+    max_keycode: Keycode,
 }
 
 impl<'a> KeyboardState<'a> {
-    fn new(con: &'a Connection, root: xproto::Window, keymap: Keymap, state: State) -> Self {
+    fn new(con: &'a Connection,
+           screen_num: i32,
+           keymap: Keymap,
+           state: State) -> Self {
+        let setup = con.get_setup();
+        let root = if let Some(screen) = setup.roots().nth(screen_num as usize) {
+            screen.root()
+        } else {
+            panic!("no root");
+        };
+
+        let dummy_state = keymap.state();
+
         KeyboardState {
             con,
             root,
             keymap,
-            state: state.clone(), // TODO: avoid the clone
-            dummy_state: state, // TODO: replace this with an actual dummy
+            state,
+            dummy_state,
+            min_keycode: setup.min_keycode().into(),
+            max_keycode: setup.max_keycode().into(),
         }
     }
 
@@ -331,8 +348,25 @@ impl<'a> DaemonState<'a> {
         self.kbd_state.root()
     }
 
+    // TODO: determine mapping from keycodes to keysyms here
+    fn generate_key_mapping(&self) {
+        let mut keycode = self.kbd_state.min_keycode;
+
+        while keycode != self.kbd_state.max_keycode {
+            let key = Key(&self.kbd_state.dummy_state, keycode);
+            let sym = key.sym();
+
+            debug!("dummy: key {:?} => {:?} ({:?})",
+                   keycode, sym, sym.map_or("<invalid>".to_owned(), |s| s.utf8()));
+
+            keycode = Keycode(keycode.0 + 1); // TODO: ugly hack
+        }
+    }
+
     // TODO check parallel code as well (later)
     fn grab_current_mode(&self) {
+        self.generate_key_mapping();
+
         for &(mode, ref chain) in self.bindings.keys() {
             if mode == self.current_mode {
                 for chord in &chain.chords {
@@ -453,12 +487,6 @@ fn main() {
         },
     };
 
-    let root = if let Some(screen) = con.get_setup().roots().nth(screen_num as usize) {
-        screen.root()
-    } else {
-        panic!("no root");
-    };
-
     let cookie =
         xxkb::use_extension(&con, x11::MIN_MAJOR_XKB_VERSION, x11::MIN_MINOR_XKB_VERSION);
 
@@ -526,10 +554,11 @@ fn main() {
 
     cookie.get_reply().expect("no flags set");
 
-    let daemon_state =
-        DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"),
-                                 KeyboardState::new(&con, root, keymap, state));
+    let kbd_state = KeyboardState::new(&con, screen_num, keymap, state);
+    let daemon_state = DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), kbd_state);
     debug!("initial daemon state: {:?}", daemon_state);
+
+    daemon_state.unwrap().grab_current_mode();
 
     loop {
         con.flush();
