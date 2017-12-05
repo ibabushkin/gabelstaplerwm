@@ -56,6 +56,7 @@ use xcb::xkb as xxkb;
 use xcb::xproto;
 
 use xkb::context::Context;
+use xkb::{Keymap, State};
 use xkb::x11 as x11;
 
 /// An error occured when reading in the configuration.
@@ -216,29 +217,45 @@ impl ChainDesc {
     }
 }
 
-pub struct XConnection<'a>(&'a Connection, xproto::Window);
+pub struct KeyboardState<'a> {
+    con: &'a Connection,
+    root: xproto::Window,
+    keymap: Keymap,
+    state: State,
+    dummy_state: State,
+}
 
-impl<'a> XConnection<'a> {
+impl<'a> KeyboardState<'a> {
+    fn new(con: &'a Connection, root: xproto::Window, keymap: Keymap, state: State) -> Self {
+        KeyboardState {
+            con,
+            root,
+            keymap,
+            state: state.clone(), // TODO: avoid the clone
+            dummy_state: state, // TODO: replace this with an actual dummy
+        }
+    }
+
     fn con(&self) -> &Connection {
-        self.0
+        self.con
     }
 
     fn root(&self) -> xproto::Window {
-        self.1
+        self.root
     }
 }
 
-impl<'a> ::std::fmt::Debug for XConnection<'a> {
+impl<'a> ::std::fmt::Debug for KeyboardState<'a> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "(_, {:?})", self.1)
+        write!(f, "(_, {:?}, _, _, _)", self.root)
     }
 }
 
 /// The current state of the daemon.
 #[derive(Debug)]
-pub struct State<'a> {
+pub struct DaemonState<'a> {
     /// All things necessary to communicate with the X server.
-    x_con: XConnection<'a>,
+    kbd_state: KeyboardState<'a>,
     /// The currently active keymap mode.
     current_mode: Mode,
     /// The vector of all modes the daemon is aware of.
@@ -249,9 +266,9 @@ pub struct State<'a> {
     bindings: BTreeMap<(Mode, ChainDesc), Cmd>,
 }
 
-impl<'a> State<'a> {
+impl<'a> DaemonState<'a> {
     /// Construct an initial daemon state from a configuration file.
-    fn from_config(path: &Path, x_con: XConnection<'a>) -> ConfigResult<State<'a>> {
+    fn from_config(path: &Path, kbd_state: KeyboardState<'a>) -> ConfigResult<Self> {
         let mut tree = parse_config_file(path)?;
         info!("parsed config");
 
@@ -297,8 +314,8 @@ impl<'a> State<'a> {
             i += 1;
         }
 
-        Ok(State {
-            x_con,
+        Ok(DaemonState {
+            kbd_state,
             current_mode: 0,
             modes: Vec::new(),
             modkey_mask,
@@ -307,11 +324,11 @@ impl<'a> State<'a> {
     }
 
     fn con(&self) -> &Connection {
-        self.x_con.con()
+        self.kbd_state.con()
     }
 
     fn root(&self) -> xproto::Window {
-        self.x_con.root()
+        self.kbd_state.root()
     }
 
     // TODO check parallel code as well (later)
@@ -510,7 +527,8 @@ fn main() {
     cookie.get_reply().expect("no flags set");
 
     let daemon_state =
-        State::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), XConnection(&con, root));
+        DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"),
+                                 KeyboardState::new(&con, root, keymap, state));
     debug!("initial daemon state: {:?}", daemon_state);
 
     loop {
