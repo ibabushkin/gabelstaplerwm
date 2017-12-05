@@ -216,9 +216,29 @@ impl ChainDesc {
     }
 }
 
+pub struct XConnection<'a>(&'a Connection, xproto::Window);
+
+impl<'a> XConnection<'a> {
+    fn con(&self) -> &Connection {
+        self.0
+    }
+
+    fn root(&self) -> xproto::Window {
+        self.1
+    }
+}
+
+impl<'a> ::std::fmt::Debug for XConnection<'a> {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "(_, {:?})", self.1)
+    }
+}
+
 /// The current state of the daemon.
 #[derive(Debug)]
-pub struct State {
+pub struct State<'a> {
+    /// All things necessary to communicate with the X server.
+    x_con: XConnection<'a>,
     /// The currently active keymap mode.
     current_mode: Mode,
     /// The vector of all modes the daemon is aware of.
@@ -229,9 +249,9 @@ pub struct State {
     bindings: BTreeMap<(Mode, ChainDesc), Cmd>,
 }
 
-impl State {
+impl<'a> State<'a> {
     /// Construct an initial daemon state from a configuration file.
-    fn from_config(path: &Path) -> ConfigResult<State> {
+    fn from_config(path: &Path, x_con: XConnection<'a>) -> ConfigResult<State<'a>> {
         let mut tree = parse_config_file(path)?;
         info!("parsed config");
 
@@ -262,8 +282,8 @@ impl State {
             let enter_binding = extract_string(&mut mode, "enter_binding")?;
             let enter_binding_quick_leave =
                 extract_string(&mut mode, "enter_binding_quick_leave")?;
-            let enter_command = extract_string(&mut mode, "enter_command")?;
-            let leave_command = extract_string(&mut mode, "leave_command")?;
+            let enter_command = optional_key(extract_string(&mut mode, "enter_command"))?;
+            let leave_command = optional_key(extract_string(&mut mode, "leave_command"))?;
 
             let binds = extract_table(&mut mode, "bindings")?;
 
@@ -278,11 +298,45 @@ impl State {
         }
 
         Ok(State {
+            x_con,
             current_mode: 0,
             modes: Vec::new(),
             modkey_mask,
             bindings,
         })
+    }
+
+    fn con(&self) -> &Connection {
+        self.x_con.con()
+    }
+
+    fn root(&self) -> xproto::Window {
+        self.x_con.root()
+    }
+
+    // TODO check parallel code as well (later)
+    fn grab_current_mode(&self) {
+        for &(mode, ref chain) in self.bindings.keys() {
+            if mode == self.current_mode {
+                for chord in &chain.chords {
+                    // TODO: grab things here (after finding the appropriate keycodes)
+                    // xproto::grab_key(self.con(), true, self.root(), )
+                }
+            }
+        }
+    }
+
+    fn ungrab_current_mode(&self) {
+        let err = xproto::ungrab_key(self.con(),
+                                     xproto::GRAB_ANY as u8,
+                                     self.root(),
+                                     xproto::MOD_MASK_ANY as u16)
+            .request_check()
+            .is_err();
+
+        if err {
+            error!("could not ungrab keys");
+        }
     }
 }
 
@@ -353,6 +407,14 @@ fn extract_array(table: &mut Table, key: &str) -> ConfigResult<Array> {
     }
 }
 
+fn optional_key<T>(input_result: ConfigResult<T>) -> ConfigResult<Option<T>> {
+    match input_result {
+        Ok(res) => Ok(Some(res)),
+        Err(ConfigError::KeyMissing(_)) => Ok(None),
+        Err(err) => Err(err),
+    }
+}
+
 /// Initialize the logger.
 fn setup_logger() {
     // fine to unwrap, as this is the only time we call `init`.
@@ -367,14 +429,17 @@ fn setup_logger() {
 fn main() {
     setup_logger();
 
-    let daemon_state = State::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"));
-    debug!("initial daemon state: {:?}", daemon_state);
-
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(e) => {
             panic!("no connection");
         },
+    };
+
+    let root = if let Some(screen) = con.get_setup().roots().nth(screen_num as usize) {
+        screen.root()
+    } else {
+        panic!("no root");
     };
 
     let cookie =
@@ -444,12 +509,15 @@ fn main() {
 
     cookie.get_reply().expect("no flags set");
 
+    let daemon_state =
+        State::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), XConnection(&con, root));
+    debug!("initial daemon state: {:?}", daemon_state);
+
     loop {
         con.flush();
         let event = con.wait_for_event().unwrap();
         if event.response_type() == xkb_base {
             let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
-            debug!("received XKB event: {}", event.xkb_type());
 
             match event.xkb_type() {
                 xxkb::NEW_KEYBOARD_NOTIFY => {

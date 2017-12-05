@@ -26,11 +26,14 @@ leave_command = "echo '!n'"
 [modes.swap]
 enter_binding = "$modkey+s"
 enter_binding_quick_leave = "$modkey+M s"
+bindings = {}
 
 [modes.move]
 enter_binding = "$modkey+m"
 enter_binding_quick_leave = "$modkey+M m"
+bindings = {}
 
 [modes.ignore]
 enter_binding = "$modkey+i"
 enter_binding_quick_leave = "$modkey+M i"
+bindings = {}
