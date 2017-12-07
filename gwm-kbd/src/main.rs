@@ -226,6 +226,7 @@ pub struct KeyboardState<'a> {
     dummy_state: State,
     min_keycode: Keycode,
     max_keycode: Keycode,
+    keysym_map: Vec<Option<Keysym>>,
 }
 
 impl<'a> KeyboardState<'a> {
@@ -242,7 +243,7 @@ impl<'a> KeyboardState<'a> {
 
         let dummy_state = keymap.state();
 
-        KeyboardState {
+        let mut state = KeyboardState {
             con,
             root,
             keymap,
@@ -250,6 +251,40 @@ impl<'a> KeyboardState<'a> {
             dummy_state,
             min_keycode: setup.min_keycode().into(),
             max_keycode: setup.max_keycode().into(),
+            keysym_map: Vec::new(),
+        };
+
+        state.generate_keysym_map();
+
+        state
+    }
+
+    /// Generate a keysym map from a dummy keyboard state.
+    fn generate_keysym_map(&mut self) {
+        let mut keycode = self.min_keycode;
+
+        while keycode != self.max_keycode {
+            let key = Key(&self.dummy_state, keycode);
+            let sym = key.sym();
+
+            debug!("dummy: key {:?} => {:?} ({:?})",
+                   keycode, sym, sym.map_or("<invalid>".to_owned(), |s| s.utf8()));
+
+            self.keysym_map.push(sym.map(|s| Keysym(s)));
+
+            keycode = Keycode(keycode.0 + 1); // TODO: ugly hack
+        }
+    }
+
+    /// Look up a keycode to determine the keysym produced by it according to the current
+    /// keyboard state.
+    fn lookup_keycode(&self, keycode: Keycode) -> Option<Keysym> {
+        let index = (keycode.0 + self.min_keycode.0) as usize;
+
+        if index > self.max_keycode.0 as usize {
+            self.keysym_map[index]
+        } else {
+            None
         }
     }
 
@@ -348,25 +383,8 @@ impl<'a> DaemonState<'a> {
         self.kbd_state.root()
     }
 
-    // TODO: determine mapping from keycodes to keysyms here
-    fn generate_key_mapping(&self) {
-        let mut keycode = self.kbd_state.min_keycode;
-
-        while keycode != self.kbd_state.max_keycode {
-            let key = Key(&self.kbd_state.dummy_state, keycode);
-            let sym = key.sym();
-
-            debug!("dummy: key {:?} => {:?} ({:?})",
-                   keycode, sym, sym.map_or("<invalid>".to_owned(), |s| s.utf8()));
-
-            keycode = Keycode(keycode.0 + 1); // TODO: ugly hack
-        }
-    }
-
     // TODO check parallel code as well (later)
     fn grab_current_mode(&self) {
-        self.generate_key_mapping();
-
         for &(mode, ref chain) in self.bindings.keys() {
             if mode == self.current_mode {
                 for chord in &chain.chords {
