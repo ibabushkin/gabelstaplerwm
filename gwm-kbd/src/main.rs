@@ -407,6 +407,39 @@ impl<'a> DaemonState<'a> {
             error!("could not ungrab keys");
         }
     }
+
+    fn run(&mut self) {
+        let con = self.con();
+        let xkb_base = con.get_extension_data(&mut xxkb::id()).unwrap().first_event();
+        debug!("xkb base: {}", xkb_base);
+
+        loop {
+            con.flush();
+            let event = con.wait_for_event().unwrap();
+            if event.response_type() == xkb_base {
+                let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
+
+                match event.xkb_type() {
+                    xxkb::NEW_KEYBOARD_NOTIFY => {
+                        debug!("xkb event: NEW_KEYBOARD_NOTIFY");
+                    },
+                    xxkb::MAP_NOTIFY => {
+                        debug!("xkb event: MAP_NOTIFY");
+                    },
+                    xxkb::STATE_NOTIFY => {
+                        debug!("xkb event: STATE_NOTIFY");
+                        debug!("mods: {}, group: {}, keycode: {}, event_type: {}",
+                               event.mods(), event.group(), event.keycode(), event.event_type());
+                    },
+                    t => {
+                        debug!("xkb event (unknown): {}", t);
+                    },
+                }
+            } else {
+                debug!("received event: {}", event.response_type());
+            }
+        }
+    }
 }
 
 /// A mode description.
@@ -548,9 +581,6 @@ fn main() {
         xxkb::EVENT_TYPE_MAP_NOTIFY |
         xxkb::EVENT_TYPE_STATE_NOTIFY;
 
-    let xkb_base = con.get_extension_data(&mut xxkb::id()).unwrap().first_event();
-    debug!("xkb base: {}", xkb_base);
-
     let cookie =
         xxkb::select_events_checked(&con,
                                     xxkb::ID_USE_CORE_KBD as u16,
@@ -576,34 +606,9 @@ fn main() {
     let daemon_state = DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), kbd_state);
     debug!("initial daemon state: {:?}", daemon_state);
 
-    daemon_state.unwrap().grab_current_mode();
-
-    loop {
-        con.flush();
-        let event = con.wait_for_event().unwrap();
-        if event.response_type() == xkb_base {
-            let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
-
-            match event.xkb_type() {
-                xxkb::NEW_KEYBOARD_NOTIFY => {
-                    debug!("xkb event: NEW_KEYBOARD_NOTIFY");
-                },
-                xxkb::MAP_NOTIFY => {
-                    debug!("xkb event: MAP_NOTIFY");
-                },
-                xxkb::STATE_NOTIFY => {
-                    debug!("xkb event: STATE_NOTIFY");
-                    debug!("mods: {}, group: {}, keycode: {}, event_type: {}",
-                           event.mods(), event.group(), event.keycode(), event.event_type());
-                },
-                t => {
-                    debug!("xkb event (unknown): {}", t);
-                },
-            }
-        } else {
-            debug!("received event: {}", event.response_type());
-        }
-    }
+    let mut daemon_state = daemon_state.unwrap();
+    daemon_state.grab_current_mode();
+    daemon_state.run();
 }
 
 // comparison mechanism to use:
