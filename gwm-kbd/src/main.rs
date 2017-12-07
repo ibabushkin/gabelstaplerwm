@@ -427,9 +427,18 @@ impl<'a> DaemonState<'a> {
                         debug!("xkb event: MAP_NOTIFY");
                     },
                     xxkb::STATE_NOTIFY => {
-                        debug!("xkb event: STATE_NOTIFY");
-                        debug!("mods: {}, group: {}, keycode: {}, event_type: {}",
-                               event.mods(), event.group(), event.keycode(), event.event_type());
+                        let keycode = Keycode(event.keycode() as u32);
+                        let mods = event.mods();
+
+                        if let Some(keysym) = self.kbd_state.lookup_keycode(keycode) {
+                            debug!("xkb event: STATE_NOTIFY: mods: {}, keycode(sym): \
+                                   {:?}({:?}), event_type: {}",
+                                   mods, keycode, keysym, event.event_type());
+                        } else {
+                            debug!("xkb event: STATE_NOTIFY: mods: {}, keycode: {:?}(no sym), \
+                                   event_type: {}",
+                                   mods, keycode, event.event_type());
+                        }
                     },
                     t => {
                         debug!("xkb event (unknown): {}", t);
@@ -440,6 +449,12 @@ impl<'a> DaemonState<'a> {
             }
         }
     }
+
+// comparison mechanism to use:
+// (keysym == shortcut_keysym) &&
+// ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
+// xkb_state_mod_index_is_active etc
+// xkb_state_mod_index_is_consumed etc
 }
 
 /// A mode description.
@@ -610,9 +625,3 @@ fn main() {
     daemon_state.grab_current_mode();
     daemon_state.run();
 }
-
-// comparison mechanism to use:
-// (keysym == shortcut_keysym) &&
-// ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
-// xkb_state_mod_index_is_active etc
-// xkb_state_mod_index_is_consumed etc
