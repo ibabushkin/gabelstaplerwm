@@ -288,6 +288,13 @@ impl<'a> KeyboardState<'a> {
         }
     }
 
+    fn lookup_keysym(&self, keysym: Keysym) -> Option<Keycode> {
+        self.keysym_map
+            .iter()
+            .position(|e| *e == Some(keysym))
+            .map(|pos| Keycode(self.min_keycode.0 + (pos as u32)))
+    }
+
     fn con(&self) -> &Connection {
         self.con
     }
@@ -388,8 +395,13 @@ impl<'a> DaemonState<'a> {
         for &(mode, ref chain) in self.bindings.keys() {
             if mode == self.current_mode {
                 for chord in &chain.chords {
-                    // TODO: grab things here (after finding the appropriate keycodes)
-                    // xproto::grab_key(self.con(), true, self.root(), )
+                    if let Some(keycode) = self.kbd_state.lookup_keysym(chord.keysym) {
+                        xproto::grab_key(self.con(), true, self.root(),
+                                         chord.mods.0 as u16,
+                                         keycode.0 as u8,
+                                         xproto::GRAB_MODE_SYNC as u8,
+                                         xproto::GRAB_MODE_ASYNC as u8);
+                    }
                 }
             }
         }
