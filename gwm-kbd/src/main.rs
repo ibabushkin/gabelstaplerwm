@@ -279,9 +279,9 @@ impl<'a> KeyboardState<'a> {
     /// Look up a keycode to determine the keysym produced by it according to the current
     /// keyboard state.
     fn lookup_keycode(&self, keycode: Keycode) -> Option<Keysym> {
-        let index = (keycode.0 + self.min_keycode.0) as usize;
+        let index = (keycode.0 - self.min_keycode.0) as usize;
 
-        if index > self.max_keycode.0 as usize {
+        if index <= self.max_keycode.0 as usize {
             self.keysym_map[index]
         } else {
             None
@@ -439,25 +439,37 @@ impl<'a> DaemonState<'a> {
                         debug!("xkb event: MAP_NOTIFY");
                     },
                     xxkb::STATE_NOTIFY => {
-                        let keycode = Keycode(event.keycode() as u32);
-                        let mods = event.mods();
-
-                        if let Some(keysym) = self.kbd_state.lookup_keycode(keycode) {
-                            debug!("xkb event: STATE_NOTIFY: mods: {}, keycode(sym): \
-                                   {:?}({:?}), event_type: {}",
-                                   mods, keycode, keysym, event.event_type());
-                        } else {
-                            debug!("xkb event: STATE_NOTIFY: mods: {}, keycode: {:?}(no sym), \
-                                   event_type: {}",
-                                   mods, keycode, event.event_type());
-                        }
+                        debug!("xkb event: STATE_NOTIFY");
                     },
                     t => {
                         debug!("xkb event (unknown): {}", t);
                     },
                 }
             } else {
-                debug!("received event: {}", event.response_type());
+                match event.response_type() {
+                    xproto::KEY_PRESS => {
+                        let event = unsafe { cast_event::<xproto::KeyPressEvent>(&event) };
+                        let keycode = Keycode(event.detail() as u32);
+                        let state = event.state();
+
+                        debug!("generic event: KEY_PRESS ({:?}, {:?})", keycode, state);
+
+                        if let Some(keysym) = self.kbd_state.lookup_keycode(keycode) {
+                            debug!("generic event: KEY_PRESS: state: {}, keycode (sym): \
+                                    {:?} ({:?})",
+                                    state, keycode, keysym.0.utf8());
+                        } else {
+                            debug!("generic event: KEY_PRESS: state: {}, keycode: {:?} (no sym)",
+                                   state, keycode);
+                        }
+                    },
+                    xproto::KEY_RELEASE => {
+                        debug!("generic event: KEY_RELEASE");
+                    },
+                    t => {
+                        debug!("generic event (unknown): {}", t);
+                    },
+                }
             }
         }
     }
