@@ -14,14 +14,18 @@ enter_command = "echo 'n'"
 leave_command = "echo '!n'"
 
 [modes.normal.bindings]
+"$modkey+x $modkey+h" = "echo xh"
+"$modkey+x $modkey+j" = "echo xj"
+"$modkey+x $modkey+k" = "echo xk"
+"$modkey+x $modkey+l" = "echo xl"
 "$modkey+h" = "echo h"
 "$modkey+j" = "echo j"
 "$modkey+k" = "echo k"
 "$modkey+l" = "echo l"
-"$modkey+mod1+h" = "echo h"
-"$modkey+mod1+j" = "echo j"
-"$modkey+mod1+k" = "echo k"
-"$modkey+mod1+l" = "echo l"
+"$modkey+shift+h" = "echo h"
+"$modkey+shift+j" = "echo j"
+"$modkey+shift+k" = "echo k"
+"$modkey+shift+l" = "echo l"
 
 [modes.swap]
 enter_binding = "$modkey+s"

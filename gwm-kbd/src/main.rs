@@ -131,7 +131,7 @@ pub struct ChordDesc {
     // keysym
     keysym: Keysym,
     // non-consumed mods
-    mods: xkb::ModMask,
+    modmask: xkb::ModMask,
 }
 
 fn modmask_combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
@@ -162,9 +162,9 @@ fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
 
 impl Ord for ChordDesc {
     fn cmp(&self, other: &ChordDesc) -> Ordering {
-        let mods: u32 = self.mods.into();
+        let modmask: u32 = self.modmask.into();
 
-        self.keysym.cmp(&other.keysym).then(mods.cmp(&other.mods.into()))
+        self.keysym.cmp(&other.keysym).then(modmask.cmp(&other.modmask.into()))
     }
 }
 
@@ -177,19 +177,19 @@ impl PartialOrd for ChordDesc {
 impl ChordDesc {
     // assumes no spaces are present in the string
     fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> ConfigResult<ChordDesc> {
-        let mut mods = xkb::ModMask(0);
+        let mut modmask = xkb::ModMask(0);
 
         for word in desc.split('+') {
             if word == "$modkey" {
                 debug!("added default modifier");
-                modmask_combine(&mut mods, modkey_mask);
-            } else if modmask_from_str(word, &mut mods) {
-                debug!("modifier decoded, continuing chord: {} (modmask={:b})", word, mods.0);
+                modmask_combine(&mut modmask, modkey_mask);
+            } else if modmask_from_str(word, &mut modmask) {
+                debug!("modifier decoded, continuing chord: {} (modmask={:b})", word, modmask.0);
             } else if let Ok(sym) = xkb::Keysym::from_str(word) {
                 debug!("keysym decoded, assuming end of chord: {} ({:?})", word, sym);
                 return Ok(ChordDesc {
                     keysym: Keysym(sym),
-                    mods: mods,
+                    modmask,
                 });
             } else {
                 error!("could not decode keysym or modifier from word, continuing: {}", word);
@@ -200,7 +200,7 @@ impl ChordDesc {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChainDesc {
     // the chords in the chain, in order
     chords: Vec<ChordDesc>,
@@ -215,6 +215,10 @@ impl ChainDesc {
         }
 
         Ok(ChainDesc { chords })
+    }
+
+    fn is_prefix_of(&self, other: &ChainDesc) -> bool {
+        other.chords.starts_with(&self.chords)
     }
 }
 
@@ -288,6 +292,8 @@ impl<'a> KeyboardState<'a> {
         }
     }
 
+    /// Look up a keysym to determine the keycode producing it according to the current keyboard
+    /// state.
     fn lookup_keysym(&self, keysym: Keysym) -> Option<Keycode> {
         self.keysym_map
             .iter()
@@ -321,6 +327,10 @@ pub struct DaemonState<'a> {
     modes: Vec<ModeDesc>,
     /// The main modkey to use.
     modkey_mask: xkb::ModMask,
+    /// Currently active chain prefix.
+    current_chain: ChainDesc,
+    /// Time at which the last key was pressed.
+    last_keypress: xcb::Timestamp,
     /// The bindings registered in all modes.
     bindings: BTreeMap<(Mode, ChainDesc), Cmd>,
 }
@@ -378,6 +388,8 @@ impl<'a> DaemonState<'a> {
             current_mode: 0,
             modes: Vec::new(),
             modkey_mask,
+            current_chain: ChainDesc::default(),
+            last_keypress: 0,
             bindings,
         })
     }
@@ -397,7 +409,7 @@ impl<'a> DaemonState<'a> {
                 for chord in &chain.chords {
                     if let Some(keycode) = self.kbd_state.lookup_keysym(chord.keysym) {
                         xproto::grab_key(self.con(), true, self.root(),
-                                         chord.mods.0 as u16,
+                                         chord.modmask.0 as u16,
                                          keycode.0 as u8,
                                          xproto::GRAB_MODE_SYNC as u8,
                                          xproto::GRAB_MODE_ASYNC as u8);
@@ -420,14 +432,46 @@ impl<'a> DaemonState<'a> {
         }
     }
 
+    fn evaluate_chord(&mut self, modmask: xkb::ModMask, keysym: Keysym) {
+        let chord = ChordDesc { keysym, modmask };
+        let mut drop_chain = true;
+
+        self.current_chain.chords.push(chord);
+
+        for (&(_, ref chain), cmd) in
+                self.bindings.iter().filter(|k| (k.0).0 == self.current_mode) {
+            if self.current_chain.is_prefix_of(chain) {
+                if self.current_chain.chords.len() == chain.chords.len() {
+                    debug!("determined command {:?} from chain {:?}",
+                           cmd, self.current_chain);
+                    cmd.run();
+
+                    drop_chain = true;
+                    break;
+                }
+
+                drop_chain = false;
+            }
+        }
+
+        if drop_chain {
+            self.current_chain.chords.clear();
+        }
+
+        // comparison mechanism to use:
+        // (keysym == shortcut_keysym) &&
+        // ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
+        // xkb_state_mod_index_is_active etc
+        // xkb_state_mod_index_is_consumed etc
+    }
+
     fn run(&mut self) {
-        let con = self.con();
-        let xkb_base = con.get_extension_data(&mut xxkb::id()).unwrap().first_event();
+        let xkb_base = self.con().get_extension_data(&mut xxkb::id()).unwrap().first_event();
         debug!("xkb base: {}", xkb_base);
 
         loop {
-            con.flush();
-            let event = con.wait_for_event().unwrap();
+            self.con().flush();
+            let event = self.con().wait_for_event().unwrap();
             if event.response_type() == xkb_base {
                 let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
 
@@ -449,18 +493,19 @@ impl<'a> DaemonState<'a> {
                 match event.response_type() {
                     xproto::KEY_PRESS => {
                         let event = unsafe { cast_event::<xproto::KeyPressEvent>(&event) };
+                        self.last_keypress = event.time();
                         let keycode = Keycode(event.detail() as u32);
-                        let state = event.state();
-
-                        debug!("generic event: KEY_PRESS ({:?}, {:?})", keycode, state);
+                        let modmask = xkb::ModMask(event.state() as u32);
 
                         if let Some(keysym) = self.kbd_state.lookup_keycode(keycode) {
-                            debug!("generic event: KEY_PRESS: state: {}, keycode (sym): \
+                            debug!("generic event: KEY_PRESS: mods: {:?}, keycode (sym): \
                                     {:?} ({:?})",
-                                    state, keycode, keysym.0.utf8());
+                                    modmask, keycode, keysym.0.utf8());
+                            self.evaluate_chord(modmask, keysym);
                         } else {
-                            debug!("generic event: KEY_PRESS: state: {}, keycode: {:?} (no sym)",
-                                   state, keycode);
+                            debug!("generic event: KEY_PRESS: mods: {:?}, keycode: {:?} (no \
+                                   sym)",
+                                   modmask, keycode);
                         }
                     },
                     xproto::KEY_RELEASE => {
@@ -473,12 +518,6 @@ impl<'a> DaemonState<'a> {
             }
         }
     }
-
-// comparison mechanism to use:
-// (keysym == shortcut_keysym) &&
-// ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
-// xkb_state_mod_index_is_active etc
-// xkb_state_mod_index_is_consumed etc
 }
 
 /// A mode description.
