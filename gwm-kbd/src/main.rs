@@ -280,7 +280,7 @@ impl<'a> KeyboardState<'a> {
             debug!("dummy: key {:?} => {:?} ({:?})",
                    keycode, sym, sym.map_or("<invalid>".to_owned(), |s| s.utf8()));
 
-            self.keysym_map.push(sym.map(|s| Keysym(s)));
+            self.keysym_map.push(sym.map(Keysym));
 
             keycode = Keycode(keycode.0 + 1); // TODO: ugly hack
         }
@@ -500,8 +500,8 @@ impl<'a> DaemonState<'a> {
                     xproto::KEY_PRESS => {
                         let event = unsafe { cast_event::<xproto::KeyPressEvent>(&event) };
                         self.last_keypress = event.time();
-                        let keycode = Keycode(event.detail() as u32);
-                        let modmask = xkb::ModMask(event.state() as u32);
+                        let keycode = Keycode(u32::from(event.detail()));
+                        let modmask = xkb::ModMask(u32::from(event.state()));
 
                         if let Some(keysym) = self.kbd_state.lookup_keycode(keycode) {
                             debug!("generic event: KEY_PRESS: mods: {:?}, keycode (sym): \
@@ -618,7 +618,7 @@ fn main() {
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(_) => {
-            panic!("no connection");
+            panic!("no connection")
         },
     };
 
