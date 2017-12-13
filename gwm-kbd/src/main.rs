@@ -88,21 +88,27 @@ pub type Mode = usize;
 
 /// A shell command to be called in reaction to specific key events.
 #[derive(Debug)]
-pub struct Cmd {
-    /// The string to be passed to a shell to execute the command.
-    repr: String,
+pub enum Cmd {
+    /// A string to be passed to a shell to execute the command.
+    Shell(String),
+    /// A mode to switch to.
+    Mode(usize),
+    /// A mode to switch to temporarily (for one chain).
+    ModeTmp(usize),
 }
 
 impl Cmd {
     pub fn run(&self) {
-        let _ = Command::new("sh")
-            .args(&["-c", &self.repr])
-            .spawn();
+        if let Cmd::Shell(ref repr) = *self {
+            let _ = Command::new("sh")
+                .args(&["-c", repr])
+                .spawn();
+        }
     }
 
     pub fn from_value(value: toml::Value) -> ConfigResult<Cmd> {
         if let toml::Value::String(repr) = value {
-            Ok(Cmd { repr })
+            Ok(Cmd::Shell(repr))
         } else {
             Err(ConfigError::CommandTypeMismatch)
         }
@@ -611,7 +617,7 @@ fn main() {
 
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
-        Err(e) => {
+        Err(_) => {
             panic!("no connection");
         },
     };
@@ -625,7 +631,7 @@ fn main() {
                 panic!("not supported");
             }
         },
-        Err(e) => {
+        Err(_) => {
             panic!("no reply");
         },
     };
