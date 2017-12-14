@@ -342,6 +342,8 @@ pub struct DaemonState<'a> {
     kbd_state: KeyboardState<'a>,
     /// The currently active keymap mode.
     current_mode: Mode,
+    /// The previous mode to switch back to for when the current mode is set temporarily.
+    previous_mode: Option<Mode>,
     /// The vector of all modes the daemon is aware of.
     modes: Vec<ModeDesc>,
     /// The main modkey to use.
@@ -405,6 +407,7 @@ impl<'a> DaemonState<'a> {
         Ok(DaemonState {
             kbd_state,
             current_mode: 0,
+            previous_mode: None,
             modes: Vec::new(),
             modkey_mask,
             current_chain: ChainDesc::default(),
@@ -452,7 +455,18 @@ impl<'a> DaemonState<'a> {
     }
 
     fn switch_mode(&mut self, switch: ModeSwitch) {
+        let new_mode = match switch {
+            ModeSwitch::Permanent(new_mode) => new_mode,
+            ModeSwitch::Temporary(new_mode) => {
+                self.previous_mode = Some(self.current_mode);
+                new_mode
+            },
+        };
 
+        self.current_mode = new_mode;
+
+        self.ungrab_current_mode();
+        self.grab_current_mode();
     }
 
     fn evaluate_chord(&mut self, modmask: xkb::ModMask, keysym: Keysym) {
@@ -469,6 +483,8 @@ impl<'a> DaemonState<'a> {
                     debug!("determined command {:?} from chain {:?}",
                            cmd, self.current_chain);
                     mode_switch = cmd.run();
+
+                    // TODO: reset mode from temp here
 
                     drop_chain = true;
                     break;
