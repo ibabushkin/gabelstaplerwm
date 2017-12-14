@@ -86,6 +86,11 @@ type ConfigResult<T> = Result<T, ConfigError>;
 /// An index representing a mode.
 pub type Mode = usize;
 
+pub enum ModeSwitch {
+    Permanent(Mode),
+    Temporary(Mode),
+}
+
 /// A shell command to be called in reaction to specific key events.
 #[derive(Debug)]
 pub enum Cmd {
@@ -98,12 +103,14 @@ pub enum Cmd {
 }
 
 impl Cmd {
-    pub fn run(&self) {
+    pub fn run(&self) -> Option<ModeSwitch> {
         if let Cmd::Shell(ref repr) = *self {
             let _ = Command::new("sh")
                 .args(&["-c", repr])
                 .spawn();
         }
+
+        None
     }
 
     pub fn from_value(value: toml::Value) -> ConfigResult<Cmd> {
@@ -225,6 +232,12 @@ impl ChainDesc {
 
     fn is_prefix_of(&self, other: &ChainDesc) -> bool {
         other.chords.starts_with(&self.chords)
+
+        // chord comparison mechanism to use:
+        // (keysym == shortcut_keysym) &&
+        // ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
+        // xkb_state_mod_index_is_active etc
+        // xkb_state_mod_index_is_consumed etc
     }
 }
 
@@ -438,9 +451,14 @@ impl<'a> DaemonState<'a> {
         }
     }
 
+    fn switch_mode(&mut self, switch: ModeSwitch) {
+
+    }
+
     fn evaluate_chord(&mut self, modmask: xkb::ModMask, keysym: Keysym) {
         let chord = ChordDesc { keysym, modmask };
         let mut drop_chain = true;
+        let mut mode_switch = None;
 
         self.current_chain.chords.push(chord);
 
@@ -450,7 +468,7 @@ impl<'a> DaemonState<'a> {
                 if self.current_chain.chords.len() == chain.chords.len() {
                     debug!("determined command {:?} from chain {:?}",
                            cmd, self.current_chain);
-                    cmd.run();
+                    mode_switch = cmd.run();
 
                     drop_chain = true;
                     break;
@@ -464,11 +482,9 @@ impl<'a> DaemonState<'a> {
             self.current_chain.chords.clear();
         }
 
-        // comparison mechanism to use:
-        // (keysym == shortcut_keysym) &&
-        // ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
-        // xkb_state_mod_index_is_active etc
-        // xkb_state_mod_index_is_consumed etc
+        if let Some(switch) = mode_switch {
+            self.switch_mode(switch);
+        }
     }
 
     fn run(&mut self) {
