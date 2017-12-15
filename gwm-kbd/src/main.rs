@@ -86,6 +86,7 @@ type ConfigResult<T> = Result<T, ConfigError>;
 /// An index representing a mode.
 pub type Mode = usize;
 
+#[derive(Clone, Copy, Debug)]
 pub enum ModeSwitch {
     Permanent(Mode),
     Temporary(Mode),
@@ -97,9 +98,7 @@ pub enum Cmd {
     /// A string to be passed to a shell to execute the command.
     Shell(String),
     /// A mode to switch to.
-    Mode(usize),
-    /// A mode to switch to temporarily (for one chain).
-    ModeTmp(usize),
+    ModeSwitch(ModeSwitch),
 }
 
 impl Cmd {
@@ -110,7 +109,15 @@ impl Cmd {
                 .spawn();
         }
 
-        None
+        match *self {
+            Cmd::Shell(ref repr) => {
+                let _ = Command::new("sh").args(&["-c", repr]).spawn();
+                None
+            },
+            Cmd::ModeSwitch(ref switch) => {
+                Some(*switch)
+            },
+        }
     }
 
     pub fn from_value(value: toml::Value) -> ConfigResult<Cmd> {
@@ -372,6 +379,8 @@ impl<'a> DaemonState<'a> {
         };
 
         let mode_set = extract_array(&mut tree, "active_modes")?;
+        let num_modes = mode_set.len();
+
         let mut modes = extract_table(&mut tree, "modes")?;
         let mut i = 0;
 
@@ -387,8 +396,7 @@ impl<'a> DaemonState<'a> {
             let mut mode = extract_table(&mut modes, &mode_name)?;
 
             let enter_binding = extract_string(&mut mode, "enter_binding")?;
-            let enter_binding_quick_leave =
-                extract_string(&mut mode, "enter_binding_quick_leave")?;
+            let enter_binding_quick = extract_string(&mut mode, "enter_binding_quick_leave")?;
             let enter_command = optional_key(extract_string(&mut mode, "enter_command"))?;
             let leave_command = optional_key(extract_string(&mut mode, "leave_command"))?;
 
@@ -399,6 +407,15 @@ impl<'a> DaemonState<'a> {
                 bindings
                     .insert((i, ChainDesc::from_string(&chain_str, modkey_mask)?),
                             Cmd::from_value(cmd_str)?);
+            }
+
+            for j in 0..num_modes {
+                bindings
+                    .insert((j, ChainDesc::from_string(&enter_binding, modkey_mask)?),
+                            Cmd::ModeSwitch(ModeSwitch::Permanent(i)));
+                bindings
+                    .insert((j, ChainDesc::from_string(&enter_binding_quick, modkey_mask)?),
+                            Cmd::ModeSwitch(ModeSwitch::Temporary(i)));
             }
 
             i += 1;
