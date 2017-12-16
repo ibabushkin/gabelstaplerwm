@@ -103,12 +103,6 @@ pub enum Cmd {
 
 impl Cmd {
     pub fn run(&self) -> Option<ModeSwitch> {
-        if let Cmd::Shell(ref repr) = *self {
-            let _ = Command::new("sh")
-                .args(&["-c", repr])
-                .spawn();
-        }
-
         match *self {
             Cmd::Shell(ref repr) => {
                 let _ = Command::new("sh").args(&["-c", repr]).spawn();
@@ -403,7 +397,7 @@ impl<'a> DaemonState<'a> {
             let binds = extract_table(&mut mode, "bindings")?;
 
             for (chain_str, cmd_str) in binds {
-                println!("mode {}: {} -> {}", mode_name, chain_str, cmd_str);
+                debug!("mode {}: {} -> {}", mode_name, chain_str, cmd_str);
                 bindings
                     .insert((i, ChainDesc::from_string(&chain_str, modkey_mask)?),
                             Cmd::from_value(cmd_str)?);
@@ -471,9 +465,18 @@ impl<'a> DaemonState<'a> {
         }
     }
 
+    fn fallback_mode(&mut self) {
+        if let Some(fallback_mode) = self.previous_mode {
+            self.switch_mode(ModeSwitch::Permanent(fallback_mode));
+        }
+    }
+
     fn switch_mode(&mut self, switch: ModeSwitch) {
         let new_mode = match switch {
-            ModeSwitch::Permanent(new_mode) => new_mode,
+            ModeSwitch::Permanent(new_mode) => {
+                self.previous_mode = None;
+                new_mode
+            },
             ModeSwitch::Temporary(new_mode) => {
                 self.previous_mode = Some(self.current_mode);
                 new_mode
@@ -497,11 +500,8 @@ impl<'a> DaemonState<'a> {
                 self.bindings.iter().filter(|k| (k.0).0 == self.current_mode) {
             if self.current_chain.is_prefix_of(chain) {
                 if self.current_chain.chords.len() == chain.chords.len() {
-                    debug!("determined command {:?} from chain {:?}",
-                           cmd, self.current_chain);
+                    info!("determined command {:?} from chain {:?}", cmd, self.current_chain);
                     mode_switch = cmd.run();
-
-                    // TODO: reset mode from temp here
 
                     drop_chain = true;
                     break;
@@ -517,6 +517,8 @@ impl<'a> DaemonState<'a> {
 
         if let Some(switch) = mode_switch {
             self.switch_mode(switch);
+        } else {
+            self.fallback_mode();
         }
     }
 
