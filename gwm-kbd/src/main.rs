@@ -375,9 +375,10 @@ impl<'a> DaemonState<'a> {
         let mode_set = extract_array(&mut tree, "active_modes")?;
         let num_modes = mode_set.len();
 
-        let mut modes = extract_table(&mut tree, "modes")?;
+        let mut mode_table = extract_table(&mut tree, "modes")?;
         let mut i = 0;
 
+        let mut modes = Vec::with_capacity(num_modes);
         let mut bindings = BTreeMap::new();
 
         for mode_name in mode_set {
@@ -387,17 +388,27 @@ impl<'a> DaemonState<'a> {
                 return Err(ConfigError::KeyTypeMismatch(format!("active_modes.{}", i)));
             };
 
-            let mut mode = extract_table(&mut modes, &mode_name)?;
+            let mut mode = extract_table(&mut mode_table, &mode_name)?;
 
             let enter_binding = extract_string(&mut mode, "enter_binding")?;
             let enter_binding_quick = extract_string(&mut mode, "enter_binding_quick_leave")?;
-            let enter_command = optional_key(extract_string(&mut mode, "enter_command"))?;
-            let leave_command = optional_key(extract_string(&mut mode, "leave_command"))?;
+            let enter_command = optional_key(extract_string(&mut mode, "enter_command"))?
+                .map(Cmd::Shell);
+            let leave_command = optional_key(extract_string(&mut mode, "leave_command"))?
+                .map(Cmd::Shell);
+
+            debug!("mode: {}", mode_name);
+
+            modes.push(ModeDesc {
+                name: mode_name,
+                enter_command,
+                leave_command,
+            });
 
             let binds = extract_table(&mut mode, "bindings")?;
 
             for (chain_str, cmd_str) in binds {
-                debug!("mode {}: {} -> {}", mode_name, chain_str, cmd_str);
+                debug!("=> {} -> {}", chain_str, cmd_str);
                 bindings
                     .insert((i, ChainDesc::from_string(&chain_str, modkey_mask)?),
                             Cmd::from_value(cmd_str)?);
@@ -419,7 +430,7 @@ impl<'a> DaemonState<'a> {
             kbd_state,
             current_mode: 0,
             previous_mode: None,
-            modes: Vec::new(),
+            modes,
             modkey_mask,
             current_chain: ChainDesc::default(),
             last_keypress: 0,
@@ -582,11 +593,6 @@ impl<'a> DaemonState<'a> {
 struct ModeDesc {
     /// Name of the mode.
     name: String,
-    /// A binding which changes the current mode to the given one.
-    enter_binding: (),
-    /// A binding which leaves the current mode untouched, but interprets the next keybinding as
-    /// if it was activated in the given mode.
-    enter_binding_quick_leave: (),
     /// An optional command to execute when the given mode is activated.
     enter_command: Option<Cmd>,
     /// An optional command to execute when the given mode is left.
