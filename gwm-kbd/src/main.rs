@@ -86,13 +86,16 @@ type ConfigResult<T> = Result<T, ConfigError>;
 /// An index representing a mode.
 pub type Mode = usize;
 
+/// A mode switching action.
 #[derive(Clone, Copy, Debug)]
 pub enum ModeSwitch {
+    /// A mode switching action changing the current mode permanently.
     Permanent(Mode),
+    /// A temporary mode switching action, changing behaviour only for the next chain.
     Temporary(Mode),
 }
 
-/// A shell command to be called in reaction to specific key events.
+/// A command to be executed in reaction to specific key events.
 #[derive(Debug)]
 pub enum Cmd {
     /// A string to be passed to a shell to execute the command.
@@ -102,6 +105,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
+    /// Run a command and possibly return an resulting mode switching action to perform.
     pub fn run(&self) -> Option<ModeSwitch> {
         match *self {
             Cmd::Shell(ref repr) => {
@@ -114,6 +118,7 @@ impl Cmd {
         }
     }
 
+    /// Construct a command from a TOML value.
     pub fn from_value(value: toml::Value) -> ConfigResult<Cmd> {
         if let toml::Value::String(repr) = value {
             Ok(Cmd::Shell(repr))
@@ -123,6 +128,7 @@ impl Cmd {
     }
 }
 
+/// A keysy wrapper used for various trait implementations.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub struct Keysym(xkb::Keysym);
 
@@ -140,20 +146,14 @@ impl PartialOrd for Keysym {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct ChordDesc {
-    // keysym
-    keysym: Keysym,
-    // non-consumed mods
-    modmask: xkb::ModMask,
-}
-
+/// Update a given modifier mask.
 fn modmask_combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
     use xcb::ffi::xcb_mod_mask_t;
 
     *mask = xkb::ModMask(mask.0 as xcb_mod_mask_t | add_mask.0 as xcb_mod_mask_t);
 }
 
+/// Get a modifier mask from a string description of the modifier keys.
 fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
     use xcb::ffi::xcb_mod_mask_t;
 
@@ -174,6 +174,18 @@ fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
     mod_component != 0
 }
 
+/// A chord description.
+///
+/// A *chord* is a set of modifiers and a key pressed at the same time, represented
+/// by a symbolic keysym value (which is independent of keymap).
+#[derive(Debug, PartialEq, Eq)]
+pub struct ChordDesc {
+    /// The keysym of the chord.
+    keysym: Keysym,
+    /// The modifier mask of the non-depressed mods of the chord.
+    modmask: xkb::ModMask,
+}
+
 impl Ord for ChordDesc {
     fn cmp(&self, other: &ChordDesc) -> Ordering {
         let modmask: u32 = self.modmask.into();
@@ -189,7 +201,12 @@ impl PartialOrd for ChordDesc {
 }
 
 impl ChordDesc {
-    // assumes no spaces are present in the string
+    /// Construct a chord description from a string representation of modifiers and a keysym.
+    ///
+    /// Assuming no spaces are present in the string, interpret a sequence of `+`-separated
+    /// modifier descriptions, and a single symbol. Interpolates the `$modkey` variable with the
+    /// given modifier mask. The part of the string following the first keysym representation is
+    /// discarded.
     fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> ConfigResult<ChordDesc> {
         let mut modmask = xkb::ModMask(0);
 
@@ -214,13 +231,19 @@ impl ChordDesc {
     }
 }
 
+/// A chain description.
+///
+/// A *chain* is an ordered sequence of chords to be pressed after each other.
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChainDesc {
-    // the chords in the chain, in order
+    /// The chords in the chain, in order.
     chords: Vec<ChordDesc>,
 }
 
 impl ChainDesc {
+    /// Construct a chain description from a string representation.
+    ///
+    /// Interpret the string as a sequence of space-separated strings representing chords.
     fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> ConfigResult<ChainDesc> {
         let mut chords = Vec::new();
 
@@ -231,6 +254,9 @@ impl ChainDesc {
         Ok(ChainDesc { chords })
     }
 
+    /// Check if a given chain is a logical prefix of another one.
+    ///
+    /// Takes into account ignored modifiers and etc. (NB: not yet correctly implemented).
     fn is_prefix_of(&self, other: &ChainDesc) -> bool {
         other.chords.starts_with(&self.chords)
 
@@ -242,22 +268,29 @@ impl ChainDesc {
     }
 }
 
-pub struct KeyboardState<'a> {
+/// Keyboard state object.
+pub struct KbdState<'a> {
+    /// X connection used to communicate.
     con: &'a Connection,
+    /// Root window.
     root: xproto::Window,
+    /// The current keymap.
     keymap: Keymap,
+    /// The current keyboard state.
     state: State,
+    /// Dummy keyboard state used to compute keycode and keysym correspondence.
     dummy_state: State,
+    /// Smallest keycode.
     min_keycode: Keycode,
+    /// Largest keycode.
     max_keycode: Keycode,
+    /// Map from keycodes in the index to keysyms the corresponding keys yield.
     keysym_map: Vec<Option<Keysym>>,
 }
 
-impl<'a> KeyboardState<'a> {
-    fn new(con: &'a Connection,
-           screen_num: i32,
-           keymap: Keymap,
-           state: State) -> Self {
+impl<'a> KbdState<'a> {
+    /// Construct a new keyboard state object.
+    fn new(con: &'a Connection, screen_num: i32, keymap: Keymap, state: State) -> Self {
         let setup = con.get_setup();
         let root = if let Some(screen) = setup.roots().nth(screen_num as usize) {
             screen.root()
@@ -267,7 +300,7 @@ impl<'a> KeyboardState<'a> {
 
         let dummy_state = keymap.state();
 
-        let mut state = KeyboardState {
+        let mut state = KbdState {
             con,
             root,
             keymap,
@@ -321,26 +354,28 @@ impl<'a> KeyboardState<'a> {
             .map(|pos| Keycode(self.min_keycode.0 + (pos as u32)))
     }
 
+    /// Get the connection to the X server.
     fn con(&self) -> &Connection {
         self.con
     }
 
+    /// Get the root window.
     fn root(&self) -> xproto::Window {
         self.root
     }
 }
 
-impl<'a> ::std::fmt::Debug for KeyboardState<'a> {
+impl<'a> ::std::fmt::Debug for KbdState<'a> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "(_, {:?}, _, _, _)", self.root)
     }
 }
 
-/// The current state of the daemon.
+/// Global daemon state object.
 #[derive(Debug)]
 pub struct DaemonState<'a> {
-    /// All things necessary to communicate with the X server.
-    kbd_state: KeyboardState<'a>,
+    /// Current keyboard- and other low-level state.
+    kbd_state: KbdState<'a>,
     /// The currently active keymap mode.
     current_mode: Mode,
     /// The previous mode to switch back to for when the current mode is set temporarily.
@@ -359,7 +394,7 @@ pub struct DaemonState<'a> {
 
 impl<'a> DaemonState<'a> {
     /// Construct an initial daemon state from a configuration file.
-    fn from_config(path: &Path, kbd_state: KeyboardState<'a>) -> ConfigResult<Self> {
+    fn from_config(path: &Path, kbd_state: KbdState<'a>) -> ConfigResult<Self> {
         let mut tree = parse_config_file(path)?;
         info!("parsed config");
 
@@ -437,15 +472,19 @@ impl<'a> DaemonState<'a> {
         })
     }
 
+    /// Get the connection to the X server.
     fn con(&self) -> &Connection {
         self.kbd_state.con()
     }
 
+    /// Get the root window.
     fn root(&self) -> xproto::Window {
         self.kbd_state.root()
     }
 
-    // TODO check parallel code as well (later)
+    /// Grab keys for the current mode.
+    ///
+    /// TODO: write a parallel equivalent.
     fn grab_current_mode(&self) {
         for &(mode, ref chain) in self.bindings.keys() {
             if mode == self.current_mode {
@@ -462,6 +501,9 @@ impl<'a> DaemonState<'a> {
         }
     }
 
+    /// Ungrab all keys from the current mode.
+    ///
+    /// Ungrabs all keys for simplicity.
     fn ungrab_current_mode(&self) {
         let err = xproto::ungrab_key(self.con(),
                                      xproto::GRAB_ANY as u8,
@@ -475,12 +517,16 @@ impl<'a> DaemonState<'a> {
         }
     }
 
+    /// Fall back to a mode possibly stored in the `previous_mode` field.
     fn fallback_mode(&mut self) {
         if let Some(fallback_mode) = self.previous_mode {
             self.switch_mode(ModeSwitch::Permanent(fallback_mode));
         }
     }
 
+    /// Switch modes according to directive.
+    ///
+    /// Manages internal state, as well as necessary interaction with the X server.
     fn switch_mode(&mut self, switch: ModeSwitch) {
         let new_mode = match switch {
             ModeSwitch::Permanent(new_mode) => {
@@ -507,6 +553,9 @@ impl<'a> DaemonState<'a> {
         self.grab_current_mode();
     }
 
+    /// Process a chord determined from a key press event.
+    ///
+    /// Dispatches to command execution and mode switching logic according to configuration.
     fn process_chord(&mut self, modmask: xkb::ModMask, keysym: Keysym) {
         let chord = ChordDesc { keysym, modmask };
         let mut drop_chain = true;
@@ -540,6 +589,7 @@ impl<'a> DaemonState<'a> {
         }
     }
 
+    /// Run the main loop of the daemon.
     fn run(&mut self) {
         let xkb_base = self.con().get_extension_data(&mut xxkb::id()).unwrap().first_event();
         debug!("xkb base: {}", xkb_base);
@@ -598,7 +648,7 @@ impl<'a> DaemonState<'a> {
 /// A mode description.
 #[derive(Debug)]
 struct ModeDesc {
-    /// An optional command to execute when the given mode is activated.
+    /// An optional command to execute when the given mode is entered.
     enter_command: Option<Cmd>,
     /// An optional command to execute when the given mode is left.
     leave_command: Option<Cmd>,
@@ -628,7 +678,7 @@ fn parse_config_file(path: &Path) -> ConfigResult<Table> {
     }
 }
 
-/// Extract a key value from a table as a string.
+/// Extract a key's value from a table as a string.
 fn extract_string(table: &mut Table, key: &str) -> ConfigResult<String> {
     match table.remove(key) {
         Some(Value::String(s)) => Ok(s),
@@ -637,7 +687,7 @@ fn extract_string(table: &mut Table, key: &str) -> ConfigResult<String> {
     }
 }
 
-/// Extract a key value from a table as a table.
+/// Extract a key's value from a table as a table.
 fn extract_table(table: &mut Table, key: &str) -> ConfigResult<Table> {
     match table.remove(key) {
         Some(Value::Table(t)) => Ok(t),
@@ -646,7 +696,7 @@ fn extract_table(table: &mut Table, key: &str) -> ConfigResult<Table> {
     }
 }
 
-/// Extract a key value from a table as an array.
+/// Extract a key's value from a table as an array.
 fn extract_array(table: &mut Table, key: &str) -> ConfigResult<Array> {
     match table.remove(key) {
         Some(Value::Array(a)) => Ok(a),
@@ -655,6 +705,7 @@ fn extract_array(table: &mut Table, key: &str) -> ConfigResult<Array> {
     }
 }
 
+/// Check for an optional key to extract.
 fn optional_key<T>(input_result: ConfigResult<T>) -> ConfigResult<Option<T>> {
     match input_result {
         Ok(res) => Ok(Some(res)),
@@ -748,7 +799,7 @@ fn main() {
 
     cookie.get_reply().expect("no flags set");
 
-    let kbd_state = KeyboardState::new(&con, screen_num, keymap, state);
+    let kbd_state = KbdState::new(&con, screen_num, keymap, state);
     let daemon_state = DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), kbd_state);
     debug!("initial daemon state: {:?}", daemon_state);
 
