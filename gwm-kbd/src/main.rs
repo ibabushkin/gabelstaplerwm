@@ -400,7 +400,6 @@ impl<'a> DaemonState<'a> {
             debug!("mode: {}", mode_name);
 
             modes.push(ModeDesc {
-                name: mode_name,
                 enter_command,
                 leave_command,
             });
@@ -494,13 +493,21 @@ impl<'a> DaemonState<'a> {
             },
         };
 
+        if let Some(ref cmd) = self.modes[self.current_mode].leave_command {
+            cmd.run();
+        }
+
         self.current_mode = new_mode;
+
+        if let Some(ref cmd) = self.modes[self.current_mode].enter_command {
+            cmd.run();
+        }
 
         self.ungrab_current_mode();
         self.grab_current_mode();
     }
 
-    fn evaluate_chord(&mut self, modmask: xkb::ModMask, keysym: Keysym) {
+    fn process_chord(&mut self, modmask: xkb::ModMask, keysym: Keysym) {
         let chord = ChordDesc { keysym, modmask };
         let mut drop_chain = true;
         let mut mode_switch = None;
@@ -569,7 +576,7 @@ impl<'a> DaemonState<'a> {
                             debug!("generic event: KEY_PRESS: mods: {:?}, keycode (sym): \
                                     {:?} ({:?})",
                                     modmask, keycode, keysym.0.utf8());
-                            self.evaluate_chord(modmask, keysym);
+                            self.process_chord(modmask, keysym);
                         } else {
                             debug!("generic event: KEY_PRESS: mods: {:?}, keycode: {:?} (no \
                                    sym)",
@@ -591,8 +598,6 @@ impl<'a> DaemonState<'a> {
 /// A mode description.
 #[derive(Debug)]
 struct ModeDesc {
-    /// Name of the mode.
-    name: String,
     /// An optional command to execute when the given mode is activated.
     enter_command: Option<Cmd>,
     /// An optional command to execute when the given mode is left.
