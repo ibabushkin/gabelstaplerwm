@@ -384,6 +384,8 @@ pub struct DaemonState<'a> {
     modes: Vec<ModeDesc>,
     /// The main modkey to use.
     modkey_mask: xkb::ModMask,
+    /// The maximum time between two keypresses in a chain in milliseconds.
+    keypress_timeout: u32,
     /// Currently active chain prefix.
     current_chain: ChainDesc,
     /// Time at which the last key was pressed.
@@ -406,6 +408,9 @@ impl<'a> DaemonState<'a> {
             error!("could not decode modkey keysym from word, aborting: {}", modkey_str);
             return Err(ConfigError::KeysymCouldNotBeParsed(modkey_str.to_owned()));
         };
+
+        let keypress_timeout =
+            optional_key(extract_int(&mut tree, "timeout"))?.unwrap_or(1000) as u32;
 
         let mode_set = extract_array(&mut tree, "active_modes")?;
         let num_modes = mode_set.len();
@@ -466,6 +471,7 @@ impl<'a> DaemonState<'a> {
             previous_mode: None,
             modes,
             modkey_mask,
+            keypress_timeout,
             current_chain: ChainDesc::default(),
             last_keypress: 0,
             bindings,
@@ -561,7 +567,7 @@ impl<'a> DaemonState<'a> {
         let mut drop_chain = true;
         let mut mode_switch = None;
 
-        if self.last_keypress + 1000 < time {
+        if self.last_keypress + self.keypress_timeout < time {
             self.current_chain.chords.clear();
         }
 
@@ -680,6 +686,15 @@ fn parse_config_file(path: &Path) -> ConfigResult<Table> {
             }
         },
         Err(io_error) => Err(ConfigError::IOError(io_error)),
+    }
+}
+
+/// Extract a key's value from a table as an int.
+fn extract_int(table: &mut Table, key: &str) -> ConfigResult<i64> {
+    match table.remove(key) {
+        Some(Value::Integer(i)) => Ok(i),
+        Some(_) => Err(ConfigError::KeyTypeMismatch(key.to_owned())),
+        None => Err(ConfigError::KeyMissing(key.to_owned())),
     }
 }
 

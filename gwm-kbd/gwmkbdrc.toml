@@ -1,4 +1,5 @@
 modkey = "mod1"
+timeout = 200
 
 active_modes = [
   "normal", # first mode listed is default
