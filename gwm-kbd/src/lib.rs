@@ -32,5 +32,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 extern crate toml;
+extern crate xcb;
+extern crate xkb;
 
 pub mod kbd;

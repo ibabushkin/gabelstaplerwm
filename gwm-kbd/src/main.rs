@@ -46,7 +46,6 @@ use std::env::remove_var;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use std::process::Command;
 use std::str::FromStr;
 
 use toml::value::{Array, Table, Value};
@@ -60,70 +59,8 @@ use xkb::state::Key;
 use xkb::{Keycode, Keymap, State};
 use xkb::x11 as x11;
 
-use gwm_kbd::kbd::*;
-
-/// An index representing a mode.
-pub type Mode = usize;
-
-/// A mode switching action.
-#[derive(Clone, Copy, Debug)]
-pub enum ModeSwitch {
-    /// A mode switching action changing the current mode permanently.
-    Permanent(Mode),
-    /// A temporary mode switching action, changing behaviour only for the next chain.
-    Temporary(Mode),
-}
-
-/// A command to be executed in reaction to specific key events.
-#[derive(Debug)]
-pub enum Cmd {
-    /// A string to be passed to a shell to execute the command.
-    Shell(String),
-    /// A mode to switch to.
-    ModeSwitch(ModeSwitch),
-}
-
-impl Cmd {
-    /// Run a command and possibly return an resulting mode switching action to perform.
-    pub fn run(&self) -> Option<ModeSwitch> {
-        match *self {
-            Cmd::Shell(ref repr) => {
-                let _ = Command::new("sh").args(&["-c", repr]).spawn();
-                None
-            },
-            Cmd::ModeSwitch(ref switch) => {
-                Some(*switch)
-            },
-        }
-    }
-
-    /// Construct a command from a TOML value.
-    pub fn from_value(bind_str: String, value: toml::Value) -> KbdResult<Cmd> {
-        if let toml::Value::String(repr) = value {
-            Ok(Cmd::Shell(repr))
-        } else {
-            Err(KbdError::KeyTypeMismatch(bind_str, true))
-        }
-    }
-}
-
-/// A keysy wrapper used for various trait implementations.
-#[derive(PartialEq, Eq, Copy, Clone, Debug)]
-pub struct Keysym(xkb::Keysym);
-
-impl Ord for Keysym {
-    fn cmp(&self, other: &Keysym) -> Ordering {
-        let self_inner: u32 = self.0.into();
-
-        self_inner.cmp(&other.0.into())
-    }
-}
-
-impl PartialOrd for Keysym {
-    fn partial_cmp(&self, other: &Keysym) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
+use gwm_kbd::kbd::error::*;
+use gwm_kbd::kbd::types::*;
 
 /// Update a given modifier mask.
 fn modmask_combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
