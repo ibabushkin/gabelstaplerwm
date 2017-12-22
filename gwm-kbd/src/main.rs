@@ -33,6 +33,7 @@
  */
 
 extern crate env_logger;
+extern crate gwm_kbd;
 #[macro_use]
 extern crate log;
 extern crate toml;
@@ -43,7 +44,6 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::env::remove_var;
 use std::fs::File;
-use std::io::Error as IoError;
 use std::io::prelude::*;
 use std::path::Path;
 use std::process::Command;
@@ -60,28 +60,7 @@ use xkb::state::Key;
 use xkb::{Keycode, Keymap, State};
 use xkb::x11 as x11;
 
-/// An error occured when reading in the configuration.
-#[derive(Debug)]
-pub enum ConfigError {
-    /// An I/O error occured.
-    IOError(IoError),
-    /// The TOML content of the config file is invalid.
-    TomlError(toml::de::Error),
-    /// The TOML file does not contain a toplevel table.
-    TomlNotTable,
-    /// A necessary config key is missing.
-    KeyMissing(String),
-    /// A config key holds a value of the wrong type.
-    KeyTypeMismatch(String),
-    /// A Keysym could not be parsed.
-    KeysymCouldNotBeParsed(String),
-    /// An invalid chord has been passed into the config.
-    InvalidChord,
-    CommandTypeMismatch,
-}
-
-/// A result returned when reading in the configuration.
-type ConfigResult<T> = Result<T, ConfigError>;
+use gwm_kbd::kbd::*;
 
 /// An index representing a mode.
 pub type Mode = usize;
@@ -119,11 +98,11 @@ impl Cmd {
     }
 
     /// Construct a command from a TOML value.
-    pub fn from_value(value: toml::Value) -> ConfigResult<Cmd> {
+    pub fn from_value(bind_str: String, value: toml::Value) -> KbdResult<Cmd> {
         if let toml::Value::String(repr) = value {
             Ok(Cmd::Shell(repr))
         } else {
-            Err(ConfigError::CommandTypeMismatch)
+            Err(KbdError::KeyTypeMismatch(bind_str, true))
         }
     }
 }
@@ -207,7 +186,7 @@ impl ChordDesc {
     /// modifier descriptions, and a single symbol. Interpolates the `$modkey` variable with the
     /// given modifier mask. The part of the string following the first keysym representation is
     /// discarded.
-    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> ConfigResult<ChordDesc> {
+    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> KbdResult<ChordDesc> {
         let mut modmask = xkb::ModMask(0);
 
         for word in desc.split('+') {
@@ -227,7 +206,7 @@ impl ChordDesc {
             }
         }
 
-        Err(ConfigError::InvalidChord)
+        Err(KbdError::InvalidChord)
     }
 }
 
@@ -244,7 +223,7 @@ impl ChainDesc {
     /// Construct a chain description from a string representation.
     ///
     /// Interpret the string as a sequence of space-separated strings representing chords.
-    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> ConfigResult<ChainDesc> {
+    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> KbdResult<ChainDesc> {
         let mut chords = Vec::new();
 
         for expr in desc.split(' ') {
@@ -396,7 +375,7 @@ pub struct DaemonState<'a> {
 
 impl<'a> DaemonState<'a> {
     /// Construct an initial daemon state from a configuration file.
-    fn from_config(path: &Path, kbd_state: KbdState<'a>) -> ConfigResult<Self> {
+    fn from_config(path: &Path, kbd_state: KbdState<'a>) -> KbdResult<Self> {
         let mut tree = parse_config_file(path)?;
         info!("parsed config");
 
@@ -406,7 +385,7 @@ impl<'a> DaemonState<'a> {
             info!("determined modkey mask: {} ({:?})", modkey_str, modkey_mask);
         } else {
             error!("could not decode modkey keysym from word, aborting: {}", modkey_str);
-            return Err(ConfigError::KeysymCouldNotBeParsed(modkey_str.to_owned()));
+            return Err(KbdError::KeysymCouldNotBeParsed(modkey_str.to_owned()));
         };
 
         let keypress_timeout =
@@ -425,7 +404,7 @@ impl<'a> DaemonState<'a> {
             let mode_name = if let Value::String(s) = mode_name {
                 s
             } else {
-                return Err(ConfigError::KeyTypeMismatch(format!("active_modes.{}", i)));
+                return Err(KbdError::KeyTypeMismatch(format!("active_modes.{}", i), false));
             };
 
             let mut mode = extract_table(&mut mode_table, &mode_name)?;
@@ -450,7 +429,7 @@ impl<'a> DaemonState<'a> {
                 debug!("=> {} -> {}", chain_str, cmd_str);
                 bindings
                     .insert((i, ChainDesc::from_string(&chain_str, modkey_mask)?),
-                            Cmd::from_value(cmd_str)?);
+                            Cmd::from_value(chain_str, cmd_str)?);
             }
 
             for j in 0..num_modes {
@@ -666,7 +645,7 @@ struct ModeDesc {
 }
 
 /// Try to parse a TOML table from a config file, given as a path.
-fn parse_config_file(path: &Path) -> ConfigResult<Table> {
+fn parse_config_file(path: &Path) -> KbdResult<Table> {
     match File::open(path) {
         Ok(mut file) => {
             let mut toml_str = String::new();
@@ -675,61 +654,61 @@ fn parse_config_file(path: &Path) -> ConfigResult<Table> {
                 Ok(_) => {
                     toml_str
                         .parse::<Value>()
-                        .map_err(ConfigError::TomlError)
+                        .map_err(KbdError::TomlError)
                         .and_then(|v| if let Value::Table(t) = v {
                             Ok(t)
                         } else {
-                            Err(ConfigError::TomlNotTable)
+                            Err(KbdError::TomlNotTable)
                         })
                 },
-                Err(io_error) => Err(ConfigError::IOError(io_error)),
+                Err(io_error) => Err(KbdError::IOError(io_error)),
             }
         },
-        Err(io_error) => Err(ConfigError::IOError(io_error)),
+        Err(io_error) => Err(KbdError::IOError(io_error)),
     }
 }
 
 /// Extract a key's value from a table as an int.
-fn extract_int(table: &mut Table, key: &str) -> ConfigResult<i64> {
+fn extract_int(table: &mut Table, key: &str) -> KbdResult<i64> {
     match table.remove(key) {
         Some(Value::Integer(i)) => Ok(i),
-        Some(_) => Err(ConfigError::KeyTypeMismatch(key.to_owned())),
-        None => Err(ConfigError::KeyMissing(key.to_owned())),
+        Some(_) => Err(KbdError::KeyTypeMismatch(key.to_owned(), false)),
+        None => Err(KbdError::KeyMissing(key.to_owned())),
     }
 }
 
 /// Extract a key's value from a table as a string.
-fn extract_string(table: &mut Table, key: &str) -> ConfigResult<String> {
+fn extract_string(table: &mut Table, key: &str) -> KbdResult<String> {
     match table.remove(key) {
         Some(Value::String(s)) => Ok(s),
-        Some(_) => Err(ConfigError::KeyTypeMismatch(key.to_owned())),
-        None => Err(ConfigError::KeyMissing(key.to_owned())),
+        Some(_) => Err(KbdError::KeyTypeMismatch(key.to_owned(), false)),
+        None => Err(KbdError::KeyMissing(key.to_owned())),
     }
 }
 
 /// Extract a key's value from a table as a table.
-fn extract_table(table: &mut Table, key: &str) -> ConfigResult<Table> {
+fn extract_table(table: &mut Table, key: &str) -> KbdResult<Table> {
     match table.remove(key) {
         Some(Value::Table(t)) => Ok(t),
-        Some(_) => Err(ConfigError::KeyTypeMismatch(key.to_owned())),
-        None => Err(ConfigError::KeyMissing(key.to_owned())),
+        Some(_) => Err(KbdError::KeyTypeMismatch(key.to_owned(), false)),
+        None => Err(KbdError::KeyMissing(key.to_owned())),
     }
 }
 
 /// Extract a key's value from a table as an array.
-fn extract_array(table: &mut Table, key: &str) -> ConfigResult<Array> {
+fn extract_array(table: &mut Table, key: &str) -> KbdResult<Array> {
     match table.remove(key) {
         Some(Value::Array(a)) => Ok(a),
-        Some(_) => Err(ConfigError::KeyTypeMismatch(key.to_owned())),
-        None => Err(ConfigError::KeyMissing(key.to_owned())),
+        Some(_) => Err(KbdError::KeyTypeMismatch(key.to_owned(), false)),
+        None => Err(KbdError::KeyMissing(key.to_owned())),
     }
 }
 
 /// Check for an optional key to extract.
-fn optional_key<T>(input_result: ConfigResult<T>) -> ConfigResult<Option<T>> {
+fn optional_key<T>(input_result: KbdResult<T>) -> KbdResult<Option<T>> {
     match input_result {
         Ok(res) => Ok(Some(res)),
-        Err(ConfigError::KeyMissing(_)) => Ok(None),
+        Err(KbdError::KeyMissing(_)) => Ok(None),
         Err(err) => Err(err),
     }
 }
