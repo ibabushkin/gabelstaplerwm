@@ -40,13 +40,11 @@ extern crate toml;
 extern crate xcb;
 extern crate xkb;
 
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::env::remove_var;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use std::str::FromStr;
 
 use toml::value::{Array, Table, Value};
 
@@ -61,91 +59,7 @@ use xkb::x11 as x11;
 
 use gwm_kbd::kbd::error::*;
 use gwm_kbd::kbd::types::*;
-
-/// Update a given modifier mask.
-fn modmask_combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
-    use xcb::ffi::xcb_mod_mask_t;
-
-    *mask = xkb::ModMask(mask.0 as xcb_mod_mask_t | add_mask.0 as xcb_mod_mask_t);
-}
-
-/// Get a modifier mask from a string description of the modifier keys.
-fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
-    use xcb::ffi::xcb_mod_mask_t;
-
-    let mod_component: xcb_mod_mask_t = match &desc.to_lowercase()[..] {
-        "shift" => xproto::MOD_MASK_SHIFT,
-        "ctrl" => xproto::MOD_MASK_CONTROL,
-        "mod1" => xproto::MOD_MASK_1,
-        "mod2" => xproto::MOD_MASK_2,
-        "mod3" => xproto::MOD_MASK_3,
-        "mod4" => xproto::MOD_MASK_4,
-        "mod5" => xproto::MOD_MASK_5,
-        _ => 0,
-    };
-
-    let raw_mask = mask.0 as xcb_mod_mask_t;
-    *mask = xkb::ModMask(raw_mask | mod_component);
-
-    mod_component != 0
-}
-
-/// A chord description.
-///
-/// A *chord* is a set of modifiers and a key pressed at the same time, represented
-/// by a symbolic keysym value (which is independent of keymap).
-#[derive(Debug, PartialEq, Eq)]
-pub struct ChordDesc {
-    /// The keysym of the chord.
-    keysym: Keysym,
-    /// The modifier mask of the non-depressed mods of the chord.
-    modmask: xkb::ModMask,
-}
-
-impl Ord for ChordDesc {
-    fn cmp(&self, other: &ChordDesc) -> Ordering {
-        let modmask: u32 = self.modmask.into();
-
-        self.keysym.cmp(&other.keysym).then(modmask.cmp(&other.modmask.into()))
-    }
-}
-
-impl PartialOrd for ChordDesc {
-    fn partial_cmp(&self, other: &ChordDesc) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl ChordDesc {
-    /// Construct a chord description from a string representation of modifiers and a keysym.
-    ///
-    /// Assuming no spaces are present in the string, interpret a sequence of `+`-separated
-    /// modifier descriptions, and a single symbol. Interpolates the `$modkey` variable with the
-    /// given modifier mask. The part of the string following the first keysym representation is
-    /// discarded.
-    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> KbdResult<ChordDesc> {
-        let mut modmask = xkb::ModMask(0);
-
-        for word in desc.split('+') {
-            if word == "$modkey" {
-                debug!("added default modifier");
-                modmask_combine(&mut modmask, modkey_mask);
-            } else if modmask_from_str(word, &mut modmask) {
-                debug!("modifier decoded, continuing chord: {} (modmask={:b})", word, modmask.0);
-            } else if let Ok(sym) = xkb::Keysym::from_str(word) {
-                debug!("keysym decoded, assuming end of chord: {} ({:?})", word, sym);
-                return Ok(ChordDesc {
-                    keysym: Keysym(sym),
-                    modmask,
-                });
-            } else {
-                error!("could not decode keysym or modifier from word, continuing: {}", word);
-            }
-        }
-
-        Err(KbdError::InvalidChord)
-    }
-}
+use gwm_kbd::kbd::modmask;
 
 /// A chain description.
 ///
@@ -318,7 +232,7 @@ impl<'a> DaemonState<'a> {
 
         let modkey_str = extract_string(&mut tree, "modkey")?;
         let mut modkey_mask = xkb::ModMask(0);
-        if modmask_from_str(&modkey_str, &mut modkey_mask) {
+        if modmask::modmask_from_str(&modkey_str, &mut modkey_mask) {
             info!("determined modkey mask: {} ({:?})", modkey_str, modkey_mask);
         } else {
             error!("could not decode modkey keysym from word, aborting: {}", modkey_str);
@@ -411,9 +325,9 @@ impl<'a> DaemonState<'a> {
         for &(mode, ref chain) in self.bindings.keys() {
             if mode == self.current_mode {
                 for chord in &chain.chords {
-                    if let Some(keycode) = self.kbd_state.lookup_keysym(chord.keysym) {
+                    if let Some(keycode) = self.kbd_state.lookup_keysym(chord.keysym()) {
                         xproto::grab_key(self.con(), true, self.root(),
-                                         chord.modmask.0 as u16,
+                                         chord.modmask(),
                                          keycode.0 as u8,
                                          xproto::GRAB_MODE_SYNC as u8,
                                          xproto::GRAB_MODE_ASYNC as u8);
@@ -479,7 +393,7 @@ impl<'a> DaemonState<'a> {
     ///
     /// Dispatches to command execution and mode switching logic according to configuration.
     fn process_chord(&mut self, modmask: xkb::ModMask, keysym: Keysym, time: xproto::Timestamp) {
-        let chord = ChordDesc { keysym, modmask };
+        let chord = ChordDesc::new(keysym, modmask);
         let mut drop_chain = true;
         let mut mode_switch = None;
 

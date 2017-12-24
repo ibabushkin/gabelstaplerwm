@@ -32,8 +32,34 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-pub mod error;
-pub mod types;
-pub mod modmask;
+use xcb::xproto;
 
-pub use self::error::*;
+use xkb;
+
+/// Update a given modifier mask.
+pub fn modmask_combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
+    use xcb::ffi::xcb_mod_mask_t;
+
+    *mask = xkb::ModMask(mask.0 as xcb_mod_mask_t | add_mask.0 as xcb_mod_mask_t);
+}
+
+/// Get a modifier mask from a string description of the modifier keys.
+pub fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
+    use xcb::ffi::xcb_mod_mask_t;
+
+    let mod_component: xcb_mod_mask_t = match &desc.to_lowercase()[..] {
+        "shift" => xproto::MOD_MASK_SHIFT,
+        "ctrl" => xproto::MOD_MASK_CONTROL,
+        "mod1" => xproto::MOD_MASK_1,
+        "mod2" => xproto::MOD_MASK_2,
+        "mod3" => xproto::MOD_MASK_3,
+        "mod4" => xproto::MOD_MASK_4,
+        "mod5" => xproto::MOD_MASK_5,
+        _ => 0,
+    };
+
+    let raw_mask = mask.0 as xcb_mod_mask_t;
+    *mask = xkb::ModMask(raw_mask | mod_component);
+
+    mod_component != 0
+}

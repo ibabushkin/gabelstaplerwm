@@ -34,12 +34,14 @@
 
 use std::cmp::Ordering;
 use std::process::Command;
+use std::str::FromStr;
 
 use toml;
 
 use xkb;
 
 use kbd::error::*;
+use kbd::modmask;
 
 /// An index representing a mode.
 pub type Mode = usize;
@@ -101,5 +103,75 @@ impl Ord for Keysym {
 impl PartialOrd for Keysym {
     fn partial_cmp(&self, other: &Keysym) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+/// A chord description.
+///
+/// A *chord* is a set of modifiers and a key pressed at the same time, represented
+/// by a symbolic keysym value (which is independent of keymap).
+#[derive(Debug, PartialEq, Eq)]
+pub struct ChordDesc {
+    /// The keysym of the chord.
+    keysym: Keysym,
+    /// The modifier mask of the non-depressed mods of the chord.
+    modmask: xkb::ModMask,
+}
+
+impl Ord for ChordDesc {
+    fn cmp(&self, other: &ChordDesc) -> Ordering {
+        let modmask: u32 = self.modmask.into();
+
+        self.keysym.cmp(&other.keysym).then(modmask.cmp(&other.modmask.into()))
+    }
+}
+
+impl PartialOrd for ChordDesc {
+    fn partial_cmp(&self, other: &ChordDesc) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl ChordDesc {
+    /// Construct a chord description from a string representation of modifiers and a keysym.
+    ///
+    /// Assuming no spaces are present in the string, interpret a sequence of `+`-separated
+    /// modifier descriptions, and a single symbol. Interpolates the `$modkey` variable with the
+    /// given modifier mask. The part of the string following the first keysym representation is
+    /// discarded.
+    pub fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> KbdResult<ChordDesc> {
+        let mut modmask = xkb::ModMask(0);
+
+        for word in desc.split('+') {
+            if word == "$modkey" {
+                debug!("added default modifier");
+                modmask::modmask_combine(&mut modmask, modkey_mask);
+            } else if modmask::modmask_from_str(word, &mut modmask) {
+                debug!("modifier decoded, continuing chord: {} (modmask={:b})", word, modmask.0);
+            } else if let Ok(sym) = xkb::Keysym::from_str(word) {
+                debug!("keysym decoded, assuming end of chord: {} ({:?})", word, sym);
+                return Ok(ChordDesc {
+                    keysym: Keysym(sym),
+                    modmask,
+                });
+            } else {
+                error!("could not decode keysym or modifier from word, continuing: {}", word);
+            }
+        }
+
+        Err(KbdError::InvalidChord)
+    }
+
+    pub fn new(keysym: Keysym, modmask: xkb::ModMask) -> ChordDesc {
+        ChordDesc { keysym, modmask }
+    }
+
+    pub fn keysym(&self) -> Keysym {
+        // TODO: more sophisticated matching logic possibly
+        self.keysym
+    }
+
+    pub fn modmask(&self) -> u16 {
+        self.modmask.0 as u16
     }
 }
