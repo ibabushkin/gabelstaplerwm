@@ -175,3 +175,79 @@ impl ChordDesc {
         self.modmask.0 as u16
     }
 }
+
+/// A chain description.
+///
+/// A *chain* is an ordered sequence of chords to be pressed after each other.
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ChainDesc {
+    /// The chords in the chain, in order.
+    chords: Vec<ChordDesc>,
+}
+
+impl ChainDesc {
+    /// Construct a chain description from a string representation.
+    ///
+    /// Interpret the string as a sequence of space-separated strings representing chords.
+    pub fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> KbdResult<ChainDesc> {
+        let mut chords = Vec::new();
+
+        for expr in desc.split(' ') {
+            chords.push(ChordDesc::from_string(expr, modkey_mask)?);
+        }
+
+        Ok(ChainDesc { chords })
+    }
+
+    /// Check if a given chain is a logical prefix of another one.
+    ///
+    /// Takes into account ignored modifiers and etc. (NB: not yet correctly implemented).
+    pub fn is_prefix_of(&self, other: &ChainDesc) -> bool {
+        other.chords.starts_with(&self.chords)
+
+        // chord comparison mechanism to use:
+        // (keysym == shortcut_keysym) &&
+        // ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
+        // xkb_state_mod_index_is_active etc
+        // xkb_state_mod_index_is_consumed etc
+    }
+
+    pub fn chords(&self) -> &Vec<ChordDesc> {
+        &self.chords
+    }
+
+    pub fn clear(&mut self) {
+        self.chords.clear();
+    }
+
+    pub fn push(&mut self, chord: ChordDesc) {
+        self.chords.push(chord);
+    }
+
+    pub fn len(&self) -> usize {
+        self.chords.len()
+    }
+}
+
+/// A mode description.
+#[derive(Debug)]
+pub struct ModeDesc {
+    /// An optional command to execute when the given mode is entered.
+    enter_cmd: Option<Cmd>,
+    /// An optional command to execute when the given mode is left.
+    leave_cmd: Option<Cmd>,
+}
+
+impl ModeDesc {
+    pub fn new(enter_cmd: Option<Cmd>, leave_cmd: Option<Cmd>) -> ModeDesc {
+        ModeDesc { enter_cmd, leave_cmd }
+    }
+
+    pub fn enter_cmd(&self) -> Option<&Cmd> {
+        self.enter_cmd.as_ref()
+    }
+
+    pub fn leave_cmd(&self) -> Option<&Cmd> {
+        self.leave_cmd.as_ref()
+    }
+}

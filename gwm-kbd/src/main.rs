@@ -61,43 +61,6 @@ use gwm_kbd::kbd::error::*;
 use gwm_kbd::kbd::types::*;
 use gwm_kbd::kbd::modmask;
 
-/// A chain description.
-///
-/// A *chain* is an ordered sequence of chords to be pressed after each other.
-#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ChainDesc {
-    /// The chords in the chain, in order.
-    chords: Vec<ChordDesc>,
-}
-
-impl ChainDesc {
-    /// Construct a chain description from a string representation.
-    ///
-    /// Interpret the string as a sequence of space-separated strings representing chords.
-    fn from_string(desc: &str, modkey_mask: xkb::ModMask) -> KbdResult<ChainDesc> {
-        let mut chords = Vec::new();
-
-        for expr in desc.split(' ') {
-            chords.push(ChordDesc::from_string(expr, modkey_mask)?);
-        }
-
-        Ok(ChainDesc { chords })
-    }
-
-    /// Check if a given chain is a logical prefix of another one.
-    ///
-    /// Takes into account ignored modifiers and etc. (NB: not yet correctly implemented).
-    fn is_prefix_of(&self, other: &ChainDesc) -> bool {
-        other.chords.starts_with(&self.chords)
-
-        // chord comparison mechanism to use:
-        // (keysym == shortcut_keysym) &&
-        // ((state_mods & ~consumed_mods & significant_mods) == shortcut_mods)
-        // xkb_state_mod_index_is_active etc
-        // xkb_state_mod_index_is_consumed etc
-    }
-}
-
 /// Keyboard state object.
 pub struct KbdState<'a> {
     /// X connection used to communicate.
@@ -262,17 +225,14 @@ impl<'a> DaemonState<'a> {
 
             let enter_binding = extract_string(&mut mode, "enter_binding")?;
             let enter_binding_quick = extract_string(&mut mode, "enter_binding_quick_leave")?;
-            let enter_command = optional_key(extract_string(&mut mode, "enter_command"))?
+            let enter_cmd = optional_key(extract_string(&mut mode, "enter_cmd"))?
                 .map(Cmd::Shell);
-            let leave_command = optional_key(extract_string(&mut mode, "leave_command"))?
+            let leave_cmd = optional_key(extract_string(&mut mode, "leave_cmd"))?
                 .map(Cmd::Shell);
 
             debug!("mode: {}", mode_name);
 
-            modes.push(ModeDesc {
-                enter_command,
-                leave_command,
-            });
+            modes.push(ModeDesc::new(enter_cmd, leave_cmd));
 
             let binds = extract_table(&mut mode, "bindings")?;
 
@@ -324,7 +284,7 @@ impl<'a> DaemonState<'a> {
     fn grab_current_mode(&self) {
         for &(mode, ref chain) in self.bindings.keys() {
             if mode == self.current_mode {
-                for chord in &chain.chords {
+                for chord in chain.chords() {
                     if let Some(keycode) = self.kbd_state.lookup_keysym(chord.keysym()) {
                         xproto::grab_key(self.con(), true, self.root(),
                                          chord.modmask(),
@@ -375,13 +335,13 @@ impl<'a> DaemonState<'a> {
             },
         };
 
-        if let Some(ref cmd) = self.modes[self.current_mode].leave_command {
+        if let Some(cmd) = self.modes[self.current_mode].leave_cmd() {
             cmd.run();
         }
 
         self.current_mode = new_mode;
 
-        if let Some(ref cmd) = self.modes[self.current_mode].enter_command {
+        if let Some(cmd) = self.modes[self.current_mode].enter_cmd() {
             cmd.run();
         }
 
@@ -398,15 +358,15 @@ impl<'a> DaemonState<'a> {
         let mut mode_switch = None;
 
         if self.last_keypress + self.keypress_timeout < time {
-            self.current_chain.chords.clear();
+            self.current_chain.clear();
         }
 
-        self.current_chain.chords.push(chord);
+        self.current_chain.push(chord);
 
         for (&(_, ref chain), cmd) in
                 self.bindings.iter().filter(|k| (k.0).0 == self.current_mode) {
             if self.current_chain.is_prefix_of(chain) {
-                if self.current_chain.chords.len() == chain.chords.len() {
+                if self.current_chain.len() == chain.len() {
                     info!("determined command {:?} from chain {:?}", cmd, self.current_chain);
                     mode_switch = cmd.run();
 
@@ -419,7 +379,7 @@ impl<'a> DaemonState<'a> {
         }
 
         if drop_chain {
-            self.current_chain.chords.clear();
+            self.current_chain.clear();
         }
 
         if let Some(switch) = mode_switch {
@@ -484,15 +444,6 @@ impl<'a> DaemonState<'a> {
             }
         }
     }
-}
-
-/// A mode description.
-#[derive(Debug)]
-struct ModeDesc {
-    /// An optional command to execute when the given mode is entered.
-    enter_command: Option<Cmd>,
-    /// An optional command to execute when the given mode is left.
-    leave_command: Option<Cmd>,
 }
 
 /// Try to parse a TOML table from a config file, given as a path.

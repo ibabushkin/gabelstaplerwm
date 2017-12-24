@@ -11,8 +11,8 @@ active_modes = [
 [modes.normal]
 enter_binding = "$modkey+n"
 enter_binding_quick_leave = "$modkey+m $modkey+n"
-enter_command = "echo 'n'"
-leave_command = "echo '!n'"
+enter_cmd = "echo 'n'"
+leave_cmd = "echo '!n'"
 
 [modes.normal.bindings]
 "$modkey+x $modkey+h" = "echo xh"
