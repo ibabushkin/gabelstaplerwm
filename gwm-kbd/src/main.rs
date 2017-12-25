@@ -42,11 +42,9 @@ extern crate xkb;
 
 use std::collections::BTreeMap;
 use std::env::remove_var;
-use std::fs::File;
-use std::io::prelude::*;
 use std::path::Path;
 
-use toml::value::{Array, Table, Value};
+use toml::value::Value;
 
 use xcb::base::*;
 use xcb::xkb as xxkb;
@@ -57,6 +55,7 @@ use xkb::state::Key;
 use xkb::{Keycode, Keymap, State};
 use xkb::x11 as x11;
 
+use gwm_kbd::kbd::config;
 use gwm_kbd::kbd::error::*;
 use gwm_kbd::kbd::types::*;
 use gwm_kbd::kbd::modmask;
@@ -190,10 +189,10 @@ pub struct DaemonState<'a> {
 impl<'a> DaemonState<'a> {
     /// Construct an initial daemon state from a configuration file.
     fn from_config(path: &Path, kbd_state: KbdState<'a>) -> KbdResult<Self> {
-        let mut tree = parse_config_file(path)?;
+        let mut tree = config::parse_file(path)?;
         info!("parsed config");
 
-        let modkey_str = extract_string(&mut tree, "modkey")?;
+        let modkey_str = config::extract_string(&mut tree, "modkey")?;
         let mut modkey_mask = xkb::ModMask(0);
         if modmask::modmask_from_str(&modkey_str, &mut modkey_mask) {
             info!("determined modkey mask: {} ({:?})", modkey_str, modkey_mask);
@@ -203,12 +202,12 @@ impl<'a> DaemonState<'a> {
         };
 
         let keypress_timeout =
-            optional_key(extract_int(&mut tree, "timeout"))?.unwrap_or(1000) as u32;
+            config::opt_key(config::extract_int(&mut tree, "timeout"))?.unwrap_or(1000) as u32;
 
-        let mode_set = extract_array(&mut tree, "active_modes")?;
+        let mode_set = config::extract_array(&mut tree, "active_modes")?;
         let num_modes = mode_set.len();
 
-        let mut mode_table = extract_table(&mut tree, "modes")?;
+        let mut mode_table = config::extract_table(&mut tree, "modes")?;
         let mut i = 0;
 
         let mut modes = Vec::with_capacity(num_modes);
@@ -221,20 +220,21 @@ impl<'a> DaemonState<'a> {
                 return Err(KbdError::KeyTypeMismatch(format!("active_modes.{}", i), false));
             };
 
-            let mut mode = extract_table(&mut mode_table, &mode_name)?;
+            let mut mode = config::extract_table(&mut mode_table, &mode_name)?;
 
-            let enter_binding = extract_string(&mut mode, "enter_binding")?;
-            let enter_binding_quick = extract_string(&mut mode, "enter_binding_quick_leave")?;
-            let enter_cmd = optional_key(extract_string(&mut mode, "enter_cmd"))?
+            let enter_binding = config::extract_string(&mut mode, "enter_binding")?;
+            let enter_binding_quick =
+                config::extract_string(&mut mode, "enter_binding_quick_leave")?;
+            let enter_cmd = config::opt_key(config::extract_string(&mut mode, "enter_cmd"))?
                 .map(Cmd::Shell);
-            let leave_cmd = optional_key(extract_string(&mut mode, "leave_cmd"))?
+            let leave_cmd = config::opt_key(config::extract_string(&mut mode, "leave_cmd"))?
                 .map(Cmd::Shell);
 
             debug!("mode: {}", mode_name);
 
             modes.push(ModeDesc::new(enter_cmd, leave_cmd));
 
-            let binds = extract_table(&mut mode, "bindings")?;
+            let binds = config::extract_table(&mut mode, "bindings")?;
 
             for (chain_str, cmd_str) in binds {
                 debug!("=> {} -> {}", chain_str, cmd_str);
@@ -443,75 +443,6 @@ impl<'a> DaemonState<'a> {
                 }
             }
         }
-    }
-}
-
-/// Try to parse a TOML table from a config file, given as a path.
-fn parse_config_file(path: &Path) -> KbdResult<Table> {
-    match File::open(path) {
-        Ok(mut file) => {
-            let mut toml_str = String::new();
-
-            match file.read_to_string(&mut toml_str) {
-                Ok(_) => {
-                    toml_str
-                        .parse::<Value>()
-                        .map_err(KbdError::TomlError)
-                        .and_then(|v| if let Value::Table(t) = v {
-                            Ok(t)
-                        } else {
-                            Err(KbdError::TomlNotTable)
-                        })
-                },
-                Err(io_error) => Err(KbdError::IOError(io_error)),
-            }
-        },
-        Err(io_error) => Err(KbdError::IOError(io_error)),
-    }
-}
-
-/// Extract a key's value from a table as an int.
-fn extract_int(table: &mut Table, key: &str) -> KbdResult<i64> {
-    match table.remove(key) {
-        Some(Value::Integer(i)) => Ok(i),
-        Some(_) => Err(KbdError::KeyTypeMismatch(key.to_owned(), false)),
-        None => Err(KbdError::KeyMissing(key.to_owned())),
-    }
-}
-
-/// Extract a key's value from a table as a string.
-fn extract_string(table: &mut Table, key: &str) -> KbdResult<String> {
-    match table.remove(key) {
-        Some(Value::String(s)) => Ok(s),
-        Some(_) => Err(KbdError::KeyTypeMismatch(key.to_owned(), false)),
-        None => Err(KbdError::KeyMissing(key.to_owned())),
-    }
-}
-
-/// Extract a key's value from a table as a table.
-fn extract_table(table: &mut Table, key: &str) -> KbdResult<Table> {
-    match table.remove(key) {
-        Some(Value::Table(t)) => Ok(t),
-        Some(_) => Err(KbdError::KeyTypeMismatch(key.to_owned(), false)),
-        None => Err(KbdError::KeyMissing(key.to_owned())),
-    }
-}
-
-/// Extract a key's value from a table as an array.
-fn extract_array(table: &mut Table, key: &str) -> KbdResult<Array> {
-    match table.remove(key) {
-        Some(Value::Array(a)) => Ok(a),
-        Some(_) => Err(KbdError::KeyTypeMismatch(key.to_owned(), false)),
-        None => Err(KbdError::KeyMissing(key.to_owned())),
-    }
-}
-
-/// Check for an optional key to extract.
-fn optional_key<T>(input_result: KbdResult<T>) -> KbdResult<Option<T>> {
-    match input_result {
-        Ok(res) => Ok(Some(res)),
-        Err(KbdError::KeyMissing(_)) => Ok(None),
-        Err(err) => Err(err),
     }
 }
 

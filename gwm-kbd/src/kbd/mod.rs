@@ -32,6 +32,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+pub mod config;
 pub mod error;
 pub mod types;
 pub mod modmask;
