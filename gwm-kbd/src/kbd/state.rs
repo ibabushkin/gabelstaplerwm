@@ -47,9 +47,9 @@ use xkb::state::Key;
 use xkb::{Keycode, Keymap, State};
 
 use kbd::config;
+use kbd::desc::*;
 use kbd::error::*;
 use kbd::modmask;
-use kbd::types::*;
 
 /// Keyboard state object.
 pub struct KbdState<'a> {
@@ -68,7 +68,7 @@ pub struct KbdState<'a> {
     /// Largest keycode.
     max_keycode: Keycode,
     /// Map from keycodes in the index to keysyms the corresponding keys yield.
-    keysym_map: Vec<Option<Keysym>>,
+    keysym_map: Vec<Option<KeysymDesc>>,
 }
 
 impl<'a> KbdState<'a> {
@@ -110,7 +110,7 @@ impl<'a> KbdState<'a> {
             debug!("dummy: key {:?} => {:?} ({:?})",
                    keycode, sym, sym.map_or("<invalid>".to_owned(), |s| s.utf8()));
 
-            self.keysym_map.push(sym.map(Keysym));
+            self.keysym_map.push(sym.map(KeysymDesc));
 
             keycode = Keycode(keycode.0 + 1); // TODO: ugly hack
         }
@@ -118,7 +118,7 @@ impl<'a> KbdState<'a> {
 
     /// Look up a keycode to determine the keysym produced by it according to the current
     /// keyboard state.
-    fn lookup_keycode(&self, keycode: Keycode) -> Option<Keysym> {
+    fn lookup_keycode(&self, keycode: Keycode) -> Option<KeysymDesc> {
         let index = (keycode.0 - self.min_keycode.0) as usize;
 
         if index <= self.max_keycode.0 as usize {
@@ -130,7 +130,7 @@ impl<'a> KbdState<'a> {
 
     /// Look up a keysym to determine the keycode producing it according to the current keyboard
     /// state.
-    fn lookup_keysym(&self, keysym: Keysym) -> Option<Keycode> {
+    fn lookup_keysym(&self, keysym: KeysymDesc) -> Option<Keycode> {
         self.keysym_map
             .iter()
             .position(|e| *e == Some(keysym))
@@ -174,7 +174,7 @@ pub struct DaemonState<'a> {
     /// Time at which the last key was pressed.
     last_keypress: Timestamp,
     /// The bindings registered in all modes.
-    bindings: BTreeMap<(Mode, ChainDesc), Cmd>,
+    bindings: BTreeMap<(Mode, ChainDesc), CmdDesc>,
 }
 
 impl<'a> DaemonState<'a> {
@@ -217,9 +217,9 @@ impl<'a> DaemonState<'a> {
             let enter_binding_quick =
                 config::extract_string(&mut mode, "enter_binding_quick_leave")?;
             let enter_cmd = config::opt_key(config::extract_string(&mut mode, "enter_cmd"))?
-                .map(Cmd::Shell);
+                .map(CmdDesc::Shell);
             let leave_cmd = config::opt_key(config::extract_string(&mut mode, "leave_cmd"))?
-                .map(Cmd::Shell);
+                .map(CmdDesc::Shell);
 
             debug!("mode: {}", mode_name);
 
@@ -231,16 +231,16 @@ impl<'a> DaemonState<'a> {
                 debug!("=> {} -> {}", chain_str, cmd_str);
                 bindings
                     .insert((i, ChainDesc::from_string(&chain_str, modkey_mask)?),
-                            Cmd::from_value(chain_str, cmd_str)?);
+                            CmdDesc::from_value(chain_str, cmd_str)?);
             }
 
             for j in 0..num_modes {
                 bindings
                     .insert((j, ChainDesc::from_string(&enter_binding, modkey_mask)?),
-                            Cmd::ModeSwitch(ModeSwitch::Permanent(i)));
+                            CmdDesc::ModeSwitch(ModeSwitchDesc::Permanent(i)));
                 bindings
                     .insert((j, ChainDesc::from_string(&enter_binding_quick, modkey_mask)?),
-                            Cmd::ModeSwitch(ModeSwitch::Temporary(i)));
+                            CmdDesc::ModeSwitch(ModeSwitchDesc::Temporary(i)));
             }
 
             i += 1;
@@ -307,20 +307,20 @@ impl<'a> DaemonState<'a> {
     /// Fall back to a mode possibly stored in the `previous_mode` field.
     fn fallback_mode(&mut self) {
         if let Some(fallback_mode) = self.previous_mode {
-            self.switch_mode(ModeSwitch::Permanent(fallback_mode));
+            self.switch_mode(ModeSwitchDesc::Permanent(fallback_mode));
         }
     }
 
     /// Switch modes according to directive.
     ///
     /// Manages internal state, as well as necessary interaction with the X server.
-    fn switch_mode(&mut self, switch: ModeSwitch) {
+    fn switch_mode(&mut self, switch: ModeSwitchDesc) {
         let new_mode = match switch {
-            ModeSwitch::Permanent(new_mode) => {
+            ModeSwitchDesc::Permanent(new_mode) => {
                 self.previous_mode = None;
                 new_mode
             },
-            ModeSwitch::Temporary(new_mode) => {
+            ModeSwitchDesc::Temporary(new_mode) => {
                 self.previous_mode = Some(self.current_mode);
                 new_mode
             },
@@ -343,7 +343,10 @@ impl<'a> DaemonState<'a> {
     /// Process a chord determined from a key press event.
     ///
     /// Dispatches to command execution and mode switching logic according to configuration.
-    fn process_chord(&mut self, modmask: xkb::ModMask, keysym: Keysym, time: xproto::Timestamp) {
+    fn process_chord(&mut self,
+                     modmask: xkb::ModMask,
+                     keysym: KeysymDesc,
+                     time: xproto::Timestamp) {
         let chord = ChordDesc::new(keysym, modmask);
         let mut drop_chain = true;
         let mut mode_switch = None;
