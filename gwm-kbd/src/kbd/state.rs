@@ -192,6 +192,7 @@ impl<'a> DaemonState<'a> {
             return Err(KbdError::KeysymCouldNotBeParsed(modkey_str.to_owned()));
         };
 
+        // set the keypress timeout, defaulting to one second.
         let keypress_timeout =
             config::opt_key(config::extract_int(&mut tree, "timeout"))?.unwrap_or(1000) as u32;
 

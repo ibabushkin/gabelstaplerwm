@@ -36,7 +36,6 @@ extern crate env_logger;
 extern crate gwm_kbd;
 #[macro_use]
 extern crate log;
-extern crate toml;
 extern crate xcb;
 extern crate xkb;
 
