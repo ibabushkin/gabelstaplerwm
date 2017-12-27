@@ -48,7 +48,7 @@ use xcb::xkb as xxkb;
 use xkb::context::Context;
 use xkb::x11 as x11;
 
-use gwm_kbd::kbd::error::KbdResult;
+use gwm_kbd::kbd::err::KbdResult;
 use gwm_kbd::kbd::state::{DaemonState, KbdState};
 
 /// Initialize the logger.

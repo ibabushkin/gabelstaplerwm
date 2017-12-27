@@ -48,7 +48,7 @@ use xkb::{Keycode, Keymap, State};
 
 use kbd::config;
 use kbd::desc::*;
-use kbd::error::*;
+use kbd::err::*;
 use kbd::modmask;
 
 /// Keyboard state object.

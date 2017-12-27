@@ -58,7 +58,7 @@ pub enum KbdError {
 
 impl KbdError {
     pub fn handle(self) -> ! {
-        use kbd::error::KbdError::*;
+        use kbd::err::KbdError::*;
 
         match self {
             IOError(i) => error!("I/O error occured: {}", i),

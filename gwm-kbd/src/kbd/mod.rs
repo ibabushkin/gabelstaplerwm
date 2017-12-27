@@ -34,8 +34,8 @@
 
 pub mod config;
 pub mod desc;
-pub mod error;
+pub mod err;
 pub mod state;
 pub mod modmask;
 
-pub use self::error::*;
+pub use self::err::*;

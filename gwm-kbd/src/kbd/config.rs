@@ -38,7 +38,7 @@ use std::path::Path;
 
 use toml::value::{Array, Table, Value};
 
-use kbd::error::*;
+use kbd::err::*;
 
 /// Try to parse a TOML table from a config file, given as a path.
 pub fn parse_file(path: &Path) -> KbdResult<Table> {
