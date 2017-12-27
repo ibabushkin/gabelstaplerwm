@@ -48,6 +48,7 @@ use xcb::xkb as xxkb;
 use xkb::context::Context;
 use xkb::x11 as x11;
 
+use gwm_kbd::kbd::error::KbdResult;
 use gwm_kbd::kbd::state::{DaemonState, KbdState};
 
 /// Initialize the logger.
@@ -61,7 +62,7 @@ fn setup_logger() {
 }
 
 /// Main routine.
-fn main() {
+fn do_main() -> KbdResult<()> {
     setup_logger();
 
     let (con, screen_num) = match Connection::connect(None) {
@@ -71,9 +72,9 @@ fn main() {
         },
     };
 
+    // TODO: own function and error type
     let cookie =
         xxkb::use_extension(&con, x11::MIN_MAJOR_XKB_VERSION, x11::MIN_MINOR_XKB_VERSION);
-
     match cookie.get_reply() {
         Ok(r) => {
             if !r.supported() {
@@ -136,10 +137,19 @@ fn main() {
     cookie.get_reply().expect("no flags set");
 
     let kbd_state = KbdState::new(&con, screen_num, keymap, state);
-    let daemon_state = DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), kbd_state);
+    let mut daemon_state =
+        DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), kbd_state)?;
     debug!("initial daemon state: {:?}", daemon_state);
 
-    let mut daemon_state = daemon_state.unwrap();
     daemon_state.grab_current_mode();
     daemon_state.run();
+
+    Ok(())
+}
+
+fn main() {
+    match do_main() {
+        Ok(()) => ::std::process::exit(0),
+        Err(e) => e.handle(),
+    }
 }

@@ -391,6 +391,7 @@ impl<'a> DaemonState<'a> {
 
         loop {
             self.con().flush();
+            // TODO: proper error handling
             let event = self.con().wait_for_event().unwrap();
             if event.response_type() == xkb_base {
                 let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
