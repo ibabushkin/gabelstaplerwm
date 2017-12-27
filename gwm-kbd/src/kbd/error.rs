@@ -56,5 +56,24 @@ pub enum KbdError {
     InvalidChord,
 }
 
+impl KbdError {
+    pub fn handle(self) -> ! {
+        use kbd::error::KbdError::*;
+
+        match self {
+            IOError(i) => error!("I/O error occured: {}", i),
+            TomlError(t) => error!("TOML parsing of config failed: {}", t),
+            TomlNotTable => error!("config is not a table at the top level"),
+            KeyMissing(k) => error!("missing config key: {}", k),
+            KeyTypeMismatch(k, false) => error!("key {} has incorrect type", k),
+            KeyTypeMismatch(k, true) => error!("command bound to `{}` has non-string type", k),
+            KeysymCouldNotBeParsed(k) => error!("could not parse keysym: {}", k),
+            InvalidChord => error!("chord invalid: {}", "<placeholder>"),
+        }
+
+        ::std::process::exit(1);
+    }
+}
+
 /// A result returned when reading in the configuration.
 pub type KbdResult<T> = Result<T, KbdError>;
