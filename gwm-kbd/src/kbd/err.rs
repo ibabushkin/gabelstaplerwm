@@ -47,6 +47,7 @@ pub enum XKbdError {
     CouldNotDetermineState,
     InvalidScreenNum,
     CouldNotGetExtensionData,
+    PlaceholderEventError,
 }
 
 impl XKbdError {

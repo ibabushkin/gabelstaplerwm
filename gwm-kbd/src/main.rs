@@ -48,12 +48,12 @@ use xcb::xkb as xxkb;
 use xkb::context::Context;
 use xkb::x11 as x11;
 
-use gwm_kbd::kbd::err::KbdResult;
+use gwm_kbd::kbd::err::{KbdError, KbdResult, XKbdError};
 use gwm_kbd::kbd::state::{DaemonState, KbdState};
 
 /// Initialize the logger.
 fn setup_logger() {
-    // fine to unwrap, as this is the only time we call `init`.
+    // fine to unwrap, as this is the only time we call `init`, so the call will not fail.
     env_logger::init().unwrap();
     info!("initialized logger");
 
@@ -68,7 +68,7 @@ fn do_main() -> KbdResult<()> {
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(_) => {
-            panic!("no connection")
+            return Err(KbdError::X(XKbdError::NoConnection));
         },
     };
 
@@ -78,26 +78,26 @@ fn do_main() -> KbdResult<()> {
     match cookie.get_reply() {
         Ok(r) => {
             if !r.supported() {
-                panic!("not supported");
+                return Err(KbdError::X(XKbdError::XKBNotSupported));
             }
         },
-        Err(_) => {
-            panic!("no reply");
+        Err(e) => {
+            return Err(KbdError::X(XKbdError::NoUseExtensionReply(()))); // TODO
         },
     };
 
     let core_dev_id = match x11::device(&con) {
         Ok(id) => id,
-        Err(()) => panic!("no core device id"),
+        Err(()) => return Err(KbdError::X(XKbdError::NoCoreDevice)),
     };
     let context = Context::default();
     let keymap = match x11::keymap(&con, core_dev_id, &context, Default::default()) {
         Ok(k) => k,
-        Err(()) => panic!("no keymap"),
+        Err(()) => return Err(KbdError::X(XKbdError::CouldNotDetermineKeymap)),
     };
     let state = match x11::state(&con, core_dev_id, &keymap) {
         Ok(s) => s,
-        Err(()) => panic!("no state"),
+        Err(()) => return Err(KbdError::X(XKbdError::CouldNotDetermineState)),
     };
 
     let map_parts =
@@ -136,15 +136,13 @@ fn do_main() -> KbdResult<()> {
 
     cookie.get_reply().expect("no flags set");
 
-    let kbd_state = KbdState::new(&con, screen_num, keymap, state);
+    let kbd_state = KbdState::new(&con, screen_num, keymap, state)?;
     let mut daemon_state =
         DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), kbd_state)?;
     debug!("initial daemon state: {:?}", daemon_state);
 
     daemon_state.grab_current_mode();
-    daemon_state.run();
-
-    Ok(())
+    daemon_state.run()
 }
 
 fn main() {

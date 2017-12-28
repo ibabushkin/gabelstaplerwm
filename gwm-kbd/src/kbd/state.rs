@@ -73,12 +73,14 @@ pub struct KbdState<'a> {
 
 impl<'a> KbdState<'a> {
     /// Construct a new keyboard state object.
-    pub fn new(con: &'a Connection, screen_num: i32, keymap: Keymap, state: State) -> Self {
+    pub fn new(con: &'a Connection, screen_num: i32, keymap: Keymap, state: State)
+        -> KbdResult<Self>
+    {
         let setup = con.get_setup();
         let root = if let Some(screen) = setup.roots().nth(screen_num as usize) {
             screen.root()
         } else {
-            panic!("no root");
+            return Err(KbdError::X(XKbdError::InvalidScreenNum));
         };
 
         let dummy_state = keymap.state();
@@ -96,7 +98,7 @@ impl<'a> KbdState<'a> {
 
         state.generate_keysym_map();
 
-        state
+        Ok(state)
     }
 
     /// Generate a keysym map from a dummy keyboard state.
@@ -385,14 +387,23 @@ impl<'a> DaemonState<'a> {
     }
 
     /// Run the main loop of the daemon.
-    pub fn run(&mut self) { // TODO: error return
-        let xkb_base = self.con().get_extension_data(&mut xxkb::id()).unwrap().first_event();
+    pub fn run(&mut self) -> KbdResult<()> {
+        let xkb_base = if let Some(data) = self.con().get_extension_data(&mut xxkb::id()) {
+            data.first_event()
+        } else {
+            return Err(KbdError::X(XKbdError::CouldNotGetExtensionData));
+        };
+
         debug!("xkb base: {}", xkb_base);
 
         loop {
             self.con().flush();
-            // TODO: proper error handling
-            let event = self.con().wait_for_event().unwrap();
+            let event = if let Some(e) = self.con().wait_for_event() {
+                e
+            } else {
+                return Err(KbdError::X(XKbdError::PlaceholderEventError));
+            };
+
             if event.response_type() == xkb_base {
                 let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
 
