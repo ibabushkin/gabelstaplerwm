@@ -36,7 +36,26 @@ use std::io::Error as IoError;
 
 use toml;
 
-/// An error occured when reading in the configuration.
+/// An error occured when interacting with X.
+#[derive(Debug)]
+pub enum XKbdError {
+    NoConnection,
+    XKBNotSupported,
+    NoUseExtensionReply(()), // TODO: proper error type wrapped
+    NoCoreDevice,
+    CouldNotDetermineKeymap,
+    CouldNotDetermineState,
+    InvalidScreenNum,
+    CouldNotGetExtensionData,
+}
+
+impl XKbdError {
+    fn handle(self) -> ! {
+        ::std::process::exit(1);
+    }
+}
+
+/// An error occured during operation.
 #[derive(Debug)]
 pub enum KbdError {
     /// An I/O error occured.
@@ -54,6 +73,8 @@ pub enum KbdError {
     KeysymCouldNotBeParsed(String),
     /// An invalid chord has been passed into the config.
     InvalidChord,
+    /// An error encountered when interacting with X.
+    X(XKbdError),
 }
 
 impl KbdError {
@@ -69,6 +90,7 @@ impl KbdError {
             KeyTypeMismatch(k, true) => error!("command bound to `{}` has non-string type", k),
             KeysymCouldNotBeParsed(k) => error!("could not parse keysym: {}", k),
             InvalidChord => error!("chord invalid: {}", "<placeholder>"),
+            X(e) => e.handle(),
         }
 
         ::std::process::exit(1);

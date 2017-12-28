@@ -385,7 +385,7 @@ impl<'a> DaemonState<'a> {
     }
 
     /// Run the main loop of the daemon.
-    pub fn run(&mut self) {
+    pub fn run(&mut self) { // TODO: error return
         let xkb_base = self.con().get_extension_data(&mut xxkb::id()).unwrap().first_event();
         debug!("xkb base: {}", xkb_base);
 
