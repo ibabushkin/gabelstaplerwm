@@ -48,7 +48,7 @@ use xcb::xkb as xxkb;
 use xkb::context::Context;
 use xkb::x11 as x11;
 
-use gwm_kbd::kbd::err::{KbdError, KbdResult, XKbdError};
+use gwm_kbd::kbd::err::{KbdResult, XError};
 use gwm_kbd::kbd::state::{DaemonState, KbdState};
 
 /// Initialize the logger.
@@ -67,8 +67,8 @@ fn do_main() -> KbdResult<()> {
 
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
-        Err(_) => {
-            return Err(KbdError::X(XKbdError::NoConnection));
+        Err(e) => {
+            return Err(XError::CouldNotConnect(e).wrap());
         },
     };
 
@@ -78,26 +78,26 @@ fn do_main() -> KbdResult<()> {
     match cookie.get_reply() {
         Ok(r) => {
             if !r.supported() {
-                return Err(KbdError::X(XKbdError::XKBNotSupported));
+                return Err(XError::XKBNotSupported.wrap());
             }
         },
         Err(e) => {
-            return Err(KbdError::X(XKbdError::NoUseExtensionReply(()))); // TODO
+            return Err(XError::UseExtensionError(e).wrap());
         },
     };
 
     let core_dev_id = match x11::device(&con) {
         Ok(id) => id,
-        Err(()) => return Err(KbdError::X(XKbdError::NoCoreDevice)),
+        Err(()) => return Err(XError::CouldNotDetermineCoreDevice.wrap()),
     };
     let context = Context::default();
     let keymap = match x11::keymap(&con, core_dev_id, &context, Default::default()) {
         Ok(k) => k,
-        Err(()) => return Err(KbdError::X(XKbdError::CouldNotDetermineKeymap)),
+        Err(()) => return Err(XError::CouldNotDetermineKeymap.wrap()),
     };
     let state = match x11::state(&con, core_dev_id, &keymap) {
         Ok(s) => s,
-        Err(()) => return Err(KbdError::X(XKbdError::CouldNotDetermineState)),
+        Err(()) => return Err(XError::CouldNotDetermineState.wrap()),
     };
 
     let map_parts =

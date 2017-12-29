@@ -80,7 +80,7 @@ impl<'a> KbdState<'a> {
         let root = if let Some(screen) = setup.roots().nth(screen_num as usize) {
             screen.root()
         } else {
-            return Err(KbdError::X(XKbdError::InvalidScreenNum));
+            return Err(XError::CouldNotAcquireScreen.wrap());
         };
 
         let dummy_state = keymap.state();
@@ -391,7 +391,7 @@ impl<'a> DaemonState<'a> {
         let xkb_base = if let Some(data) = self.con().get_extension_data(&mut xxkb::id()) {
             data.first_event()
         } else {
-            return Err(KbdError::X(XKbdError::CouldNotGetExtensionData));
+            return Err(XError::CouldNotGetExtensionData.wrap());
         };
 
         debug!("xkb base: {}", xkb_base);
@@ -401,7 +401,7 @@ impl<'a> DaemonState<'a> {
             let event = if let Some(e) = self.con().wait_for_event() {
                 e
             } else {
-                return Err(KbdError::X(XKbdError::PlaceholderEventError));
+                return Err(XError::IOError.wrap());
             };
 
             if event.response_type() == xkb_base {

@@ -227,6 +227,10 @@ impl ChainDesc {
     pub fn len(&self) -> usize {
         self.chords.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 /// A mode description.

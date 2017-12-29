@@ -36,21 +36,36 @@ use std::io::Error as IoError;
 
 use toml;
 
+use xcb::base;
+
 /// An error occured when interacting with X.
 #[derive(Debug)]
-pub enum XKbdError {
-    NoConnection,
+pub enum XError {
+    /// Could not connect to the X server.
+    CouldNotConnect(base::ConnError),
+    /// The X server doesn't support XKB.
     XKBNotSupported,
-    NoUseExtensionReply(()), // TODO: proper error type wrapped
-    NoCoreDevice,
+    /// The call to `use_extension` failed.
+    UseExtensionError(base::GenericError),
+    /// No core device could be determined.
+    CouldNotDetermineCoreDevice,
+    /// No keymap could be determined.
     CouldNotDetermineKeymap,
+    /// No keyboard state could be determined.
     CouldNotDetermineState,
-    InvalidScreenNum,
+    /// The screen being used didn't exist.
+    CouldNotAcquireScreen,
+    /// The extension data of the XKB extension could not be determined.
     CouldNotGetExtensionData,
-    PlaceholderEventError,
+    /// An I/O error occured.
+    IOError,
 }
 
-impl XKbdError {
+impl XError {
+    pub fn wrap(self) -> KbdError {
+        KbdError::X(self)
+    }
+
     fn handle(self) -> ! {
         ::std::process::exit(1);
     }
@@ -75,7 +90,7 @@ pub enum KbdError {
     /// An invalid chord has been passed into the config.
     InvalidChord,
     /// An error encountered when interacting with X.
-    X(XKbdError),
+    X(XError),
 }
 
 impl KbdError {
