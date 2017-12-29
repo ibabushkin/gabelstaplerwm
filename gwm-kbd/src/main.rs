@@ -72,7 +72,6 @@ fn do_main() -> KbdResult<()> {
         },
     };
 
-    // TODO: own function and error type
     let cookie =
         xxkb::use_extension(&con, x11::MIN_MAJOR_XKB_VERSION, x11::MIN_MINOR_XKB_VERSION);
     match cookie.get_reply() {
@@ -95,10 +94,11 @@ fn do_main() -> KbdResult<()> {
         Ok(k) => k,
         Err(()) => return Err(XError::CouldNotDetermineKeymap.wrap()),
     };
-    let state = match x11::state(&con, core_dev_id, &keymap) {
+
+    /* let state = match x11::state(&con, core_dev_id, &keymap) {
         Ok(s) => s,
         Err(()) => return Err(XError::CouldNotDetermineState.wrap()),
-    };
+    }; */
 
     let map_parts =
         xxkb::MAP_PART_KEY_TYPES |
@@ -136,7 +136,7 @@ fn do_main() -> KbdResult<()> {
 
     cookie.get_reply().expect("no flags set");
 
-    let kbd_state = KbdState::new(&con, screen_num, keymap, state)?;
+    let kbd_state = KbdState::new(&con, screen_num, keymap /*, state*/)?;
     let mut daemon_state =
         DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), kbd_state)?;
     debug!("initial daemon state: {:?}", daemon_state);

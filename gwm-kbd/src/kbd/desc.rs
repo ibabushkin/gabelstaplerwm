@@ -90,7 +90,13 @@ impl CmdDesc {
 
 /// A keysym wrapper used for various trait implementations.
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
-pub struct KeysymDesc(pub xkb::Keysym); // TODO: encapsulate
+pub struct KeysymDesc(xkb::Keysym);
+
+impl KeysymDesc {
+    pub fn new(inner: xkb::Keysym) -> Self {
+        KeysymDesc(inner)
+    }
+}
 
 impl Ord for KeysymDesc {
     fn cmp(&self, other: &KeysymDesc) -> Ordering {
@@ -103,6 +109,12 @@ impl Ord for KeysymDesc {
 impl PartialOrd for KeysymDesc {
     fn partial_cmp(&self, other: &KeysymDesc) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl ::std::fmt::Display for KeysymDesc {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "{}", self.0.utf8())
     }
 }
 
@@ -167,7 +179,6 @@ impl ChordDesc {
     }
 
     pub fn keysym(&self) -> KeysymDesc {
-        // TODO: more sophisticated matching logic possibly
         self.keysym
     }
 

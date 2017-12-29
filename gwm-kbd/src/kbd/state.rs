@@ -57,10 +57,10 @@ pub struct KbdState<'a> {
     con: &'a Connection,
     /// Root window.
     root: xproto::Window,
-    /// The current keymap.
-    keymap: Keymap,
-    /// The current keyboard state.
-    state: State,
+    // The current keymap.
+    // keymap: Keymap,
+    // The current keyboard state.
+    // state: State,
     /// Dummy keyboard state used to compute keycode and keysym correspondence.
     dummy_state: State,
     /// Smallest keycode.
@@ -73,7 +73,7 @@ pub struct KbdState<'a> {
 
 impl<'a> KbdState<'a> {
     /// Construct a new keyboard state object.
-    pub fn new(con: &'a Connection, screen_num: i32, keymap: Keymap, state: State)
+    pub fn new(con: &'a Connection, screen_num: i32, keymap: Keymap /*, state: State*/)
         -> KbdResult<Self>
     {
         let setup = con.get_setup();
@@ -88,8 +88,8 @@ impl<'a> KbdState<'a> {
         let mut state = KbdState {
             con,
             root,
-            keymap,
-            state,
+            // keymap,
+            // state,
             dummy_state,
             min_keycode: setup.min_keycode().into(),
             max_keycode: setup.max_keycode().into(),
@@ -112,7 +112,7 @@ impl<'a> KbdState<'a> {
             debug!("dummy: key {:?} => {:?} ({:?})",
                    keycode, sym, sym.map_or("<invalid>".to_owned(), |s| s.utf8()));
 
-            self.keysym_map.push(sym.map(KeysymDesc));
+            self.keysym_map.push(sym.map(KeysymDesc::new));
 
             keycode = Keycode(keycode.0 + 1); // TODO: ugly hack
         }
@@ -415,7 +415,7 @@ impl<'a> DaemonState<'a> {
                         debug!("xkb event: MAP_NOTIFY");
                     },
                     xxkb::STATE_NOTIFY => {
-                        debug!("xkb event: STATE_NOTIFY");
+                        debug!("xkb event: STATE_NOTIFY (quite unexpected)");
                     },
                     t => {
                         debug!("xkb event (unknown): {}", t);
@@ -430,8 +430,8 @@ impl<'a> DaemonState<'a> {
 
                         if let Some(keysym) = self.kbd_state.lookup_keycode(keycode) {
                             debug!("generic event: KEY_PRESS: mods: {:?}, keycode (sym): \
-                                    {:?} ({:?})",
-                                    modmask, keycode, keysym.0.utf8());
+                                    {:?} ({})",
+                                    modmask, keycode, keysym);
                             self.process_chord(modmask, keysym, event.time());
                         } else {
                             debug!("generic event: KEY_PRESS: mods: {:?}, keycode: {:?} (no \
