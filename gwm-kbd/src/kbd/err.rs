@@ -67,6 +67,20 @@ impl XError {
     }
 
     fn handle(self) -> ! {
+        use kbd::err::XError::*;
+
+        match self {
+            CouldNotConnect(e) => error!("Could not connect to X server: {}", e),
+            XKBNotSupported => error!("The X server doesn't support XKB"),
+            UseExtensionError(e) => error!("Generic X error: {}", e),
+            CouldNotDetermineCoreDevice => error!("Could not determine core device ID"),
+            CouldNotDetermineKeymap => error!("Could not determine core keymap"),
+            CouldNotDetermineState => error!("Could not determine core state"),
+            CouldNotAcquireScreen => error!("Screen is invalid"),
+            CouldNotGetExtensionData => error!("Could not get XKB extension data"),
+            IOError => error!("An I/O error occured when communicating with the X server"),
+        }
+
         ::std::process::exit(1);
     }
 }
