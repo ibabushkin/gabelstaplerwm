@@ -102,7 +102,7 @@ pub enum KbdError {
     /// A Keysym could not be parsed.
     KeysymCouldNotBeParsed(String),
     /// An invalid chord has been passed into the config.
-    InvalidChord,
+    InvalidChord(String),
     /// An error encountered when interacting with X.
     X(XError),
 }
@@ -119,7 +119,7 @@ impl KbdError {
             KeyTypeMismatch(k, false) => error!("key {} has incorrect type", k),
             KeyTypeMismatch(k, true) => error!("command bound to `{}` has non-string type", k),
             KeysymCouldNotBeParsed(k) => error!("could not parse keysym: {}", k),
-            InvalidChord => error!("chord invalid: {}", "<placeholder>"),
+            InvalidChord(d) => error!("chord invalid: {}", d),
             X(e) => e.handle(),
         }
 

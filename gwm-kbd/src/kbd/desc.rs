@@ -159,7 +159,7 @@ impl ChordDesc {
             }
         }
 
-        Err(KbdError::InvalidChord)
+        Err(KbdError::InvalidChord(desc.to_owned()))
     }
 
     pub fn new(keysym: KeysymDesc, modmask: xkb::ModMask) -> ChordDesc {
