@@ -37,17 +37,24 @@ use xcb::xproto;
 use xkb;
 
 /// Update a given modifier mask.
-pub fn modmask_combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
+pub fn combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
     use xcb::ffi::xcb_mod_mask_t;
 
     *mask = xkb::ModMask(mask.0 as xcb_mod_mask_t | add_mask.0 as xcb_mod_mask_t);
 }
 
-/// Get a modifier mask from a string description of the modifier keys.
-pub fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
+const IGNORE_MASK: xkb::ModMask = xkb::ModMask(0x0);
+
+/// Filter ignored modifiers from a mask
+pub fn filter_ignore(mask: &mut xkb::ModMask) {
     use xcb::ffi::xcb_mod_mask_t;
 
-    let mod_component: xcb_mod_mask_t = match &desc.to_lowercase()[..] {
+    *mask = xkb::ModMask(mask.0 as xcb_mod_mask_t & !IGNORE_MASK.0);
+}
+
+/// Get a modifier mask from a string description of the modifier keys.
+pub fn from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
+    let mod_component: xkb::ModMask = xkb::ModMask(match &desc.to_lowercase()[..] {
         "shift" => xproto::MOD_MASK_SHIFT,
         "ctrl" => xproto::MOD_MASK_CONTROL,
         "mod1" => xproto::MOD_MASK_1,
@@ -56,10 +63,10 @@ pub fn modmask_from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
         "mod4" => xproto::MOD_MASK_4,
         "mod5" => xproto::MOD_MASK_5,
         _ => 0,
-    };
+    });
 
-    let raw_mask = mask.0 as xcb_mod_mask_t;
-    *mask = xkb::ModMask(raw_mask | mod_component);
+    combine(mask, mod_component);
+    filter_ignore(mask);
 
-    mod_component != 0
+    mask.0 != 0
 }

@@ -157,11 +157,12 @@ impl ChordDesc {
         for word in desc.split('+') {
             if word == "$modkey" {
                 debug!("added default modifier");
-                modmask::modmask_combine(&mut modmask, modkey_mask);
-            } else if modmask::modmask_from_str(word, &mut modmask) {
+                modmask::combine(&mut modmask, modkey_mask);
+            } else if modmask::from_str(word, &mut modmask) {
                 debug!("modifier decoded, continuing chord: {} (modmask={:b})", word, modmask.0);
             } else if let Ok(sym) = xkb::Keysym::from_str(word) {
                 debug!("keysym decoded, assuming end of chord: {} ({:?})", word, sym);
+                modmask::filter_ignore(&mut modmask);
                 return Ok(ChordDesc {
                     keysym: KeysymDesc(sym),
                     modmask,
@@ -174,7 +175,8 @@ impl ChordDesc {
         Err(KbdError::InvalidChord(desc.to_owned()))
     }
 
-    pub fn new(keysym: KeysymDesc, modmask: xkb::ModMask) -> ChordDesc {
+    pub fn new(keysym: KeysymDesc, mut modmask: xkb::ModMask) -> ChordDesc {
+        modmask::filter_ignore(&mut modmask);
         ChordDesc { keysym, modmask }
     }
 

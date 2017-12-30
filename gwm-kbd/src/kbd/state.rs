@@ -187,7 +187,7 @@ impl<'a> DaemonState<'a> {
 
         let modkey_str = config::extract_string(&mut tree, "modkey")?;
         let mut modkey_mask = xkb::ModMask(0);
-        if modmask::modmask_from_str(&modkey_str, &mut modkey_mask) {
+        if modmask::from_str(&modkey_str, &mut modkey_mask) {
             info!("determined modkey mask: {} ({:?})", modkey_str, modkey_mask);
         } else {
             error!("could not decode modkey keysym from word, aborting: {}", modkey_str);
