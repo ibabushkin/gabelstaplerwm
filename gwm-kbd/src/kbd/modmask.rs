@@ -43,7 +43,9 @@ pub fn combine(mask: &mut xkb::ModMask, add_mask: xkb::ModMask) {
     *mask = xkb::ModMask(mask.0 as xcb_mod_mask_t | add_mask.0 as xcb_mod_mask_t);
 }
 
-const IGNORE_MASK: xkb::ModMask = xkb::ModMask(0x0);
+const LOCK_MASK: xkb::ModMask=  xkb::ModMask(xproto::MOD_MASK_LOCK);
+const NUM_MASK: xkb::ModMask = xkb::ModMask(xproto::MOD_MASK_2);
+const IGNORE_MASK: xkb::ModMask = xkb::ModMask(xproto::MOD_MASK_LOCK | xproto::MOD_MASK_2);
 
 /// Filter ignored modifiers from a mask
 pub fn filter_ignore(mask: &mut xkb::ModMask) {
@@ -52,9 +54,20 @@ pub fn filter_ignore(mask: &mut xkb::ModMask) {
     *mask = xkb::ModMask(mask.0 as xcb_mod_mask_t & !IGNORE_MASK.0);
 }
 
+/// Construct a set of modifier masks to grab for a keybinding to account for ignored modifiers.
+pub fn match_ignore(mask: xkb::ModMask) -> [xkb::ModMask; 4] {
+    let mut res = [mask, mask, mask, mask];
+
+    combine(&mut res[1], LOCK_MASK);
+    combine(&mut res[2], NUM_MASK);
+    combine(&mut res[3], IGNORE_MASK);
+
+    res
+}
+
 /// Get a modifier mask from a string description of the modifier keys.
 pub fn from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
-    let mod_component: xkb::ModMask = xkb::ModMask(match &desc.to_lowercase()[..] {
+    let mut mod_component: xkb::ModMask = xkb::ModMask(match &desc.to_lowercase()[..] {
         "shift" => xproto::MOD_MASK_SHIFT,
         "ctrl" => xproto::MOD_MASK_CONTROL,
         "mod1" => xproto::MOD_MASK_1,
@@ -65,8 +78,8 @@ pub fn from_str(desc: &str, mask: &mut xkb::ModMask) -> bool {
         _ => 0,
     });
 
+    filter_ignore(&mut mod_component);
     combine(mask, mod_component);
-    filter_ignore(mask);
 
-    mask.0 != 0
+    mod_component.0 != 0
 }

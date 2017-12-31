@@ -188,7 +188,7 @@ impl<'a> DaemonState<'a> {
         let modkey_str = config::extract_string(&mut tree, "modkey")?;
         let mut modkey_mask = xkb::ModMask(0);
         if modmask::from_str(&modkey_str, &mut modkey_mask) {
-            info!("determined modkey mask: {} ({:?})", modkey_str, modkey_mask);
+            info!("determined modkey mask: {} ({:x})", modkey_str, modkey_mask.0);
         } else {
             error!("could not decode modkey keysym from word, aborting: {}", modkey_str);
             return Err(KbdError::KeysymCouldNotBeParsed(modkey_str.to_owned()));
@@ -280,11 +280,16 @@ impl<'a> DaemonState<'a> {
             if mode == self.current_mode {
                 for chord in chain.chords() {
                     if let Some(keycode) = self.kbd_state.lookup_keysym(chord.keysym()) {
-                        xproto::grab_key(self.con(), true, self.root(),
-                                         chord.modmask(),
-                                         keycode.0 as u8,
-                                         xproto::GRAB_MODE_SYNC as u8,
-                                         xproto::GRAB_MODE_ASYNC as u8);
+                        let masks = modmask::match_ignore(xkb::ModMask(chord.modmask() as u32));
+
+                        for mask in &masks {
+                            debug!("grabbing: {:8b}+{} ({})", mask.0, keycode.0, chord.keysym());
+                            xproto::grab_key(self.con(), true, self.root(),
+                                             mask.0 as u16,
+                                             keycode.0 as u8,
+                                             xproto::GRAB_MODE_SYNC as u8,
+                                             xproto::GRAB_MODE_ASYNC as u8);
+                        }
                     }
                 }
             }
@@ -415,7 +420,7 @@ impl<'a> DaemonState<'a> {
                         debug!("xkb event: MAP_NOTIFY");
                     },
                     xxkb::STATE_NOTIFY => {
-                        debug!("xkb event: STATE_NOTIFY (quite unexpected)");
+                        debug!("xkb event: STATE_NOTIFY mods={:?}", event.mods());
                     },
                     t => {
                         debug!("xkb event (unknown): {}", t);
