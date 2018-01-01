@@ -273,9 +273,9 @@ impl<'a> DaemonState<'a> {
     }
 
     /// Grab keys for the current mode.
-    ///
-    /// TODO: write a parallel equivalent.
     pub fn grab_current_mode(&self) {
+        let mut cookies = Vec::new();
+
         for &(mode, ref chain) in self.bindings.keys() {
             if mode == self.current_mode {
                 for chord in chain.chords() {
@@ -284,14 +284,21 @@ impl<'a> DaemonState<'a> {
 
                         for mask in &masks {
                             debug!("grabbing: {:8b}+{} ({})", mask.0, keycode.0, chord.keysym());
-                            xproto::grab_key(self.con(), true, self.root(),
-                                             mask.0 as u16,
-                                             keycode.0 as u8,
-                                             xproto::GRAB_MODE_SYNC as u8,
-                                             xproto::GRAB_MODE_ASYNC as u8);
+                            let cookie =
+                                xproto::grab_key(self.con(), true, self.root(),
+                                                 mask.0 as u16, keycode.0 as u8,
+                                                 xproto::GRAB_MODE_SYNC as u8,
+                                                 xproto::GRAB_MODE_ASYNC as u8);
+                            cookies.push(cookie);
                         }
                     }
                 }
+            }
+        }
+
+        for cookie in cookies {
+            if let Err(e) = cookie.request_check() {
+                error!("encountered error grabbing keys: {}", e);
             }
         }
     }
