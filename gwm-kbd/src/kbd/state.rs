@@ -103,6 +103,10 @@ impl<'a> KbdState<'a> {
 
     /// Generate a keysym map from a dummy keyboard state.
     fn generate_keysym_map(&mut self) {
+        fn increment_keycode(keycode: Keycode) -> Keycode {
+            Keycode(keycode.0 + 1)
+        }
+
         let mut keycode = self.min_keycode;
 
         while keycode != self.max_keycode {
@@ -114,7 +118,7 @@ impl<'a> KbdState<'a> {
 
             self.keysym_map.push(sym.map(KeysymDesc::new));
 
-            keycode = Keycode(keycode.0 + 1); // TODO: ugly hack
+            keycode = increment_keycode(keycode);
         }
     }
 
