@@ -33,14 +33,17 @@
  */
 
 extern crate env_logger;
+extern crate getopts;
 extern crate gwm_kbd;
 #[macro_use]
 extern crate log;
 extern crate xcb;
 extern crate xkb;
 
-use std::env::remove_var;
-use std::path::Path;
+use getopts::Options;
+
+use std::env;
+use std::path::{Path, PathBuf};
 
 use xcb::base::*;
 use xcb::xkb as xxkb;
@@ -48,7 +51,7 @@ use xcb::xkb as xxkb;
 use xkb::context::Context;
 use xkb::x11 as x11;
 
-use gwm_kbd::kbd::err::{KbdResult, XError};
+use gwm_kbd::kbd::err::{KbdError, KbdResult, XError};
 use gwm_kbd::kbd::state::{DaemonState, KbdState};
 
 /// Initialize the logger.
@@ -58,11 +61,11 @@ fn setup_logger() {
     info!("initialized logger");
 
     // clean environment for cargo and other programs honoring `RUST_LOG`
-    remove_var("RUST_LOG");
+    env::remove_var("RUST_LOG");
 }
 
 /// Main routine.
-fn do_main() -> KbdResult<()> {
+fn do_main(path: &Path) -> KbdResult<()> {
     setup_logger();
 
     let (con, screen_num) = match Connection::connect(None) {
@@ -136,9 +139,9 @@ fn do_main() -> KbdResult<()> {
 
     cookie.get_reply().expect("no flags set");
 
-    let kbd_state = KbdState::new(&con, screen_num, keymap /*, state*/)?;
+    let kbd_state = KbdState::new(&con, screen_num, &keymap /*, state*/)?;
     let mut daemon_state =
-        DaemonState::from_config(Path::new("gwm-kbd/gwmkbdrc.toml"), kbd_state)?;
+        DaemonState::from_config(path, kbd_state)?;
     debug!("initial daemon state: {:?}", daemon_state);
 
     daemon_state.grab_current_mode();
@@ -146,7 +149,36 @@ fn do_main() -> KbdResult<()> {
 }
 
 fn main() {
-    match do_main() {
+    let args: Vec<String> = env::args().collect();
+
+    // set up option parsing
+    let mut opts = Options::new();
+    opts.optopt("c", "config", "set config file name", "FILE");
+    opts.optflag("h", "help", "print this help menu");
+
+    // match on args and decide what to do
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(f) => KbdError::CouldNotParseOptions(f).handle(),
+    };
+
+    if matches.opt_present("h") {
+        let brief = format!("Usage: {} [options]", &args[0]);
+        eprintln!("{}", opts.usage(&brief));
+        return;
+    }
+
+    let config_path = if let Some(p) = matches.opt_str("c") {
+        p.into()
+    } else if let Some(mut buf) = env::home_dir() {
+        buf.push(".gwmkbdrc");
+        buf
+    } else {
+        warn!("couldn't determine the value of $HOME, using current dir");
+        PathBuf::from("gwmkbdrc")
+    };
+
+    match do_main(&config_path) {
         Ok(()) => ::std::process::exit(0),
         Err(e) => e.handle(),
     }

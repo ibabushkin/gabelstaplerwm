@@ -17,7 +17,7 @@ impl WmError {
         use wm::err::WmError::*;
 
         match self {
-            CouldNotParseOptions(e) => error!("{}", e),
+            CouldNotParseOptions(f) => error!("{}", f),
             CouldNotEstablishSignalHandlers => error!("could not establish signal handlers"),
             CouldNotOpenPipe => error!("could not open pipe"),
             CouldNotConnect(e) => error!("could not connect: {}", e),

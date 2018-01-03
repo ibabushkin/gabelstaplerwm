@@ -32,6 +32,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+extern crate getopts;
 #[macro_use]
 extern crate log;
 extern crate toml;

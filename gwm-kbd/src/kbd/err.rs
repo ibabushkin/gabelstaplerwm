@@ -34,6 +34,7 @@
 
 use std::io::Error as IoError;
 
+use getopts;
 use toml;
 
 use xcb::base;
@@ -88,6 +89,8 @@ impl XError {
 /// An error occured during operation.
 #[derive(Debug)]
 pub enum KbdError {
+    /// Error during command line parsing.
+    CouldNotParseOptions(getopts::Fail),
     /// An I/O error occured.
     IOError(IoError),
     /// The TOML content of the config file is invalid.
@@ -112,6 +115,7 @@ impl KbdError {
         use kbd::err::KbdError::*;
 
         match self {
+            CouldNotParseOptions(f) => error!("{}", f),
             IOError(i) => error!("I/O error occured: {}", i),
             TomlError(t) => error!("TOML parsing of config failed: {}", t),
             TomlNotTable => error!("config is not a table at the top level"),

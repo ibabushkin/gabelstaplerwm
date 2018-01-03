@@ -33,8 +33,8 @@
  */
 
 extern crate env_logger;
-extern crate gwm_core as gabelstaplerwm;
 extern crate getopts;
+extern crate gwm_core as gabelstaplerwm;
 extern crate libc;
 #[macro_use]
 extern crate log;

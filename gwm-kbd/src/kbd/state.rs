@@ -73,7 +73,7 @@ pub struct KbdState<'a> {
 
 impl<'a> KbdState<'a> {
     /// Construct a new keyboard state object.
-    pub fn new(con: &'a Connection, screen_num: i32, keymap: Keymap /*, state: State*/)
+    pub fn new(con: &'a Connection, screen_num: i32, keymap: &Keymap /*, state: State*/)
         -> KbdResult<Self>
     {
         let setup = con.get_setup();
@@ -284,7 +284,8 @@ impl<'a> DaemonState<'a> {
             if mode == self.current_mode {
                 for chord in chain.chords() {
                     if let Some(keycode) = self.kbd_state.lookup_keysym(chord.keysym()) {
-                        let masks = modmask::match_ignore(xkb::ModMask(chord.modmask() as u32));
+                        let masks =
+                            modmask::match_ignore(xkb::ModMask(u32::from(chord.modmask())));
 
                         for mask in &masks {
                             debug!("grabbing: {:8b}+{} ({})", mask.0, keycode.0, chord.keysym());
