@@ -57,10 +57,10 @@ pub struct KbdState<'a> {
     con: &'a Connection,
     /// Root window.
     root: xproto::Window,
-    // The current keymap.
-    // keymap: Keymap,
-    // The current keyboard state.
-    // state: State,
+    /// The current keymap.
+    keymap: Keymap,
+    /// The current keyboard state.
+    state: State,
     /// Dummy keyboard state used to compute keycode and keysym correspondence.
     dummy_state: State,
     /// Smallest keycode.
@@ -73,7 +73,7 @@ pub struct KbdState<'a> {
 
 impl<'a> KbdState<'a> {
     /// Construct a new keyboard state object.
-    pub fn new(con: &'a Connection, screen_num: i32, keymap: &Keymap /*, state: State*/)
+    pub fn new(con: &'a Connection, screen_num: i32, keymap: Keymap, state: State)
         -> KbdResult<Self>
     {
         let setup = con.get_setup();
@@ -88,8 +88,8 @@ impl<'a> KbdState<'a> {
         let mut state = KbdState {
             con,
             root,
-            // keymap,
-            // state,
+            keymap,
+            state,
             dummy_state,
             min_keycode: setup.min_keycode().into(),
             max_keycode: setup.max_keycode().into(),

@@ -98,10 +98,10 @@ fn do_main(path: &Path) -> KbdResult<()> {
         Err(()) => return Err(XError::CouldNotDetermineKeymap.wrap()),
     };
 
-    /* let state = match x11::state(&con, core_dev_id, &keymap) {
+    let state = match x11::state(&con, core_dev_id, &keymap) {
         Ok(s) => s,
         Err(()) => return Err(XError::CouldNotDetermineState.wrap()),
-    }; */
+    };
 
     let map_parts =
         xxkb::MAP_PART_KEY_TYPES |
@@ -139,7 +139,7 @@ fn do_main(path: &Path) -> KbdResult<()> {
 
     cookie.get_reply().expect("no flags set");
 
-    let kbd_state = KbdState::new(&con, screen_num, &keymap /*, state*/)?;
+    let kbd_state = KbdState::new(&con, screen_num, keymap, state)?;
     let mut daemon_state =
         DaemonState::from_config(path, kbd_state)?;
     debug!("initial daemon state: {:?}", daemon_state);
