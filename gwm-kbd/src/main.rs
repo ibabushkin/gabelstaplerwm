@@ -43,9 +43,11 @@ extern crate xkb;
 use getopts::Options;
 
 use std::env;
+use std::mem;
 use std::path::{Path, PathBuf};
 
 use xcb::base::*;
+use xcb::ffi::xkb as xxkb_ffi;
 use xcb::xkb as xxkb;
 
 use xkb::context::Context;
@@ -103,31 +105,55 @@ fn do_main(path: &Path) -> KbdResult<()> {
         Err(()) => return Err(XError::CouldNotDetermineState.wrap()),
     };
 
-    let map_parts =
-        xxkb::MAP_PART_KEY_TYPES |
-        xxkb::MAP_PART_KEY_SYMS |
-        xxkb::MAP_PART_MODIFIER_MAP |
-        xxkb::MAP_PART_EXPLICIT_COMPONENTS |
-        xxkb::MAP_PART_KEY_ACTIONS |
-        xxkb::MAP_PART_KEY_BEHAVIORS |
-        xxkb::MAP_PART_VIRTUAL_MODS |
-        xxkb::MAP_PART_VIRTUAL_MOD_MAP;
-
     let events =
-        xxkb::EVENT_TYPE_NEW_KEYBOARD_NOTIFY |
-        xxkb::EVENT_TYPE_MAP_NOTIFY |
-        xxkb::EVENT_TYPE_STATE_NOTIFY;
+        (xxkb::EVENT_TYPE_NEW_KEYBOARD_NOTIFY |
+         xxkb::EVENT_TYPE_MAP_NOTIFY |
+         xxkb::EVENT_TYPE_STATE_NOTIFY) as u16;
 
-    let cookie =
-        xxkb::select_events_checked(&con,
-                                    xxkb::ID_USE_CORE_KBD as u16,
-                                    events as u16,
-                                    0,
-                                    events as u16,
-                                    map_parts as u16,
-                                    map_parts as u16,
-                                    None);
+    let nkn_details = xxkb::NKN_DETAIL_KEYCODES as u16;
 
+    let map_parts =
+        (xxkb::MAP_PART_KEY_TYPES |
+         xxkb::MAP_PART_KEY_SYMS |
+         xxkb::MAP_PART_MODIFIER_MAP |
+         xxkb::MAP_PART_EXPLICIT_COMPONENTS |
+         xxkb::MAP_PART_KEY_ACTIONS |
+         // xxkb::MAP_PART_KEY_BEHAVIORS |
+         xxkb::MAP_PART_VIRTUAL_MODS |
+         xxkb::MAP_PART_VIRTUAL_MOD_MAP) as u16;
+
+    let state_details =
+        (xxkb::STATE_PART_MODIFIER_BASE |
+         xxkb::STATE_PART_MODIFIER_LATCH |
+         xxkb::STATE_PART_MODIFIER_LOCK |
+         xxkb::STATE_PART_GROUP_BASE |
+         xxkb::STATE_PART_GROUP_LATCH |
+         xxkb::STATE_PART_GROUP_LOCK) as u16;
+
+    let mut details: xxkb_ffi::xcb_xkb_select_events_details_t = unsafe { mem::zeroed() };
+    details.affectNewKeyboard = nkn_details;
+    details.newKeyboardDetails = nkn_details;
+    details.affectState = state_details;
+    details.stateDetails = state_details;
+
+    let cookie = unsafe {
+        let c = xxkb_ffi::xcb_xkb_select_events_checked(
+            con.get_raw_conn(),
+            xxkb::ID_USE_CORE_KBD as xxkb_ffi::xcb_xkb_device_spec_t, /* device_spec */
+            events as u16, /* affect_which */
+            0, /* clear */ 0, /* select_all */
+            map_parts as u16, /* affect_map */
+            map_parts as u16, /* map */
+            &details as *const xxkb_ffi::xcb_xkb_select_events_details_t);
+
+        VoidCookie {
+            cookie: c,
+            conn: &con,
+            checked: true,
+        }
+    };
+
+    // TODO: proper error handling
     cookie.request_check().expect("no events selected");
 
     let flags =
@@ -137,6 +163,7 @@ fn do_main(path: &Path) -> KbdResult<()> {
     let cookie =
         xxkb::per_client_flags(&con, xxkb::ID_USE_CORE_KBD as u16, flags, flags, 0, 0, 0);
 
+    // TODO: proper error handling
     cookie.get_reply().expect("no flags set");
 
     let kbd_state = KbdState::new(&con, screen_num, keymap, state)?;

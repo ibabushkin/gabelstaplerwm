@@ -43,8 +43,9 @@ use xcb::xkb as xxkb;
 use xcb::xproto;
 
 use xkb;
-use xkb::state::Key;
 use xkb::{Keycode, Keymap, State};
+use xkb::context::Context;
+use xkb::state::Key;
 
 use kbd::config;
 use kbd::desc::*;
@@ -57,6 +58,8 @@ pub struct KbdState<'a> {
     con: &'a Connection,
     /// Root window.
     root: xproto::Window,
+    /// The XKB library context used.
+    ctx: Context,
     /// The current keymap.
     keymap: Keymap,
     /// The current keyboard state.
@@ -88,6 +91,7 @@ impl<'a> KbdState<'a> {
         let mut state = KbdState {
             con,
             root,
+            ctx: Context::default(),
             keymap,
             state,
             dummy_state,
@@ -99,6 +103,27 @@ impl<'a> KbdState<'a> {
         state.generate_keysym_map();
 
         Ok(state)
+    }
+
+    fn update_keymap(&mut self) -> KbdResult<()> {
+        use xkb::x11 as x11;
+
+        let core_dev_id = match x11::device(self.con) {
+            Ok(id) => id,
+            Err(()) => return Err(XError::CouldNotDetermineCoreDevice.wrap()),
+        };
+
+        self.keymap = match x11::keymap(self.con, core_dev_id, &self.ctx, Default::default()) {
+            Ok(k) => k,
+            Err(()) => return Err(XError::CouldNotDetermineKeymap.wrap()),
+        };
+
+        self.state = match x11::state(self.con, core_dev_id, &self.keymap) {
+            Ok(s) => s,
+            Err(()) => return Err(XError::CouldNotDetermineState.wrap()),
+        };
+
+        Ok(())
     }
 
     /// Generate a keysym map from a dummy keyboard state.
