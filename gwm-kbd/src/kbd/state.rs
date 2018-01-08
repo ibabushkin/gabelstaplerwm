@@ -45,7 +45,7 @@ use xcb::xproto;
 use xkb;
 use xkb::{Keycode, Keymap, State};
 use xkb::context::Context;
-use xkb::state::Key;
+use xkb::state::{Key, Update};
 
 use kbd::config;
 use kbd::desc::*;
@@ -125,6 +125,13 @@ impl<'a> KbdState<'a> {
         };
 
         Ok(())
+    }
+
+    fn update_state(&mut self, event: &xxkb::StateNotifyEvent) {
+        let mut update = Update(&mut self.state);
+
+        update.mask(event.base_mods(), event.latched_mods(), event.locked_mods(),
+                    event.base_group(), event.latched_group(), event.locked_group());
     }
 
     /// Generate a keysym map from a dummy keyboard state.
@@ -469,7 +476,7 @@ impl<'a> DaemonState<'a> {
                     },
                     xxkb::MAP_NOTIFY => {
                         debug!("xkb event: MAP_NOTIFY");
-                        let event = unsafe { cast_event::<xxkb::MapNotifyEvent>(&event) };
+                        // let event = unsafe { cast_event::<xxkb::MapNotifyEvent>(&event) };
 
                         if let Err(e) = self.kbd_state.update_keymap() {
                             e.handle();
@@ -477,9 +484,9 @@ impl<'a> DaemonState<'a> {
                     },
                     xxkb::STATE_NOTIFY => {
                         let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
-
                         debug!("xkb event: STATE_NOTIFY mods={:?}", event.mods());
-                        // state_update_mask...
+
+                        self.kbd_state.update_state(event);
                     },
                     t => {
                         debug!("xkb event (unknown): {}", t);
