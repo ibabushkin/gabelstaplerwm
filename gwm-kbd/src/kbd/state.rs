@@ -105,6 +105,7 @@ impl<'a> KbdState<'a> {
         Ok(state)
     }
 
+    /// Update keymap and keyboard state.
     fn update_keymap(&mut self) -> KbdResult<()> {
         use xkb::x11 as x11;
 
@@ -447,17 +448,38 @@ impl<'a> DaemonState<'a> {
             };
 
             if event.response_type() == xkb_base {
-                let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
+                let xkb_type = {
+                    let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
+                    event.xkb_type()
+                };
 
-                match event.xkb_type() {
+                match xkb_type {
                     xxkb::NEW_KEYBOARD_NOTIFY => {
                         debug!("xkb event: NEW_KEYBOARD_NOTIFY");
+                        let event = unsafe {
+                            cast_event::<xxkb::NewKeyboardNotifyEvent>(&event)
+                        };
+
+                        if event.changed() & xxkb::NKN_DETAIL_KEYCODES as u16 != 0 {
+                            info!("updated keymap (new keyboard)");
+                            if let Err(e) = self.kbd_state.update_keymap() {
+                                e.handle();
+                            }
+                        }
                     },
                     xxkb::MAP_NOTIFY => {
                         debug!("xkb event: MAP_NOTIFY");
+                        let event = unsafe { cast_event::<xxkb::MapNotifyEvent>(&event) };
+
+                        if let Err(e) = self.kbd_state.update_keymap() {
+                            e.handle();
+                        }
                     },
                     xxkb::STATE_NOTIFY => {
+                        let event = unsafe { cast_event::<xxkb::StateNotifyEvent>(&event) };
+
                         debug!("xkb event: STATE_NOTIFY mods={:?}", event.mods());
+                        // state_update_mask...
                     },
                     t => {
                         debug!("xkb event (unknown): {}", t);
