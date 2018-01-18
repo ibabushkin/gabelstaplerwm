@@ -185,6 +185,13 @@ impl<'a> KbdState<'a> {
     fn root(&self) -> xproto::Window {
         self.root
     }
+
+    fn modmask(&mut self) -> xkb::ModMask {
+        use xkb::state::component::MODS_EFFECTIVE;
+        use xkb::state::Serialize;
+
+        Serialize(&mut self.state).mods(MODS_EFFECTIVE)
+    }
 }
 
 impl<'a> ::std::fmt::Debug for KbdState<'a> {
@@ -397,10 +404,9 @@ impl<'a> DaemonState<'a> {
     ///
     /// Dispatches to command execution and mode switching logic according to configuration.
     fn process_chord(&mut self,
-                     modmask: xkb::ModMask,
                      keysym: KeysymDesc,
                      time: xproto::Timestamp) {
-        let chord = ChordDesc::new(keysym, modmask);
+        let chord = ChordDesc::new(keysym, self.kbd_state.modmask());
         let mut drop_chain = true;
         let mut mode_switch = None;
 
@@ -497,17 +503,14 @@ impl<'a> DaemonState<'a> {
                     xproto::KEY_PRESS => {
                         let event = unsafe { cast_event::<xproto::KeyPressEvent>(&event) };
                         let keycode = Keycode(u32::from(event.detail()));
-                        let modmask = xkb::ModMask(u32::from(event.state()));
+                        // let modmask = xkb::ModMask(u32::from(event.state()));
 
                         if let Some(keysym) = self.kbd_state.lookup_keycode(keycode) {
-                            debug!("generic event: KEY_PRESS: mods: {:?}, keycode (sym): \
-                                    {:?} ({})",
-                                    modmask, keycode, keysym);
-                            self.process_chord(modmask, keysym, event.time());
+                            debug!("generic event: KEY_PRESS: keycode (sym): {:?} ({})",
+                                   keycode, keysym);
+                            self.process_chord(keysym, event.time());
                         } else {
-                            debug!("generic event: KEY_PRESS: mods: {:?}, keycode: {:?} (no \
-                                   sym)",
-                                   modmask, keycode);
+                            debug!("generic event: KEY_PRESS: keycode: {:?} (no sym)", keycode);
                         }
 
                         self.last_keypress = event.time();
