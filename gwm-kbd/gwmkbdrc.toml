@@ -1,5 +1,5 @@
 modkey = "mod1"
-timeout = 200
+timeout = 400
 
 active_modes = [
   "normal", # first mode listed is default
@@ -23,10 +23,10 @@ leave_cmd = "echo '!n'"
 "$modkey+j" = "echo j"
 "$modkey+k" = "echo k"
 "$modkey+l" = "echo l"
-"$modkey+shift+h" = "echo h"
-"$modkey+shift+j" = "echo j"
-"$modkey+shift+k" = "echo k"
-"$modkey+shift+l" = "echo l"
+"$modkey+shift+h" = "echo H"
+"$modkey+shift+j" = "echo J"
+"$modkey+shift+k" = "echo K"
+"$modkey+shift+l" = "echo L"
 
 [modes.swap]
 enter_binding = "$modkey+s"
