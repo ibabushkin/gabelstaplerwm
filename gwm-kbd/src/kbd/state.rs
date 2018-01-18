@@ -404,8 +404,18 @@ impl<'a> DaemonState<'a> {
     ///
     /// Dispatches to command execution and mode switching logic according to configuration.
     fn process_chord(&mut self,
-                     keysym: KeysymDesc,
+                     keycode: Keycode,
                      time: xproto::Timestamp) {
+
+        let keysym = if let Some(sym) = self.kbd_state.lookup_keycode(keycode) {
+            debug!("key pressed:: keycode={:?} (sym={})", keycode, sym);
+
+            sym
+        } else {
+            debug!("key pressed: keycode={:?} (no sym)", keycode);
+            return;
+        };
+
         let chord = ChordDesc::new(keysym, self.kbd_state.modmask());
         let mut drop_chain = true;
         let mut mode_switch = None;
@@ -440,6 +450,8 @@ impl<'a> DaemonState<'a> {
         } else {
             self.fallback_mode();
         }
+
+        self.last_keypress = time;
     }
 
     /// Run the main loop of the daemon.
@@ -503,17 +515,8 @@ impl<'a> DaemonState<'a> {
                     xproto::KEY_PRESS => {
                         let event = unsafe { cast_event::<xproto::KeyPressEvent>(&event) };
                         let keycode = Keycode(u32::from(event.detail()));
-                        // let modmask = xkb::ModMask(u32::from(event.state()));
 
-                        if let Some(keysym) = self.kbd_state.lookup_keycode(keycode) {
-                            debug!("generic event: KEY_PRESS: keycode (sym): {:?} ({})",
-                                   keycode, keysym);
-                            self.process_chord(keysym, event.time());
-                        } else {
-                            debug!("generic event: KEY_PRESS: keycode: {:?} (no sym)", keycode);
-                        }
-
-                        self.last_keypress = event.time();
+                        self.process_chord(keycode, event.time());
                     },
                     xproto::KEY_RELEASE => {
                         debug!("generic event: KEY_RELEASE");
