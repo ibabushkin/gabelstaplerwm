@@ -31,7 +31,9 @@ leave_cmd = "echo '!n'"
 [modes.swap]
 enter_binding = "$modkey+s"
 enter_binding_quick_leave = "$modkey+m $modkey+s"
-bindings = {}
+
+[modes.swap.bindings]
+"$modkey+j" = "echo j-s"
 
 [modes.move]
 enter_binding = "$modkey+shift+m"

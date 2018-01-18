@@ -68,8 +68,6 @@ fn setup_logger() {
 
 /// Main routine.
 fn do_main(path: &Path) -> KbdResult<()> {
-    setup_logger();
-
     let (con, screen_num) = match Connection::connect(None) {
         Ok(c) => c,
         Err(e) => {
@@ -204,6 +202,8 @@ fn main() {
         warn!("couldn't determine the value of $HOME, using current dir");
         PathBuf::from("gwmkbdrc")
     };
+
+    setup_logger();
 
     match do_main(&config_path) {
         Ok(()) => ::std::process::exit(0),

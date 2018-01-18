@@ -367,6 +367,7 @@ impl<'a> DaemonState<'a> {
     /// Fall back to a mode possibly stored in the `previous_mode` field.
     fn fallback_mode(&mut self) {
         if let Some(fallback_mode) = self.previous_mode {
+            info!("falling back to mode");
             self.switch_mode(ModeSwitchDesc::Permanent(fallback_mode));
         }
     }
@@ -386,6 +387,11 @@ impl<'a> DaemonState<'a> {
             },
         };
 
+        if new_mode == self.current_mode {
+            self.previous_mode = None;
+            return;
+        }
+
         if let Some(cmd) = self.modes[self.current_mode].leave_cmd() {
             cmd.run();
         }
@@ -403,16 +409,17 @@ impl<'a> DaemonState<'a> {
     /// Process a chord determined from a key press event.
     ///
     /// Dispatches to command execution and mode switching logic according to configuration.
-    fn process_chord(&mut self,
-                     keycode: Keycode,
-                     time: xproto::Timestamp) {
-
+    fn process_chord(&mut self, keycode: Keycode, time: xproto::Timestamp) {
         let keysym = if let Some(sym) = self.kbd_state.lookup_keycode(keycode) {
             debug!("key pressed:: keycode={:?} (sym={})", keycode, sym);
 
             sym
         } else {
+            // we don't actually expect this to happen, at least in X11, because we don't grab
+            // keys we don't need.
             debug!("key pressed: keycode={:?} (no sym)", keycode);
+
+            self.fallback_mode();
             return;
         };
 
@@ -494,7 +501,6 @@ impl<'a> DaemonState<'a> {
                     },
                     xxkb::MAP_NOTIFY => {
                         debug!("xkb event: MAP_NOTIFY");
-                        // let event = unsafe { cast_event::<xxkb::MapNotifyEvent>(&event) };
 
                         if let Err(e) = self.kbd_state.update_keymap() {
                             e.handle();
@@ -513,6 +519,7 @@ impl<'a> DaemonState<'a> {
             } else {
                 match event.response_type() {
                     xproto::KEY_PRESS => {
+                        debug!("generic event: KEY_PRESS");
                         let event = unsafe { cast_event::<xproto::KeyPressEvent>(&event) };
                         let keycode = Keycode(u32::from(event.detail()));
 
