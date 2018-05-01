@@ -403,9 +403,8 @@ pub fn setup_wm(wm: &mut Wm) {
     wm.setup_matching(Box::new(
         |props, screens| if props.name == "Mozilla Firefox" {
             Some((set![Tag::Web], false))
-        } else if props.class.contains(&String::from("uzbl-core")) {
-            Some((set![Tag::Web], true))
-        } else if props.class.contains(&String::from("Chat")) {
+        } else if props.class.contains(&String::from("Chat")) ||
+                props.class.contains(&String::from("telegram-desktop")) {
             Some((set![Tag::Chat], true))
         } else if props.class.contains(&String::from("Org")) {
             Some((set![Tag::Org], true))
@@ -432,7 +431,7 @@ pub fn setup_wm(wm: &mut Wm) {
             let tagsets = vec![
                 TagSet::new(set![Tag::Web], VStack::new(80, true, false)),
                 TagSet::new(set![Tag::Work(0)], VStack::default()),
-                TagSet::new(set![Tag::Chat], HStack::new(75, true, false)),
+                TagSet::new(set![Tag::Chat], VStack::new(75, true, false)),
                 TagSet::new(set![Tag::Org], HStack::new(75, false, false)),
                 TagSet::new(set![Tag::Mail], HStack::new(75, false, false)),
                 TagSet::new(set![Tag::Media], Monocle::default()),
