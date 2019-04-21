@@ -19,6 +19,3 @@ toml = "^0.4.5"
 xcb = { version = "^0.8", features = ["xkb"] }
 xkb = { version = "^0.2", features = ["x11"] }
 # pledge = { version = "*", optional = true }
-
-# [replace]
-# "xkb:0.1.2" = { git = "https://github.com/ibabushkin/rust-xkb" }
