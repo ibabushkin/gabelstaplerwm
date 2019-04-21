@@ -58,8 +58,7 @@ use gwm_kbd::kbd::state::{DaemonState, KbdState};
 
 /// Initialize the logger.
 fn setup_logger() {
-    // fine to unwrap, as this is the only time we call `init`, so the call will not fail.
-    env_logger::init().unwrap();
+    env_logger::init();
     info!("initialized logger");
 
     // clean environment for cargo and other programs honoring `RUST_LOG`
